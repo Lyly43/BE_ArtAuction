@@ -1,0 +1,79 @@
+spring.application.name=AuctionBackend
+server.port=8081
+
+# VNPT KYC Configuration
+vnpt.base-url=https://api.idg.vnpt.vn
+vnpt.token-id=YOUR_VNPT_TOKEN_ID
+vnpt.token-key=YOUR_VNPT_TOKEN_KEY
+vnpt.access-token=bearer YOUR_VNPT_ACCESS_TOKEN
+
+# KYC Thresholds
+kyc.face-match.threshold=0.75
+kyc.liveness.threshold=0.80
+
+# Logging
+logging.level.org.springframework.web.reactive.function.client=TRACE
+logging.level.reactor.netty.http.client=DEBUG
+
+# MongoDB Configuration
+spring.data.mongodb.uri=mongodb+srv://USERNAME:PASSWORD@CLUSTER.mongodb.net/DATABASE
+spring.data.mongodb.database=auctionDB
+
+spring.jackson.serialization.write-dates-as-timestamps=false
+
+# Cloudinary Configuration
+cloudinary.cloud_name=YOUR_CLOUDINARY_CLOUD_NAME
+cloudinary.api_key=YOUR_CLOUDINARY_API_KEY
+cloudinary.api_secret=YOUR_CLOUDINARY_API_SECRET
+
+# Redis Configuration
+spring.data.redis.host=localhost
+spring.data.redis.port=7000
+
+# MB Bank Configuration
+mb.bank-code=970422
+mb.account-no=YOUR_ACCOUNT_NO
+mb.account-name=YOUR_ACCOUNT_NAME
+mb.username=YOUR_MB_USERNAME
+mb.password=YOUR_MB_PASSWORD
+mb.number-mb=YOUR_MB_NUMBER
+mb.api.base-url=https://api.mbbank.com.vn/v2/transfer
+mb.api.url=https://api-mb.midstack.io.vn/api/transactions
+mb.api.username=YOUR_MB_API_USERNAME
+mb.api.password=YOUR_MB_API_PASSWORD
+mb.api.accountNo=YOUR_MB_API_ACCOUNT_NO
+
+# JWT Secret
+app.jwt.secret=YOUR_JWT_SECRET_KEY_HERE
+security.jwt.secret=YOUR_SECURITY_JWT_SECRET_KEY_HERE
+
+# File Upload
+spring.servlet.multipart.max-file-size=15MB
+spring.servlet.multipart.max-request-size=15MB
+
+# WebSocket Logging
+logging.level.org.springframework.messaging=DEBUG
+logging.level.org.springframework.web.socket=DEBUG
+logging.level.org.springframework.web.socket.messaging=DEBUG
+logging.level.org.springframework.security=DEBUG
+
+# ZegoCloud Configuration
+zegocloud.app-id=YOUR_ZEGOCLOUD_APP_ID
+zegocloud.server-secret=YOUR_ZEGOCLOUD_SERVER_SECRET
+zegocloud.token-ttl-seconds=1800
+
+# Email Configuration
+spring.mail.host=smtp.gmail.com
+spring.mail.port=587
+spring.mail.username=YOUR_EMAIL@gmail.com
+spring.mail.password=YOUR_EMAIL_APP_PASSWORD
+spring.mail.properties.mail.smtp.auth=true
+spring.mail.properties.mail.smtp.starttls.enable=true
+spring.mail.properties.mail.smtp.starttls.required=true
+
+# Frontend URL
+app.frontend.url=http://localhost:5173
+
+# Flask API Configuration
+flask.predict-url=http://localhost:5000/predict
+

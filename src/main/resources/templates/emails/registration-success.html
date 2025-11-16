@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Đăng ký thành công</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background-color: #4CAF50;
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            padding: 30px;
+            background-color: #ffffff;
+        }
+        .content p {
+            margin: 15px 0;
+            font-size: 16px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 35px;
+            background-color: #4CAF50;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+        .info-box {
+            background-color: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .info-box strong {
+            color: #4CAF50;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <h1>🎉 Đăng ký thành công!</h1>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <p>Xin chào <strong th:text="${userName}">Nguyễn Văn A</strong>,</p>
+
+        <p>Chúc mừng bạn! Đăng ký tham gia đấu giá của bạn đã được <strong>xác thực thành công</strong>.</p>
+
+        <p>Thông tin CCCD của bạn đã được xác minh và hệ thống đã chấp nhận đăng ký của bạn.</p>
+
+        <!-- Payment Button -->
+        <div class="button-container">
+            <a th:href="${paymentLink}" class="button">Thanh toán hợp đồng và hồ sơ</a>
+        </div>
+
+        <!-- Info Box -->
+        <div class="info-box">
+            <p><strong>⚠️ Lưu ý quan trọng:</strong></p>
+            <p>Vui lòng hoàn tất thanh toán trong vòng <strong>24 giờ</strong> để giữ chỗ tham gia đấu giá.</p>
+        </div>
+
+        <!-- Room ID -->
+        <p>Mã phòng đấu giá: <strong th:text="${roomId}">ACR-xxx</strong></p>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p><strong>Trân trọng,</strong></p>
+        <p>Đội ngũ Hệ thống Đấu giá</p>
+        <p style="margin-top: 15px; color: #999;">
+            Email này được gửi tự động, vui lòng không trả lời.
+        </p>
+    </div>
+</div>
+</body>
+</html>
+
