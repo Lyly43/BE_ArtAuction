@@ -22,7 +22,6 @@ public class ArtworkController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    // Lấy danh sách 6 tác phẩm có giá cao nhất
     @GetMapping("/featured")
     public List<ArtworkResponse> getFeaturedArtworks() {
         return artworkService.getFeaturedArtworks().stream()
@@ -83,6 +82,8 @@ public class ArtworkController {
 
         // Tạo artwork với avatar + nhiều ảnh phụ
         return artworkService.createArtworkWithImages(artwork, avtFile, imageFiles, email);
+        //comment test
+
     }
 
 }
