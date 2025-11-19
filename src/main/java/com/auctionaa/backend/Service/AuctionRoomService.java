@@ -1,6 +1,7 @@
 package com.auctionaa.backend.Service;
 
 import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
+import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.User;
@@ -8,6 +9,7 @@ import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +21,9 @@ public class AuctionRoomService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private GenericSearchService genericSearchService;
 
     public List<AuctionRoom> getByOwnerEmail(String email) {
         User user = userRepository.findById(email)
@@ -67,6 +72,24 @@ public class AuctionRoomService {
 
     public List<AuctionRoomLiveDTO> getRoomsWithLivePrices() {
         return auctionRoomRepository.findRoomsWithLivePrices(SESSION_STATUS_RUNNING);
+    }
+
+    /**
+     * Tìm kiếm và lọc auction room theo các tiêu chí:
+     * - Tìm kiếm theo ID (exact match)
+     * - Tìm kiếm theo tên phòng (partial match, case-insensitive)
+     * - Lọc theo thể loại (type)
+     * - Lọc theo ngày tạo (dateFrom, dateTo)
+     */
+    public List<AuctionRoom> searchAndFilter(BaseSearchRequest request) {
+        return genericSearchService.searchAndFilter(
+                request,
+                AuctionRoom.class,
+                "_id", // idField
+                "roomName", // nameField
+                "type", // typeField
+                "createdAt" // dateField
+        );
     }
 
 }

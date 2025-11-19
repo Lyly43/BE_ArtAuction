@@ -22,6 +22,7 @@ public class ArtworkController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    // Lấy danh sách 6 tác phẩm có giá cao nhất
     @GetMapping("/featured")
     public List<ArtworkResponse> getFeaturedArtworks() {
         return artworkService.getFeaturedArtworks().stream()
@@ -82,8 +83,42 @@ public class ArtworkController {
 
         // Tạo artwork với avatar + nhiều ảnh phụ
         return artworkService.createArtworkWithImages(artwork, avtFile, imageFiles, email);
-        //comment test
+    }
 
+    /**
+     * Tìm kiếm và lọc artwork
+     * Query params: id, name (title), type (paintingGenre), dateFrom, dateTo
+     */
+    @GetMapping("/search")
+    public List<Artwork> searchAndFilter(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        com.auctionaa.backend.DTO.Request.BaseSearchRequest request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
+        request.setId(id);
+        request.setName(name);
+        request.setType(type);
+
+        if (dateFrom != null && !dateFrom.isEmpty()) {
+            try {
+                request.setDateFrom(java.time.LocalDate.parse(dateFrom));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        if (dateTo != null && !dateTo.isEmpty()) {
+            try {
+                request.setDateTo(java.time.LocalDate.parse(dateTo));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        return artworkService.searchAndFilter(request);
     }
 
 }

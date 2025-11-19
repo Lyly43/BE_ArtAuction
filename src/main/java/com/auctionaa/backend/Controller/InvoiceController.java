@@ -45,4 +45,38 @@ public class InvoiceController {
         String email = jwtUtil.extractUserId(token);
         return invoiceService.getMyInvoicesArray(email);
     }
+
+    /**
+     * Tìm kiếm và lọc invoice
+     * Query params: id, name (artworkTitle hoặc roomName), dateFrom, dateTo
+     */
+    @GetMapping("/search")
+    public List<Invoice> searchAndFilter(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        com.auctionaa.backend.DTO.Request.BaseSearchRequest request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
+        request.setId(id);
+        request.setName(name);
+
+        if (dateFrom != null && !dateFrom.isEmpty()) {
+            try {
+                request.setDateFrom(java.time.LocalDate.parse(dateFrom));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        if (dateTo != null && !dateTo.isEmpty()) {
+            try {
+                request.setDateTo(java.time.LocalDate.parse(dateTo));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        return invoiceService.searchAndFilter(request);
+    }
 }

@@ -1,5 +1,6 @@
 package com.auctionaa.backend.Service;
 
+import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Response.ArtworkResponse;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.AuctionSession;
@@ -19,19 +20,21 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-
 @Service
 public class ArtworkService {
 
     private final ArtworkRepository artworkRepository;
     private final CloudinaryService cloudinaryService; // service tự viết để upload
+    private final GenericSearchService genericSearchService;
 
     @Autowired
     private UserRepository userRepository;
 
-    public ArtworkService(ArtworkRepository artworkRepository, CloudinaryService cloudinaryService) {
+    public ArtworkService(ArtworkRepository artworkRepository, CloudinaryService cloudinaryService,
+                          GenericSearchService genericSearchService) {
         this.artworkRepository = artworkRepository;
         this.cloudinaryService = cloudinaryService;
+        this.genericSearchService = genericSearchService;
     }
 
     public List<Artwork> getFeaturedArtworks() {
@@ -59,9 +62,9 @@ public class ArtworkService {
 
     // Hàm mới thêm
     public Artwork createArtworkWithImages(Artwork artwork,
-            MultipartFile avtFile,
-            List<MultipartFile> imageFiles,
-            String ownerEmail) {
+                                           MultipartFile avtFile,
+                                           List<MultipartFile> imageFiles,
+                                           String ownerEmail) {
         try {
             // Upload avatar
             String avtUrl = null;
@@ -99,8 +102,10 @@ public class ArtworkService {
             throw new RuntimeException("Error creating Artwork with images: " + e.getMessage());
         }
     }
+
     @Autowired
-    AuctionSessionRepository auctionSessionRepository ;
+    AuctionSessionRepository auctionSessionRepository;
+
     public Artwork getArtworkBySessionId(String sessionId) {
         AuctionSession auctionSession = auctionSessionRepository.findById(sessionId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "SessionID not found"));
@@ -109,7 +114,6 @@ public class ArtworkService {
         return artworkRepository.findById(artworkId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Artwork not found"));
     }
-
 
     @Autowired
     private BidsRepository bidsRepository;
@@ -142,6 +146,24 @@ public class ArtworkService {
                 artwork.getOwnerId()).ifPresent(bid -> dto.setMyLatestBidAmount(bid.getAmountAtThatTime()));
 
         return dto;
+    }
+
+    /**
+     * Tìm kiếm và lọc artwork
+     * - Tìm theo ID
+     * - Tìm theo title (tên)
+     * - Lọc theo paintingGenre (thể loại)
+     * - Lọc theo createdAt (ngày tạo)
+     */
+    public List<Artwork> searchAndFilter(BaseSearchRequest request) {
+        return genericSearchService.searchAndFilter(
+                request,
+                Artwork.class,
+                "_id", // idField
+                "title", // nameField
+                "paintingGenre", // typeField
+                "createdAt" // dateField
+        );
     }
 
 }

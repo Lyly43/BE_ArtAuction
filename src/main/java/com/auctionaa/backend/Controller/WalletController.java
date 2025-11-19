@@ -1,5 +1,6 @@
 package com.auctionaa.backend.Controller;
 
+import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Request.CreateTopUpRequest;
 import com.auctionaa.backend.DTO.Response.CreateTopUpResponse;
 import com.auctionaa.backend.DTO.Response.VerifyTopUpResponse;
@@ -8,6 +9,7 @@ import com.auctionaa.backend.Entity.WalletTransaction;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Repository.WalletRepository;
 import com.auctionaa.backend.Repository.WalletTransactionRepository;
+import com.auctionaa.backend.Service.GenericSearchService;
 import com.auctionaa.backend.Service.TopUpService;
 import com.auctionaa.backend.Service.VerifyCaptureService;
 import jakarta.validation.Valid;
@@ -27,6 +29,7 @@ public class WalletController {
     private final TopUpService topUpService;
     private final VerifyCaptureService verifyCaptureService;
     private final WalletTransactionRepository txnRepo;
+    private final GenericSearchService genericSearchService;
     @Autowired
     private JwtUtil jwtUtil;
     @Autowired
@@ -45,13 +48,14 @@ public class WalletController {
         return ResponseEntity.ok(topUpService.createTopUp(wallet.getId(), req));
     }
 
-
-//    @PostMapping("/{transactionId}/verify")
-//    public ResponseEntity<VerifyTopUpResponse> verifyAndCapture(@PathVariable String transactionId, @RequestHeader("Authorization") String authHeader) {
-//        String token = authHeader.replace("Bearer ", "").trim();
-//        String email = jwtUtil.extractUserId(token);
-//        return ResponseEntity.ok(verifyCaptureService.verifyAndCapture(transactionId));
-//    }
+    // @PostMapping("/{transactionId}/verify")
+    // public ResponseEntity<VerifyTopUpResponse> verifyAndCapture(@PathVariable
+    // String transactionId, @RequestHeader("Authorization") String authHeader) {
+    // String token = authHeader.replace("Bearer ", "").trim();
+    // String email = jwtUtil.extractUserId(token);
+    // return
+    // ResponseEntity.ok(verifyCaptureService.verifyAndCapture(transactionId));
+    // }
 
     @PostMapping("/{id}/verify-capture")
     public VerifyTopUpResponse verifyAndCapture(@PathVariable String id) {
@@ -59,7 +63,7 @@ public class WalletController {
     }
 
     @GetMapping("/getWallet")
-    public ResponseEntity<?> getWallet( @RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<?> getWallet(@RequestHeader("Authorization") String authHeader) {
         String userId = jwtUtil.extractUserId(authHeader);
         Wallet wallet = walletRepo.findByUserId(userId)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy ví với ID: " + userId));
@@ -68,8 +72,7 @@ public class WalletController {
 
     @GetMapping("/transactionHistories")
     public List<WalletTransaction> Histories(@RequestHeader("Authorization") String authHeader,
-                                             @RequestParam(defaultValue = "1") int status )
-    {
+                                             @RequestParam(defaultValue = "1") int status) {
         // 1️⃣ Giải mã userId trực tiếp từ JWT (JwtUtil tự xử lý "Bearer ")
         String userId = jwtUtil.extractUserId(authHeader);
 
@@ -85,5 +88,45 @@ public class WalletController {
                 userId, wallet.getId(), status, txns.size());
 
         return txns;
+    }
+
+    /**
+     * Tìm kiếm và lọc wallet
+     * Query params: id, dateFrom, dateTo
+     * Note: Wallet không có field "name" và "type" nên chỉ tìm theo ID và ngày
+     */
+    @GetMapping("/search")
+    public List<Wallet> searchAndFilter(
+            @RequestParam(required = false) String id,
+            @RequestParam(required = false) String dateFrom,
+            @RequestParam(required = false) String dateTo) {
+
+        BaseSearchRequest request = new BaseSearchRequest();
+        request.setId(id);
+
+        if (dateFrom != null && !dateFrom.isEmpty()) {
+            try {
+                request.setDateFrom(java.time.LocalDate.parse(dateFrom));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        if (dateTo != null && !dateTo.isEmpty()) {
+            try {
+                request.setDateTo(java.time.LocalDate.parse(dateTo));
+            } catch (Exception e) {
+                // Ignore invalid date format
+            }
+        }
+
+        return genericSearchService.searchAndFilter(
+                request,
+                Wallet.class,
+                "_id", // idField
+                null, // nameField (không có)
+                null, // typeField (không có)
+                "createdAt" // dateField
+        );
     }
 }

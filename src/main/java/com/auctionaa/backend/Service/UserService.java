@@ -5,9 +5,16 @@ import com.auctionaa.backend.DTO.Request.UserRequest;
 import com.auctionaa.backend.DTO.Response.AuthResponse;
 import com.auctionaa.backend.DTO.Response.UserAVTResponse;
 import com.auctionaa.backend.DTO.Response.UserResponse;
+import com.auctionaa.backend.DTO.Response.UserTradeStatsResponse;
+import com.auctionaa.backend.Entity.Artwork;
+import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Entity.User;
+import com.auctionaa.backend.Entity.Wallet;
 import com.auctionaa.backend.Jwt.JwtUtil;
+import com.auctionaa.backend.Repository.ArtworkRepository;
+import com.auctionaa.backend.Repository.InvoiceRepository;
 import com.auctionaa.backend.Repository.UserRepository;
+import com.auctionaa.backend.Repository.WalletRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,7 +26,10 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -30,8 +40,13 @@ public class UserService {
     @Autowired
     private UserRepository userRepository;
     @Autowired
+    private WalletRepository walletRepository;
+    @Autowired
+    private InvoiceRepository invoiceRepository;
+    @Autowired
+    private ArtworkRepository artworkRepository;
+    @Autowired
     private JwtUtil jwtUtil;
-
 
     private final ModelMapper mapper;
     private final CloudinaryService cloudinaryService;
@@ -67,7 +82,16 @@ public class UserService {
         // ✅ generate ID trước khi save
         user.generateId();
 
-        userRepository.save(user);
+        User savedUser = userRepository.save(user);
+
+        // ✅ Tự động tạo ví cho user mới
+        Wallet wallet = new Wallet();
+        wallet.setUserId(savedUser.getId());
+        wallet.setBalance(BigDecimal.ZERO);
+        wallet.setFrozenBalance(BigDecimal.ZERO);
+        wallet.generateId(); // Generate ID cho wallet
+        walletRepository.save(wallet);
+
         return new AuthResponse(1, "Register Successfully");
 
     }
@@ -103,13 +127,13 @@ public class UserService {
 
         // Nếu ID là ObjectId (Mongo):
         // User user = userRepository.findById(new ObjectId(userId))
-        //        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
+        // .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
 
         UserResponse userResponse = mapper.map(user, UserResponse.class);
         return ResponseEntity.ok(userResponse);
     }
 
-    public UserResponse updateUserById(String userId, UserRequest dto){
+    public UserResponse updateUserById(String userId, UserRequest dto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -118,18 +142,24 @@ public class UserService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email cannot be changed at this endpoint");
         }
 
-        if (StringUtils.hasText(dto.getUsername()))    user.setUsername(dto.getUsername());
-        if (StringUtils.hasText(dto.getPhonenumber())) user.setPhonenumber(dto.getPhonenumber());
-        if (StringUtils.hasText(dto.getCccd()))        user.setCccd(dto.getCccd());
-        if (StringUtils.hasText(dto.getAddress()))     user.setAddress(dto.getAddress());
-        if (dto.getDateOfBirth() != null)              user.setDateOfBirth(dto.getDateOfBirth());
-        if (dto.getGender() != null)                   user.setGender(dto.getGender());
+        if (StringUtils.hasText(dto.getUsername()))
+            user.setUsername(dto.getUsername());
+        if (StringUtils.hasText(dto.getPhonenumber()))
+            user.setPhonenumber(dto.getPhonenumber());
+        if (StringUtils.hasText(dto.getCccd()))
+            user.setCccd(dto.getCccd());
+        if (StringUtils.hasText(dto.getAddress()))
+            user.setAddress(dto.getAddress());
+        if (dto.getDateOfBirth() != null)
+            user.setDateOfBirth(dto.getDateOfBirth());
+        if (dto.getGender() != null)
+            user.setGender(dto.getGender());
 
         User saved = userRepository.save(user);
         return mapper.map(saved, UserResponse.class);
     }
 
-    public UserAVTResponse updateAvatarById(String userId, MultipartFile avatarFile){
+    public UserAVTResponse updateAvatarById(String userId, MultipartFile avatarFile) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
@@ -142,20 +172,63 @@ public class UserService {
             user.setAvtPublicId(up.getPublicId());
 
             User saved = userRepository.save(user);
-            return mapper.map(saved,  UserAVTResponse.class);
+            return mapper.map(saved, UserAVTResponse.class);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Upload avatar lỗi", e);
         }
     }
 
+    public UserTradeStatsResponse getTradingStats(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        List<Invoice> paidBuyerInvoices = invoiceRepository.findByUserIdAndPaymentStatus(user.getId(), 1);
+        long purchasedCount = paidBuyerInvoices.size();
+        BigDecimal totalSpent = sumInvoiceTotals(paidBuyerInvoices);
+
+        long soldCount = 0;
+        BigDecimal totalRevenue = BigDecimal.ZERO;
+
+        if (user.getRole() == 2) {
+            List<String> artworkIds = artworkRepository.findByOwnerId(user.getId()).stream()
+                    .map(Artwork::getId)
+                    .filter(Objects::nonNull)
+                    .toList();
+
+            if (!artworkIds.isEmpty()) {
+                List<Invoice> soldInvoices = invoiceRepository.findByArtworkIdInAndPaymentStatus(artworkIds, 1);
+                soldCount = soldInvoices.size();
+                totalRevenue = sumInvoiceTotals(soldInvoices);
+            }
+        }
+
+        return UserTradeStatsResponse.builder()
+                .role(user.getRole())
+                .purchasedCount(purchasedCount)
+                .totalSpent(totalSpent)
+                .soldCount(user.getRole() == 2 ? soldCount : 0)
+                .totalRevenue(user.getRole() == 2 ? totalRevenue : BigDecimal.ZERO)
+                .build();
+    }
+
+    private BigDecimal sumInvoiceTotals(List<Invoice> invoices) {
+        if (invoices == null || invoices.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return invoices.stream()
+                .map(Invoice::getTotalAmount)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     // (Tùy chọn) Giữ compatibility — nhưng KHÔNG dùng nữa
     @Deprecated
-    public UserResponse updateUserByEmail(String email, UserRequest dto){
+    public UserResponse updateUserByEmail(String email, UserRequest dto) {
         throw new ResponseStatusException(HttpStatus.GONE, "Endpoint updated: use userId from JWT");
     }
 
     @Deprecated
-    public UserResponse updateAvatar(String email, MultipartFile avatarFile){
+    public UserResponse updateAvatar(String email, MultipartFile avatarFile) {
         throw new ResponseStatusException(HttpStatus.GONE, "Endpoint updated: use userId from JWT");
     }
 }
