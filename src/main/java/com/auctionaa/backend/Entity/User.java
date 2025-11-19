@@ -39,6 +39,7 @@ public class User extends BaseEntity {
     private int role;
     private LocalDate dateOfBirth;
     private Integer gender; // 0 = male, 1 = female, 2 = other
+    private int kycStatus; // 0 = chưa xác thực, 1 = đã xác thực thành công
 
     @Override
     public String getPrefix() {
