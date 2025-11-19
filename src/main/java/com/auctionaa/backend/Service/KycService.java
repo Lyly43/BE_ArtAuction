@@ -293,6 +293,7 @@ public class KycService {
                 .message(passed ? "Đăng ký đã được xác thực thành công" : "Xác thực thất bại")
                 .build();
     }
+
     /**
      * Đăng ký đấu giá với file ảnh (MultipartFile)
      * Tự động skip KYC nếu user đã là buyer (role = 1) và đã xác thực KYC
@@ -353,16 +354,34 @@ public class KycService {
                     .build();
         }
 
-        // Nếu chưa là buyer, bắt buộc phải có file ảnh để verify KYC
-        if (cccdFront == null || cccdFront.isEmpty()) {
+        boolean frontProvided = cccdFront != null && !cccdFront.isEmpty();
+        boolean backProvided = cccdBack != null && !cccdBack.isEmpty();
+        boolean selfieProvided = selfie != null && !selfie.isEmpty();
+
+        // Role 0 chưa xác thực KYC: nếu chưa gửi đủ ảnh thì trả lời hướng dẫn thay vì
+        // lỗi
+        if (user.getRole() == 0 && (!frontProvided || !backProvided || !selfieProvided)) {
+            return KycSubmitResponse.builder()
+                    .registrationId(null)
+                    .kycId(null)
+                    .status(user.getKycStatus())
+                    .faceMatchScore(null)
+                    .livenessScore(null)
+                    .message(
+                            "Bạn cần xác thực CCCD (gửi đủ ảnh mặt trước, mặt sau và selfie) trước khi đăng ký đấu giá")
+                    .build();
+        }
+
+        // Các trường hợp còn lại: bắt buộc phải có file ảnh đầy đủ
+        if (!frontProvided) {
             throw new IllegalArgumentException(
                     "CCCD mặt trước không được để trống. Bạn cần xác thực KYC trước khi đăng ký đấu giá.");
         }
-        if (cccdBack == null || cccdBack.isEmpty()) {
+        if (!backProvided) {
             throw new IllegalArgumentException(
                     "CCCD mặt sau không được để trống. Bạn cần xác thực KYC trước khi đăng ký đấu giá.");
         }
-        if (selfie == null || selfie.isEmpty()) {
+        if (!selfieProvided) {
             throw new IllegalArgumentException(
                     "Ảnh selfie không được để trống. Bạn cần xác thực KYC trước khi đăng ký đấu giá.");
         }
