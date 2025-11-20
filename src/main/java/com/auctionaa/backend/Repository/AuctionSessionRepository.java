@@ -26,6 +26,8 @@ public interface AuctionSessionRepository extends MongoRepository<AuctionSession
     Optional<AuctionSession>
     findFirstByAuctionRoomIdAndStatusOrderByStartTimeDesc(String auctionRoomId, int status);
 
+    Optional<AuctionSession> findFirstByAuctionRoomIdOrderByStartTimeDesc(String auctionRoomId);
+
     // (tuỳ chọn) kiểm tra còn bao nhiêu phiên chưa chạy/đang chạy
     long countByAuctionRoomIdAndStatusIn(String auctionRoomId, List<Integer> statuses);
 

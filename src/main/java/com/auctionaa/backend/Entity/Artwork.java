@@ -28,7 +28,7 @@ public class Artwork extends BaseEntity {
     private String description;
     private String avtArtwork;
     private List<String> imageUrls;
-    private int status;
+    private int status; //    0: Chưa duyệt, 1: Đã duyệt, 2: Đang đấu giá, 3: Từ chối
     private boolean aiVerified;
     private BigDecimal startedPrice;
 
@@ -50,4 +50,5 @@ public class Artwork extends BaseEntity {
     public String getPrefix() {
         return "Aw-";
     }
+
 }

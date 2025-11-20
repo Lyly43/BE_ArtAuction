@@ -64,6 +64,7 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
     })
     List<AuctionRoomLiveDTO> findRoomsWithLivePrices(int runningStatus);
 
+    long countByStatus(int status);
 
-
+    List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
 }

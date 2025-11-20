@@ -19,6 +19,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 public class User extends BaseEntity {
 
+    @Indexed(unique = true)
     private String username;
     private String password;
     @Indexed(unique = true)

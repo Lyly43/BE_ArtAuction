@@ -1,9 +1,14 @@
 package com.auctionaa.backend.Entity;
 
+import jakarta.validation.constraints.DecimalMin;
 import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+import org.springframework.data.mongodb.core.mapping.FieldType;
+
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -23,6 +28,13 @@ public class AuctionRoom extends BaseEntity {
     private String imageAuctionRoom;
     private String type;
     private int status;
+
+    @DecimalMin(value = "0.0", inclusive = true)
+    @Field(value = "deposit_amount", targetType = FieldType.DECIMAL128)
+    private BigDecimal depositAmount;
+
+    // Thời hạn thanh toán sau khi thắng (số ngày)
+    private Integer paymentDeadlineDays;
 
     private LocalDateTime startedAt;
     private LocalDateTime stoppedAt;
