@@ -3,6 +3,7 @@ package AdminBackend.Service;
 import AdminBackend.DTO.Request.AddArtworkRequest;
 import AdminBackend.DTO.Request.UpdateArtworkRequest;
 import AdminBackend.DTO.Response.AdminArtworkResponse;
+import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
 import AdminBackend.DTO.Response.ArtworkStatisticsResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
@@ -32,17 +33,17 @@ public class AdminArtworkService {
     /**
      * Admin thêm tác phẩm mới
      */
-    public ResponseEntity<?> addArtwork(AddArtworkRequest request) {
+    public ResponseEntity<AdminBasicResponse<AdminArtworkResponse>> addArtwork(AddArtworkRequest request) {
         // Validate ownerId tồn tại
         if (request.getOwnerId() == null || request.getOwnerId().trim().isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("OwnerId is required");
+                    .body(new AdminBasicResponse<>(0, "OwnerId is required", null));
         }
 
         Optional<User> ownerOpt = userRepository.findById(request.getOwnerId());
         if (ownerOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("User not found with ownerId: " + request.getOwnerId());
+                    .body(new AdminBasicResponse<>(0, "User not found with ownerId: " + request.getOwnerId(), null));
         }
 
         // Tạo artwork mới
@@ -65,8 +66,10 @@ public class AdminArtworkService {
 
         Artwork savedArtwork = artworkRepository.save(artwork);
 
+        AdminArtworkResponse response = mapToAdminArtworkResponse(savedArtwork);
+
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Artwork created successfully with ID: " + savedArtwork.getId());
+                .body(new AdminBasicResponse<>(1, "Artwork created successfully", response));
     }
 
     /**
@@ -199,16 +202,16 @@ public class AdminArtworkService {
     /**
      * Admin xóa tác phẩm
      */
-    public ResponseEntity<?> deleteArtwork(String artworkId) {
+    public ResponseEntity<AdminBasicResponse<Void>> deleteArtwork(String artworkId) {
         Optional<Artwork> artworkOpt = artworkRepository.findById(artworkId);
         if (artworkOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Artwork not found with ID: " + artworkId);
+                    .body(new AdminBasicResponse<>(0, "Artwork not found with ID: " + artworkId, null));
         }
 
         artworkRepository.delete(artworkOpt.get());
 
-        return ResponseEntity.ok("Artwork deleted successfully with ID: " + artworkId);
+        return ResponseEntity.ok(new AdminBasicResponse<>(1, "Artwork deleted successfully", null));
     }
 
     /**

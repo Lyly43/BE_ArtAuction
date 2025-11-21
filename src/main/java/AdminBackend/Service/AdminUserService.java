@@ -2,6 +2,7 @@ package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddUserRequest;
 import AdminBackend.DTO.Request.UpdateUserRequest;
+import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.AdminUserResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import AdminBackend.DTO.Response.UserStatisticsResponse;
@@ -35,17 +36,17 @@ public class AdminUserService {
     /**
      * Admin thêm người dùng mới
      */
-    public ResponseEntity<?> addUser(AddUserRequest request) {
+    public ResponseEntity<AdminBasicResponse<AdminUserResponse>> addUser(AddUserRequest request) {
         // Validate email unique
         if (userRepository.existsByEmail(request.getEmail())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Email already exists");
+                    .body(new AdminBasicResponse<>(0, "Email already exists", null));
         }
 
         // Validate username unique
         if (userRepository.existsByUsername(request.getUsername())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("Username already exists");
+                    .body(new AdminBasicResponse<>(0, "Username already exists", null));
         }
 
         // Create new user
@@ -74,8 +75,10 @@ public class AdminUserService {
         wallet.generateId();
         walletRepository.save(wallet);
 
+        AdminUserResponse response = mapToAdminUserResponse(savedUser);
+
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("User created successfully with ID: " + savedUser.getId());
+                .body(new AdminBasicResponse<>(1, "User created successfully", response));
     }
 
     /**
@@ -127,7 +130,7 @@ public class AdminUserService {
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("User not found with ID: " + userId);
+                    .body(new AdminBasicResponse<>(0, "User not found with ID: " + userId, null));
         }
 
         User user = userOpt.get();
@@ -136,7 +139,7 @@ public class AdminUserService {
         if (request.getEmail() != null && !request.getEmail().equals(user.getEmail())) {
             if (userRepository.existsByEmail(request.getEmail())) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Email already exists");
+                        .body(new AdminBasicResponse<>(0, "Email already exists", null));
             }
             user.setEmail(request.getEmail());
         }
@@ -145,7 +148,7 @@ public class AdminUserService {
         if (request.getUsername() != null && !request.getUsername().equals(user.getUsername())) {
             if (userRepository.existsByUsername(request.getUsername())) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Username already exists");
+                        .body(new AdminBasicResponse<>(0, "Username already exists", null));
             }
             user.setUsername(request.getUsername());
         }
@@ -191,12 +194,12 @@ public class AdminUserService {
     /**
      * Admin xóa người dùng
      */
-    public ResponseEntity<?> deleteUser(String userId) {
+    public ResponseEntity<AdminBasicResponse<Void>> deleteUser(String userId) {
         // Tìm user theo ID
         Optional<User> userOpt = userRepository.findById(userId);
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("User not found with ID: " + userId);
+                    .body(new AdminBasicResponse<>(0, "User not found with ID: " + userId, null));
         }
 
         // Xóa wallet của user trước
@@ -208,7 +211,7 @@ public class AdminUserService {
         // Xóa user
         userRepository.delete(userOpt.get());
 
-        return ResponseEntity.ok("User deleted successfully with ID: " + userId);
+        return ResponseEntity.ok(new AdminBasicResponse<>(1, "User deleted successfully", null));
     }
 
     /**

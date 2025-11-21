@@ -5,6 +5,7 @@ import AdminBackend.DTO.Request.ArtworkPriceSetting;
 import AdminBackend.DTO.Request.CreateAuctionRoomCompleteRequest;
 import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
+import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.AuctionRoomStatisticsResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
@@ -39,20 +40,20 @@ public class AdminAuctionRoomService {
     /**
      * Admin thêm phòng đấu giá mới
      */
-    public ResponseEntity<?> addAuctionRoom(AddAuctionRoomRequest request) {
+    public ResponseEntity<AdminBasicResponse<AdminAuctionRoomResponse>> addAuctionRoom(AddAuctionRoomRequest request) {
         if (!StringUtils.hasText(request.getRoomName())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("roomName is required");
+                    .body(new AdminBasicResponse<>(0, "roomName is required", null));
         }
 
         if (request.getStartedAt() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("startedAt is required");
+                    .body(new AdminBasicResponse<>(0, "startedAt is required", null));
         }
 
         if (!request.getStartedAt().isAfter(LocalDateTime.now())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("startedAt must be in the future");
+                    .body(new AdminBasicResponse<>(0, "startedAt must be in the future", null));
         }
 
         AuctionRoom room = new AuctionRoom();
@@ -70,8 +71,9 @@ public class AdminAuctionRoomService {
         room.setUpdatedAt(LocalDateTime.now());
 
         AuctionRoom saved = auctionRoomRepository.save(room);
+        AdminAuctionRoomResponse response = mapToResponse(saved, true);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body("Auction room created successfully with ID: " + saved.getId());
+                .body(new AdminBasicResponse<>(1, "Auction room created successfully", response));
     }
 
     /**
@@ -161,15 +163,15 @@ public class AdminAuctionRoomService {
     /**
      * Delete
      */
-    public ResponseEntity<?> deleteAuctionRoom(String roomId) {
+    public ResponseEntity<AdminBasicResponse<Void>> deleteAuctionRoom(String roomId) {
         Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(roomId);
         if (roomOpt.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body("Auction room not found with ID: " + roomId);
+                    .body(new AdminBasicResponse<>(0, "Auction room not found with ID: " + roomId, null));
         }
 
         auctionRoomRepository.delete(roomOpt.get());
-        return ResponseEntity.ok("Auction room deleted successfully with ID: " + roomId);
+        return ResponseEntity.ok(new AdminBasicResponse<>(1, "Auction room deleted successfully", null));
     }
 
     /**
@@ -263,36 +265,36 @@ public class AdminAuctionRoomService {
      * Tạo phòng đấu giá hoàn chỉnh với tất cả thông tin
      * Bao gồm: thông tin phòng, danh sách tác phẩm với giá, và cấu hình tài chính
      */
-    public ResponseEntity<?> createAuctionRoomComplete(CreateAuctionRoomCompleteRequest request) {
+    public ResponseEntity<AdminBasicResponse<Map<String, Object>>> createAuctionRoomComplete(CreateAuctionRoomCompleteRequest request) {
         // Validate thông tin cơ bản
         if (!StringUtils.hasText(request.getRoomName())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("roomName is required");
+                    .body(new AdminBasicResponse<>(0, "roomName is required", null));
         }
 
         if (request.getStartedAt() == null) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("startedAt is required");
+                    .body(new AdminBasicResponse<>(0, "startedAt is required", null));
         }
 
         if (!request.getStartedAt().isAfter(LocalDateTime.now())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("startedAt must be in the future");
+                    .body(new AdminBasicResponse<>(0, "startedAt must be in the future", null));
         }
 
         if (request.getArtworks() == null || request.getArtworks().isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("At least one artwork is required");
+                    .body(new AdminBasicResponse<>(0, "At least one artwork is required", null));
         }
 
         if (request.getDepositAmount() == null || request.getDepositAmount().compareTo(BigDecimal.ZERO) < 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("depositAmount is required and must be >= 0");
+                    .body(new AdminBasicResponse<>(0, "depositAmount is required and must be >= 0", null));
         }
 
         if (request.getPaymentDeadlineDays() == null || request.getPaymentDeadlineDays() <= 0) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body("paymentDeadlineDays is required and must be > 0");
+                    .body(new AdminBasicResponse<>(0, "paymentDeadlineDays is required and must be > 0", null));
         }
 
         // Validate và lấy thông tin artworks
@@ -301,7 +303,7 @@ public class AdminAuctionRoomService {
             Optional<Artwork> artworkOpt = artworkRepository.findById(priceSetting.getArtworkId());
             if (artworkOpt.isEmpty()) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("Artwork not found: " + priceSetting.getArtworkId());
+                        .body(new AdminBasicResponse<>(0, "Artwork not found: " + priceSetting.getArtworkId(), null));
             }
 
             Artwork artwork = artworkOpt.get();
@@ -309,13 +311,13 @@ public class AdminAuctionRoomService {
             if (priceSetting.getStartingPrice() == null || 
                 priceSetting.getStartingPrice().compareTo(BigDecimal.ZERO) <= 0) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("startingPrice must be > 0 for artwork: " + artwork.getTitle());
+                        .body(new AdminBasicResponse<>(0, "startingPrice must be > 0 for artwork: " + artwork.getTitle(), null));
             }
 
             if (priceSetting.getBidStep() == null || 
                 priceSetting.getBidStep().compareTo(BigDecimal.ZERO) <= 0) {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                        .body("bidStep must be > 0 for artwork: " + artwork.getTitle());
+                        .body(new AdminBasicResponse<>(0, "bidStep must be > 0 for artwork: " + artwork.getTitle(), null));
             }
 
             artworks.add(artwork);
@@ -392,13 +394,12 @@ public class AdminAuctionRoomService {
             artworkRepository.save(artwork);
         }
 
-        Map<String, Object> response = new HashMap<>();
-        response.put("status", 1);
-        response.put("message", "Auction room created successfully");
-        response.put("roomId", savedRoom.getId());
-        response.put("sessionsCreated", sessions.size());
+        Map<String, Object> data = new HashMap<>();
+        data.put("roomId", savedRoom.getId());
+        data.put("sessionsCreated", sessions.size());
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new AdminBasicResponse<>(1, "Auction room created successfully", data));
     }
 
     private record PricePair(BigDecimal startingPrice, BigDecimal currentPrice) {}

@@ -26,7 +26,7 @@ public class Admin extends BaseEntity {
 
     private String avatar;
 
-    private String status;
+    private int status;
 
     private String role;
 
