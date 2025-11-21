@@ -21,3 +21,4 @@ public interface ReportsRepository extends MongoRepository<Reports, String> {
     long countByReportStatusIn(Collection<Integer> statuses);
 }
 
+

@@ -20,6 +20,9 @@ public class Reports extends BaseEntity {
     private String object; // đóio tượng
     private String reportReason; // lis do baos caos
     private int reportStatus;
+//        "PENDING", "CHỜ XỬ LÝ" → 0
+//        "INVESTIGATING", "ĐANG ĐIỀU TRA", "IN_PROGRESS" → 1
+//        "RESOLVED", "ĐÃ GIẢI QUYẾT", "DONE" → 2
 
     @CreatedDate
     private LocalDateTime createdAt;

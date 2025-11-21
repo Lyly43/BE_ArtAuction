@@ -17,9 +17,12 @@ public class AdminReportResponse {
     private String objectId;
     private String objectName;
     private String objectEmail;
+    private String reportTarget; // "User", "Artwork", "AuctionRoom", etc.
     private String reportReason;
     private int reportStatus;
+    private LocalDateTime reportTime; // Thời gian báo cáo (createdAt hoặc reportTime từ DB)
     private LocalDateTime createdAt;
     private LocalDateTime reportDoneTime;
 }
+
 

@@ -7,10 +7,9 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminReportApiResponse<T> {
+public class AdminNotificationApiResponse<T> {
     private boolean success;
     private String message;
     private T data;
 }
-
 
