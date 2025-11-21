@@ -41,14 +41,106 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       "message": "Token is valid",
       "name": "Admin Root",
       "email": "admin@example.com",
-      "avatar": "https://cdn.example.com/avatar.png",
-      "adminStatus": "ONLINE"
+      "avatar": "https://cdn.example.com/avatar.png"
     }
     ```
 
 ---
 
-## 3. Quản lý Người dùng
+## 3. Quản lý Admin
+
+### Thêm admin
+- Method & URL: `POST /api/admin/admins/them-admin`
+- Request:
+  ```json
+  {
+    "fullName": "Nguyễn Văn A",
+    "email": "admin2@example.com",
+    "password": "Abc@1234",
+    "phoneNumber": "0912345678",
+    "address": "Hà Nội, Việt Nam",
+    "status": 1
+  }
+  ```
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Admin created successfully",
+    "data": {
+      "id": "Ad-2",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin2@example.com",
+      "phoneNumber": "0912345678",
+      "address": "Hà Nội, Việt Nam",
+      "avatar": null,
+      "role": "4",
+      "status": 1,
+      "createdAt": "2025-11-20T10:00:00",
+      "updatedAt": "2025-11-20T10:00:00"
+    }
+  }
+  ```
+- Lưu ý: Password sẽ được tự động hash bằng BCrypt. Status: 0 = Bị Khóa, 1 = Hoạt động.
+
+### Lấy danh sách admin
+- Method & URL: `GET /api/admin/admins/lay-du-lieu`
+- Response: Mảng `AdminAdminResponse` gồm `id, fullName, email, phoneNumber, address, avatar, role, status, createdAt, updatedAt`.
+
+### Tìm kiếm admin
+- Method & URL: `GET /api/admin/admins/tim-kiem?q={searchTerm}`
+- Tìm kiếm theo: ID, fullName, email, phoneNumber
+- Nếu không có `q`, trả về tất cả admin
+- Response: Mảng `AdminAdminResponse`
+
+### Thống kê admin
+- Method & URL: `GET /api/admin/admins/thong-ke`
+- Response:
+  ```json
+  {
+    "totalAdmins": 10,
+    "activeAdmins": 8,
+    "lockedAdmins": 2
+  }
+  ```
+
+### Cập nhật admin
+- Method & URL: `PUT /api/admin/admins/cap-nhat/{adminId}`
+- Request (chỉ gửi các trường cần đổi):
+  ```json
+  {
+    "fullName": "Nguyễn Văn A Updated",
+    "email": "admin2_new@example.com",
+    "phoneNumber": "0987654321",
+    "address": "TP. Hồ Chí Minh, Việt Nam",
+    "status": 1,
+    "password": "NewPassword@123"
+  }
+  ```
+- Lưu ý: `password` là optional, chỉ cập nhật nếu có giá trị
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Admin updated successfully",
+    "data": { ...AdminAdminResponse }
+  }
+  ```
+
+### Xóa admin
+- Method & URL: `DELETE /api/admin/admins/xoa/{adminId}`
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Admin deleted successfully",
+    "data": null
+  }
+  ```
+
+---
+
+## 4. Quản lý Người dùng
 
 ### Thêm người dùng
 - Method & URL: `POST /api/admin/them-user`
@@ -106,7 +198,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 4. Quản lý Tác phẩm
+## 5. Quản lý Tác phẩm
 
 - **Thêm tác phẩm**
   - `POST /api/admin/artworks/them-tac-pham`
@@ -147,7 +239,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 5. Quản lý Phòng đấu giá
+## 6. Quản lý Phòng đấu giá
 
 - **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `adminId`, `type`, `imageAuctionRoom`…).
 - **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại).
@@ -176,7 +268,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 6. Quản lý Thông báo
+## 7. Quản lý Thông báo
 
 - **Lấy dữ liệu:** `GET /api/admin/notifications/lay-du-lieu`
 - **Tìm kiếm:** `GET /api/admin/notifications/tim-kiem?q=...`
@@ -205,7 +297,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 7. Quản lý Hóa đơn
+## 8. Quản lý Hóa đơn
 
 - `GET /api/admin/invoices/lay-du-lieu`
 - `GET /api/admin/invoices/tim-kiem?q=...`
@@ -231,7 +323,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 8. Quản lý Report
+## 9. Quản lý Report
 
 - `GET /api/admin/reports/lay-du-lieu` – trả `AdminReportResponse` (bao gồm thông tin người báo cáo, đối tượng bị báo cáo, reportReason, status, thời gian).
 - `GET /api/admin/reports/tim-kiem?q=...`
@@ -242,7 +334,160 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 9. Ghi chú cho Frontend
+## 10. Thống kê Hệ thống (Biểu đồ)
+
+Tất cả API thống kê sử dụng phương thức POST và nhận request body với `begin` và `end` (format: `dd/MM/yyyy`).
+
+**Lưu ý quan trọng:** API sẽ trả về tất cả các ngày trong khoảng từ `begin` đến `end`, kể cả những ngày không có dữ liệu (sẽ có giá trị 0).
+
+### Thống kê người dùng đăng ký
+- Method & URL: `POST /api/admin/statistics/users-registration`
+- Request Body:
+  ```json
+  {
+    "begin": "02/11/2025",
+    "end": "17/11/2025"
+  }
+  ```
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": [
+      { "date": "02/11/2025", "count": 10 },
+      { "date": "03/11/2025", "count": 0 },
+      { "date": "04/11/2025", "count": 15 },
+      ...
+      { "date": "17/11/2025", "count": 5 }
+    ],
+    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
+    "datasets": [{
+      "label": "Thống kê người dùng đăng ký",
+      "data": [10, 0, 15, ..., 5],
+      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
+    }]
+  }
+  ```
+
+### Thống kê phòng đấu giá
+- Method & URL: `POST /api/admin/statistics/auction-rooms`
+- Request Body:
+  ```json
+  {
+    "begin": "02/11/2025",
+    "end": "17/11/2025"
+  }
+  ```
+- Response: Tương tự format trên, với `label: "Thống kê phòng đấu giá"`. Trả về tất cả các ngày trong khoảng.
+
+### Thống kê doanh thu
+- Method & URL: `POST /api/admin/statistics/revenue`
+- Request Body:
+  ```json
+  {
+    "begin": "02/11/2025",
+    "end": "17/11/2025"
+  }
+  ```
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": [
+      { "date": "02/11/2025", "totalAmount": 5000000.0 },
+      { "date": "03/11/2025", "totalAmount": 0.0 },
+      { "date": "04/11/2025", "totalAmount": 7500000.0 },
+      ...
+      { "date": "17/11/2025", "totalAmount": 3000000.0 }
+    ],
+    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
+    "datasets": [{
+      "label": "Thống kê doanh thu",
+      "data": [5000000.0, 0.0, 7500000.0, ..., 3000000.0],
+      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
+    }]
+  }
+  ```
+- Lưu ý: `data` trong response chứa `totalAmount` (Double) thay vì `count` (Long). Trả về tất cả các ngày trong khoảng, ngày không có doanh thu sẽ có `totalAmount: 0.0`.
+
+### Thống kê báo cáo
+- Method & URL: `POST /api/admin/statistics/reports`
+- Request Body:
+  ```json
+  {
+    "begin": "02/11/2025",
+    "end": "17/11/2025"
+  }
+  ```
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": [
+      { "date": "02/11/2025", "count": 5 },
+      { "date": "03/11/2025", "count": 0 },
+      { "date": "04/11/2025", "count": 8 },
+      ...
+      { "date": "17/11/2025", "count": 3 }
+    ],
+    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
+    "datasets": [{
+      "label": "Thống kê báo cáo",
+      "data": [5, 0, 8, ..., 3],
+      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
+    }]
+  }
+  ```
+- Lưu ý: Trả về tất cả các ngày trong khoảng, ngày không có báo cáo sẽ có `count: 0`.
+
+### Thống kê tác phẩm
+- Method & URL: `POST /api/admin/statistics/artworks`
+- Request Body:
+  ```json
+  {
+    "begin": "02/11/2025",
+    "end": "17/11/2025"
+  }
+  ```
+- Response: Tương tự format trên, với `label: "Thống kê tác phẩm"`. Trả về tất cả các ngày trong khoảng.
+
+### Thống kê đấu giá
+- Method & URL: `POST /api/admin/statistics/bids`
+- Request Body:
+  ```json
+  {
+    "begin": "02/11/2025",
+    "end": "17/11/2025"
+  }
+  ```
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": [
+      { "date": "02/11/2025", "count": 25 },
+      { "date": "03/11/2025", "count": 0 },
+      { "date": "04/11/2025", "count": 42 },
+      ...
+      { "date": "17/11/2025", "count": 18 }
+    ],
+    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
+    "datasets": [{
+      "label": "Thống kê đấu giá",
+      "data": [25, 0, 42, ..., 18],
+      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
+    }]
+  }
+  ```
+- Lưu ý: Trả về tất cả các ngày trong khoảng, ngày không có đấu giá sẽ có `count: 0`.
+
+---
+
+## 11. Ghi chú cho Frontend
 
 1. **Header mặc định**
    ```

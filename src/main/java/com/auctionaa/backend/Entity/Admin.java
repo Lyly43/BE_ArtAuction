@@ -28,7 +28,7 @@ public class Admin extends BaseEntity {
 
     private int status;
 
-    private String role;
+    private String role; //xem lại role
 
     @CreatedDate
     private LocalDateTime createdAt;

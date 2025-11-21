@@ -46,11 +46,16 @@ public class AdminAuthController {
                     .body(new AdminLoginResponse(0, "Invalid password", null));
         }
 
+        // Kiểm tra trạng thái admin: 0 = Bị Khóa, 1 = Hoạt động
+        if (admin.getStatus() == 0) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AdminLoginResponse(0, "Admin account is locked", null));
+        }
+
         String role = admin.getRole() != null ? admin.getRole() : "4";
         String token = adminJwtUtil.generateAdminToken(admin.getId(), role);
 
-        admin.setStatus("ONLINE");
-        adminRepository.save(admin);
+        // Status đã là 1 (Hoạt động) trong database, không cần set lại
 
         AdminLoginResponse response = new AdminLoginResponse(1, "Admin login successfully", token);
 
@@ -61,7 +66,7 @@ public class AdminAuthController {
     public ResponseEntity<AdminCheckTokenResponse> getCurrentAdmin(@RequestHeader("Authorization") String authHeader) {
         if (!adminJwtUtil.validateToken(authHeader)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminCheckTokenResponse(0, "Invalid or expired token", null, null, null, null));
+                    .body(new AdminCheckTokenResponse(0, "Invalid or expired token", null, null, null));
         }
 
         String adminId = adminJwtUtil.extractAdminId(authHeader);
@@ -71,7 +76,7 @@ public class AdminAuthController {
 
         if (admin == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminCheckTokenResponse(0, "Admin not found", null, null, null, null));
+                    .body(new AdminCheckTokenResponse(0, "Admin not found", null, null, null));
         }
 
         String role = adminJwtUtil.extractRole(authHeader);
@@ -81,8 +86,7 @@ public class AdminAuthController {
                 "Token is valid",
                 admin.getFullName(),
                 admin.getEmail(),
-                admin.getAvatar(),
-                admin.getStatus()
+                admin.getAvatar()
         );
 
         return ResponseEntity.ok(response);
