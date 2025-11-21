@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminInvoiceApiResponse<T> {
-    private boolean success;
+    private int status;
     private String message;
     private T data;
 }

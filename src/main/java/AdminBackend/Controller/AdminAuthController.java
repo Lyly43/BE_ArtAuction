@@ -1,7 +1,8 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AdminLoginRequest;
-import AdminBackend.DTO.Response.AdminAuthResponse;
+import AdminBackend.DTO.Response.AdminCheckTokenResponse;
+import AdminBackend.DTO.Response.AdminLoginResponse;
 import AdminBackend.Jwt.AdminJwtUtil;
 import AdminBackend.Repository.AdminRepository;
 import com.auctionaa.backend.Entity.Admin;
@@ -26,10 +27,10 @@ public class AdminAuthController {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody AdminLoginRequest request) {
+    public ResponseEntity<AdminLoginResponse> login(@RequestBody AdminLoginRequest request) {
         if (!StringUtils.hasText(request.getEmail()) || !StringUtils.hasText(request.getPassword())) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new AdminAuthResponse(false, "Email and password are required", null, null, null, null, null, null));
+                    .body(new AdminLoginResponse(0, "Email and password are required", null));
         }
 
         Admin admin = adminRepository.findByEmail(request.getEmail())
@@ -37,12 +38,12 @@ public class AdminAuthController {
 
         if (admin == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminAuthResponse(false, "Admin not found", null, null, null, null, null, null));
+                    .body(new AdminLoginResponse(0, "Admin not found", null));
         }
 
         if (!passwordEncoder.matches(request.getPassword(), admin.getPassword())) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminAuthResponse(false, "Invalid password", null, null, null, null, null, null));
+                    .body(new AdminLoginResponse(0, "Invalid password", null));
         }
 
         String role = admin.getRole() != null ? admin.getRole() : "4";
@@ -51,25 +52,16 @@ public class AdminAuthController {
         admin.setStatus("ONLINE");
         adminRepository.save(admin);
 
-        AdminAuthResponse response = new AdminAuthResponse(
-                true,
-                "Admin login successfully",
-                token,
-                admin.getId(),
-                admin.getFullName(),
-                admin.getEmail(),
-                role,
-                admin.getAvatar()
-        );
+        AdminLoginResponse response = new AdminLoginResponse(1, "Admin login successfully", token);
 
         return ResponseEntity.ok(response);
     }
 
     @GetMapping("/me")
-    public ResponseEntity<?> getCurrentAdmin(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<AdminCheckTokenResponse> getCurrentAdmin(@RequestHeader("Authorization") String authHeader) {
         if (!adminJwtUtil.validateToken(authHeader)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminAuthResponse(false, "Invalid or expired token", null, null, null, null, null, null));
+                    .body(new AdminCheckTokenResponse(0, "Invalid or expired token", null, null, null, null));
         }
 
         String adminId = adminJwtUtil.extractAdminId(authHeader);
@@ -79,20 +71,18 @@ public class AdminAuthController {
 
         if (admin == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminAuthResponse(false, "Admin not found", null, null, null, null, null, null));
+                    .body(new AdminCheckTokenResponse(0, "Admin not found", null, null, null, null));
         }
 
         String role = adminJwtUtil.extractRole(authHeader);
 
-        AdminAuthResponse response = new AdminAuthResponse(
-                true,
+        AdminCheckTokenResponse response = new AdminCheckTokenResponse(
+                1,
                 "Token is valid",
-                authHeader.startsWith("Bearer ") ? authHeader.substring(7) : authHeader,
-                admin.getId(),
                 admin.getFullName(),
                 admin.getEmail(),
-                role != null ? role : admin.getRole(),
-                admin.getAvatar()
+                admin.getAvatar(),
+                admin.getStatus()
         );
 
         return ResponseEntity.ok(response);

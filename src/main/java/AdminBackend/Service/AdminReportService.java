@@ -54,7 +54,7 @@ public class AdminReportService {
                 .map(this::mapDocumentToResponse)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(new AdminReportApiResponse<>(true, "Lấy danh sách báo cáo thành công", data));
+        return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Lấy danh sách báo cáo thành công", data));
     }
 
     public ResponseEntity<AdminReportApiResponse<List<AdminReportResponse>>> searchReports(String searchTerm) {
@@ -82,7 +82,7 @@ public class AdminReportService {
         String message = StringUtils.hasText(searchTerm)
                 ? String.format("Tìm thấy %d báo cáo cho từ khóa '%s'", data.size(), searchTerm)
                 : "Lấy danh sách báo cáo thành công";
-        return ResponseEntity.ok(new AdminReportApiResponse<>(true, message, data));
+        return ResponseEntity.ok(new AdminReportApiResponse<>(1, message, data));
     }
 
     public ResponseEntity<AdminReportApiResponse<AdminReportResponse>> updateReport(
@@ -91,7 +91,7 @@ public class AdminReportService {
         Optional<Reports> optionalReports = reportsRepository.findById(reportId);
         if (optionalReports.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AdminReportApiResponse<>(false, "Không tìm thấy báo cáo", null));
+                    .body(new AdminReportApiResponse<>(0, "Không tìm thấy báo cáo", null));
         }
 
         Reports report = optionalReports.get();
@@ -117,18 +117,18 @@ public class AdminReportService {
         AdminReportResponse response = updatedDoc != null 
                 ? mapDocumentToResponse(updatedDoc)
                 : mapToResponse(updated);
-        return ResponseEntity.ok(new AdminReportApiResponse<>(true, "Cập nhật báo cáo thành công", response));
+        return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Cập nhật báo cáo thành công", response));
     }
 
     public ResponseEntity<AdminReportApiResponse<Void>> deleteReport(String reportId) {
         Optional<Reports> optionalReports = reportsRepository.findById(reportId);
         if (optionalReports.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AdminReportApiResponse<>(false, "Không tìm thấy báo cáo", null));
+                    .body(new AdminReportApiResponse<>(0, "Không tìm thấy báo cáo", null));
         }
 
         reportsRepository.delete(optionalReports.get());
-        return ResponseEntity.ok(new AdminReportApiResponse<>(true, "Xóa báo cáo thành công", null));
+        return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Xóa báo cáo thành công", null));
     }
 
     public ResponseEntity<AdminReportApiResponse<AdminReportStatisticsResponse>> getReportStatistics() {
@@ -138,7 +138,7 @@ public class AdminReportService {
         long resolved = reportsRepository.countByReportStatus(2);
 
         AdminReportStatisticsResponse stats = new AdminReportStatisticsResponse(total, pending, investigating, resolved);
-        return ResponseEntity.ok(new AdminReportApiResponse<>(true, "Thống kê báo cáo", stats));
+        return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Thống kê báo cáo", stats));
     }
 
     /**

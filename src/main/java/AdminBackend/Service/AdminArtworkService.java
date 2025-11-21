@@ -95,7 +95,7 @@ public class AdminArtworkService {
         try {
             Optional<Artwork> artworkOpt = artworkRepository.findById(artworkId);
             if (artworkOpt.isEmpty()) {
-                UpdateResponse<Object> errorResponse = new UpdateResponse<>(false, 
+                UpdateResponse<Object> errorResponse = new UpdateResponse<>(0, 
                     "Artwork not found with ID: " + artworkId, null);
                 return ResponseEntity.status(HttpStatus.NOT_FOUND).body(errorResponse);
             }
@@ -106,7 +106,7 @@ public class AdminArtworkService {
             if (request.getOwnerId() != null && !request.getOwnerId().equals(artwork.getOwnerId())) {
                 Optional<User> ownerOpt = userRepository.findById(request.getOwnerId());
                 if (ownerOpt.isEmpty()) {
-                    UpdateResponse<Object> errorResponse = new UpdateResponse<>(false, 
+                    UpdateResponse<Object> errorResponse = new UpdateResponse<>(0, 
                         "User not found with ownerId: " + request.getOwnerId(), null);
                     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
                 }
@@ -148,10 +148,10 @@ public class AdminArtworkService {
             AdminArtworkResponse response = mapToAdminArtworkResponse(updatedArtwork);
 
             UpdateResponse<AdminArtworkResponse> successResponse = new UpdateResponse<>(
-                true, "Artwork updated successfully", response);
+                1, "Artwork updated successfully", response);
             return ResponseEntity.ok(successResponse);
         } catch (Exception e) {
-            UpdateResponse<Object> errorResponse = new UpdateResponse<>(false, 
+            UpdateResponse<Object> errorResponse = new UpdateResponse<>(0, 
                 "Failed to update artwork: " + e.getMessage(), null);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }

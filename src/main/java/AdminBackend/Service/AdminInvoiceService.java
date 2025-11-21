@@ -33,7 +33,7 @@ public class AdminInvoiceService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(
-                new AdminInvoiceApiResponse<>(true, "Lấy danh sách hóa đơn thành công", data)
+                new AdminInvoiceApiResponse<>(1, "Lấy danh sách hóa đơn thành công", data)
         );
     }
 
@@ -53,7 +53,7 @@ public class AdminInvoiceService {
                 ? String.format("Tìm thấy %d hóa đơn cho từ khóa '%s'", data.size(), searchTerm)
                 : "Lấy danh sách hóa đơn thành công";
 
-        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(true, message, data));
+        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, message, data));
     }
 
     public ResponseEntity<AdminInvoiceApiResponse<AdminInvoiceResponse>> updateInvoice(
@@ -62,7 +62,7 @@ public class AdminInvoiceService {
         Optional<Invoice> optionalInvoice = invoiceRepository.findById(invoiceId);
         if (optionalInvoice.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AdminInvoiceApiResponse<>(false, "Không tìm thấy hóa đơn", null));
+                    .body(new AdminInvoiceApiResponse<>(0, "Không tìm thấy hóa đơn", null));
         }
 
         Invoice invoice = optionalInvoice.get();
@@ -87,7 +87,7 @@ public class AdminInvoiceService {
         Invoice updatedInvoice = invoiceRepository.save(invoice);
 
         return ResponseEntity.ok(
-                new AdminInvoiceApiResponse<>(true, "Cập nhật hóa đơn thành công", mapToResponse(updatedInvoice))
+                new AdminInvoiceApiResponse<>(1, "Cập nhật hóa đơn thành công", mapToResponse(updatedInvoice))
         );
     }
 
@@ -95,11 +95,11 @@ public class AdminInvoiceService {
         Optional<Invoice> optionalInvoice = invoiceRepository.findById(invoiceId);
         if (optionalInvoice.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AdminInvoiceApiResponse<>(false, "Không tìm thấy hóa đơn", null));
+                    .body(new AdminInvoiceApiResponse<>(0, "Không tìm thấy hóa đơn", null));
         }
 
         invoiceRepository.delete(optionalInvoice.get());
-        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(true, "Xóa hóa đơn thành công", null));
+        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, "Xóa hóa đơn thành công", null));
     }
 
     public ResponseEntity<AdminInvoiceApiResponse<AdminInvoiceStatisticsResponse>> getInvoiceStatistics() {
@@ -109,7 +109,7 @@ public class AdminInvoiceService {
         long failed = invoiceRepository.countByInvoiceStatus(3);
 
         AdminInvoiceStatisticsResponse stats = new AdminInvoiceStatisticsResponse(total, paid, pending, failed);
-        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(true, "Thống kê hóa đơn", stats));
+        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, "Thống kê hóa đơn", stats));
     }
 
     private AdminInvoiceResponse mapToResponse(Invoice invoice) {

@@ -8,7 +8,7 @@ import lombok.*;
 @Getter
 @Setter
 public class UpdateResponse<T> {
-    private boolean success;
+    private int status;
     private String message;
     private T data;
 }

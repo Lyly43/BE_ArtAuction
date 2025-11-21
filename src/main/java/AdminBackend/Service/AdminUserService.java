@@ -179,10 +179,10 @@ public class AdminUserService {
             AdminUserResponse response = mapToAdminUserResponse(updatedUser);
 
             UpdateResponse<AdminUserResponse> successResponse = new UpdateResponse<>(
-                true, "User updated successfully", response);
+                1, "User updated successfully", response);
             return ResponseEntity.ok(successResponse);
         } catch (Exception e) {
-            UpdateResponse<Object> errorResponse = new UpdateResponse<>(false, 
+            UpdateResponse<Object> errorResponse = new UpdateResponse<>(0, 
                 "Failed to update user: " + e.getMessage(), null);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }

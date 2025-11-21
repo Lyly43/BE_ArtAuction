@@ -31,7 +31,7 @@ public class AdminNotificationService {
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(new AdminNotificationApiResponse<>(true, "Lấy danh sách thông báo thành công", data));
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, "Lấy danh sách thông báo thành công", data));
     }
 
     public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> searchNotifications(String searchTerm) {
@@ -50,7 +50,7 @@ public class AdminNotificationService {
                 ? String.format("Tìm thấy %d thông báo cho từ khóa '%s'", data.size(), searchTerm)
                 : "Lấy danh sách thông báo thành công";
 
-        return ResponseEntity.ok(new AdminNotificationApiResponse<>(true, message, data));
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, message, data));
     }
 
     public ResponseEntity<AdminNotificationApiResponse<AdminNotificationResponse>> addNotification(AddNotificationRequest request) {
@@ -68,7 +68,7 @@ public class AdminNotificationService {
 
         Notification saved = notificationRepository.save(notification);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new AdminNotificationApiResponse<>(true, "Tạo thông báo thành công", mapToResponse(saved)));
+                .body(new AdminNotificationApiResponse<>(1, "Tạo thông báo thành công", mapToResponse(saved)));
     }
 
     public ResponseEntity<AdminNotificationApiResponse<AdminNotificationResponse>> updateNotification(
@@ -77,7 +77,7 @@ public class AdminNotificationService {
         Optional<Notification> optionalNotification = notificationRepository.findById(notificationId);
         if (optionalNotification.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AdminNotificationApiResponse<>(false, "Không tìm thấy thông báo", null));
+                    .body(new AdminNotificationApiResponse<>(0, "Không tìm thấy thông báo", null));
         }
 
         Notification notification = optionalNotification.get();
@@ -108,18 +108,18 @@ public class AdminNotificationService {
         }
 
         Notification saved = notificationRepository.save(notification);
-        return ResponseEntity.ok(new AdminNotificationApiResponse<>(true, "Cập nhật thông báo thành công", mapToResponse(saved)));
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, "Cập nhật thông báo thành công", mapToResponse(saved)));
     }
 
     public ResponseEntity<AdminNotificationApiResponse<Void>> deleteNotification(String notificationId) {
         Optional<Notification> optionalNotification = notificationRepository.findById(notificationId);
         if (optionalNotification.isEmpty()) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                    .body(new AdminNotificationApiResponse<>(false, "Không tìm thấy thông báo", null));
+                    .body(new AdminNotificationApiResponse<>(0, "Không tìm thấy thông báo", null));
         }
 
         notificationRepository.delete(optionalNotification.get());
-        return ResponseEntity.ok(new AdminNotificationApiResponse<>(true, "Xóa thông báo thành công", null));
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, "Xóa thông báo thành công", null));
     }
 
     public ResponseEntity<AdminNotificationApiResponse<AdminNotificationStatisticsResponse>> getStatistics() {
@@ -135,7 +135,7 @@ public class AdminNotificationService {
         }
 
         AdminNotificationStatisticsResponse stats = new AdminNotificationStatisticsResponse(total, statusCounts, readRate);
-        return ResponseEntity.ok(new AdminNotificationApiResponse<>(true, "Thống kê thông báo", stats));
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, "Thống kê thông báo", stats));
     }
 
     private AdminNotificationResponse mapToResponse(Notification notification) {

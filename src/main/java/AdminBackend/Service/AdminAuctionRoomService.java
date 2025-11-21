@@ -114,7 +114,7 @@ public class AdminAuctionRoomService {
     public ResponseEntity<?> updateAuctionRoom(String roomId, UpdateAuctionRoomRequest request) {
         Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(roomId);
         if (roomOpt.isEmpty()) {
-            UpdateResponse<Object> resp = new UpdateResponse<>(false,
+            UpdateResponse<Object> resp = new UpdateResponse<>(0,
                     "Auction room not found with ID: " + roomId, null);
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(resp);
         }
@@ -138,7 +138,7 @@ public class AdminAuctionRoomService {
         }
         if (request.getStartedAt() != null) {
             if (!request.getStartedAt().isAfter(LocalDateTime.now())) {
-                UpdateResponse<Object> resp = new UpdateResponse<>(false,
+                UpdateResponse<Object> resp = new UpdateResponse<>(0,
                         "startedAt must be in the future", null);
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(resp);
             }
@@ -154,7 +154,7 @@ public class AdminAuctionRoomService {
         AuctionRoom saved = auctionRoomRepository.save(room);
         AdminAuctionRoomResponse response = mapToResponse(saved, true);
         UpdateResponse<AdminAuctionRoomResponse> success = new UpdateResponse<>(
-                true, "Auction room updated successfully", response);
+                1, "Auction room updated successfully", response);
         return ResponseEntity.ok(success);
     }
 
@@ -393,7 +393,7 @@ public class AdminAuctionRoomService {
         }
 
         Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
+        response.put("status", 1);
         response.put("message", "Auction room created successfully");
         response.put("roomId", savedRoom.getId());
         response.put("sessionsCreated", sessions.size());

@@ -5,17 +5,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
 @NoArgsConstructor
-public class AdminAuthResponse {
-    private boolean success;
+@AllArgsConstructor
+public class AdminCheckTokenResponse {
+    private int status;
     private String message;
-    private String token;
-    private String adminId;
-    private String fullName;
+    private String name;
     private String email;
-    private String role;
     private String avatar;
+    private String adminStatus;
 }
-
 
