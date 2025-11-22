@@ -6,7 +6,11 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - **Base URL:** `http://{host}:8085`
 - **Prefix:** Tất cả API quản trị dùng tiền tố `/api/admin`.
-- **Xác thực:** Gửi header `Authorization: Bearer {token}` cho mọi API (trừ login).
+- **Xác thực:** 
+  - Tất cả API admin (trừ `/api/admin/auth/login`) **BẮT BUỘC** phải có header `Authorization: Bearer {adminToken}`.
+  - Token phải là admin token (được tạo từ API login admin).
+  - Nếu không có token hoặc token không hợp lệ, hệ thống sẽ trả về lỗi 401 Unauthorized.
+  - Chỉ admin đã đăng nhập mới có thể truy cập các API quản trị.
 - **Trạng thái:** Các response JSON dùng trường `status` với giá trị `1` (thành công) hoặc `0` (thất bại). `message` mô tả ngắn gọn kết quả.
 
 ---
@@ -491,12 +495,22 @@ Tất cả API thống kê sử dụng phương thức POST và nhận request b
 
 1. **Header mặc định**
    ```
-   Authorization: Bearer {token}
+   Authorization: Bearer {adminToken}
    Content-Type: application/json
    ```
-2. **Status field:** luôn dùng `status` 1/0 để hiển thị toast thành công/thất bại.
-3. **Datetime:** API dùng `ISO 8601` (ví dụ `2025-11-21T10:00:00`). Frontend cần chuyển timezone nếu hiển thị theo giờ địa phương.
-4. **List pagination:** hiện tại tất cả API trả toàn bộ dữ liệu. Nếu cần phân trang bổ sung query `page`, `size` ở phiên bản sau.
+   - **Lưu ý quan trọng:** Token phải là admin token (lấy từ `/api/admin/auth/login`).
+   - Tất cả API admin (trừ login) đều yêu cầu header này.
+   - Nếu thiếu hoặc token không hợp lệ, server sẽ trả về 401 Unauthorized.
+
+2. **Xử lý lỗi authentication:**
+   - Khi nhận 401 Unauthorized, frontend nên redirect về trang login.
+   - Token có thể hết hạn, cần kiểm tra và refresh token nếu cần.
+
+3. **Status field:** luôn dùng `status` 1/0 để hiển thị toast thành công/thất bại.
+
+4. **Datetime:** API dùng `ISO 8601` (ví dụ `2025-11-21T10:00:00`). Frontend cần chuyển timezone nếu hiển thị theo giờ địa phương.
+
+5. **List pagination:** hiện tại tất cả API trả toàn bộ dữ liệu. Nếu cần phân trang bổ sung query `page`, `size` ở phiên bản sau.
 
 ---
 
