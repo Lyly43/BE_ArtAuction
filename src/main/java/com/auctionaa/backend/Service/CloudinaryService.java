@@ -67,6 +67,30 @@ public class CloudinaryService {
         return new UploadResult((String) res.get("secure_url"), (String) res.get("public_id"));
     }
 
+    // Upload từ byte array (dùng cho base64)
+    public UploadResult uploadImage(byte[] imageBytes, String folder, String publicId, Transformation tf) throws IOException {
+        if (imageBytes == null || imageBytes.length == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image bytes rỗng");
+        }
+        if (imageBytes.length > 10 * 1024 * 1024) { // 10MB
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kích thước ảnh vượt 10MB");
+        }
+        Map<?,?> res = cloudinary.uploader().upload(
+                imageBytes,
+                ObjectUtils.asMap(
+                        "folder", folder,
+                        "public_id", publicId,
+                        "overwrite", true,
+                        "resource_type", "image",
+                        "unique_filename", false,
+                        "use_filename", true,
+                        "transformation", tf != null ? tf : new Transformation().quality("auto").fetchFormat("auto")
+                )
+        );
+        return new UploadResult((String) res.get("secure_url"), (String) res.get("public_id"));
+    }
+
+
     // Avatar người dùng: auctionaa/avatars/<userId>/avatar
     public UploadResult uploadUserAvatar(String userId, MultipartFile file) throws IOException {
         String folder = baseFolder + "/avatars/" + userId;

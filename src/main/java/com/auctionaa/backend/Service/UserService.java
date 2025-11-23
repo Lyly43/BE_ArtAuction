@@ -105,11 +105,7 @@ public class UserService {
         // User user = userRepository.findById(new ObjectId(userId))
         //        .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "User not found"));
 
-        UserResponse userResponse = new UserResponse(
-                user.getId(), user.getUsername(), user.getEmail(), user.getPhonenumber(), user.getStatus(),
-                user.getCccd(), user.getAddress(), user.getAvt(),
-                user.getCreatedAt(), user.getUpdatedAt(), user.getDateOfBirth(), user.getGender()
-        );
+        UserResponse userResponse = mapper.map(user, UserResponse.class);
         return ResponseEntity.ok(userResponse);
     }
 
