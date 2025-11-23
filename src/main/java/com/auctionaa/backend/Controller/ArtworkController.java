@@ -89,10 +89,15 @@ public class ArtworkController {
     /**
      * Tìm kiếm và lọc artwork
      * Request body (JSON): id, name (title), type (paintingGenre), dateFrom, dateTo
+     * Có thể gửi body rỗng {} để lấy tất cả
      */
     @PostMapping("/search")
     public SearchResponse<Artwork> searchAndFilter(
-            @RequestBody com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
+        }
         List<Artwork> results = artworkService.searchAndFilter(request);
         return SearchResponse.success(results);
     }

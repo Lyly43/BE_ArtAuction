@@ -30,27 +30,44 @@ POST /api/auctionroom/search
 | `dateFrom` | String | Không | Lọc từ ngày (format: `yyyy-MM-dd`) | `2024-01-01` |
 | `dateTo` | String | Không | Lọc đến ngày (format: `yyyy-MM-dd`) | `2024-12-31` |
 
+**⚠️ QUAN TRỌNG**:
+- **TẤT CẢ các field đều KHÔNG BẮT BUỘC** (optional)
+- Bạn có thể gửi **1 field, nhiều field, hoặc không gửi field nào** (body rỗng `{}`)
+- Khi gửi nhiều field, logic là **AND** (phải thỏa mãn TẤT CẢ điều kiện)
+- Nếu không gửi field nào hoặc gửi `{}`, API sẽ trả về **TẤT CẢ** records
+
 ### Ví dụ Request từ Frontend
 
 **JavaScript/Axios**:
 ```javascript
-// Tìm theo ID
-const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
-  id: 'ACR-12345'
-});
-
-// Tìm theo tên
+// ✅ Chỉ tìm theo tên (1 field)
 const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
   name: 'phòng'
 });
 
-// Kết hợp nhiều điều kiện
+// ✅ Chỉ tìm theo ID (1 field)
+const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
+  id: 'ACR-12345'
+});
+
+// ✅ Kết hợp 2 field (name + type)
+const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
+  name: 'phòng',
+  type: 'Modern'
+});
+
+// ✅ Kết hợp nhiều điều kiện (tất cả field)
 const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
   name: 'phòng',
   type: 'Modern',
   dateFrom: '2024-01-01',
   dateTo: '2024-12-31'
 });
+
+// ✅ Lấy tất cả (không gửi field nào hoặc body rỗng)
+const response = await axios.post('http://localhost:8081/api/auctionroom/search', {});
+// hoặc
+const response = await axios.post('http://localhost:8081/api/auctionroom/search');
 ```
 
 **Request Body (JSON)**:
@@ -566,6 +583,34 @@ try {
 
 ---
 
-**Lưu ý cuối**: Tất cả các field đều là **optional** (không bắt buộc). Nếu không gửi field nào hoặc gửi body rỗng `{}`, API sẽ trả về tất cả records.
+**Lưu ý cuối**:
+
+### ✅ Cách sử dụng các field:
+
+1. **Chỉ cần 1 field**:
+   ```json
+   {"name": "phòng"}
+   ```
+   → Tìm tất cả phòng có tên chứa "phòng"
+
+2. **Kết hợp nhiều field** (logic AND):
+   ```json
+   {
+     "name": "phòng",
+     "type": "Modern"
+   }
+   ```
+   → Tìm phòng có tên chứa "phòng" **VÀ** type = "Modern"
+
+3. **Body rỗng hoặc không gửi field nào**:
+   ```json
+   {}
+   ```
+   → Trả về **TẤT CẢ** phòng trong database
+
+### ⚠️ Lưu ý:
+- **KHÔNG cần gửi hết tất cả field** - chỉ gửi những field bạn muốn filter
+- Nếu gửi nhiều field, phải thỏa mãn **TẤT CẢ** điều kiện (AND logic)
+- Field nào không gửi sẽ không được áp dụng filter
 
 

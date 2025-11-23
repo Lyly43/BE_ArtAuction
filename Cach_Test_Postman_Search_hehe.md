@@ -37,15 +37,23 @@
 
 1. Trong Postman, mở folder **"Auction Room Search"**
 2. Click vào request **"Search by ID"**
-3. Kiểm tra URL:
+3. Kiểm tra Method: Phải là **POST** (không phải GET)
+4. Kiểm tra URL:
    ```
-   http://localhost:8081/api/auctionroom/search?id=ACR-12345
+   http://localhost:8081/api/auctionroom/search
    ```
-4. **QUAN TRỌNG**: Thay `ACR-12345` bằng ID thật trong database của bạn
-    - Vào tab **Params**
-    - Sửa giá trị của `id` thành ID thật (ví dụ: `ACR-abc123`)
-5. Click nút **Send** (màu xanh, góc trên bên phải)
-6. Xem kết quả ở tab **Body** bên dưới
+5. **QUAN TRỌNG**:
+    - Vào tab **Body**
+    - Chọn **raw** và **JSON** format
+    - Nhập JSON body:
+   ```json
+   {
+     "id": "ACR-abc123"
+   }
+   ```
+    - Thay `ACR-abc123` bằng ID thật trong database của bạn
+6. Click nút **Send** (màu xanh, góc trên bên phải)
+7. Xem kết quả ở tab **Body** bên dưới
 
 **Kết quả mong đợi**:
 
@@ -75,13 +83,21 @@
 **Các bước**:
 
 1. Click vào request **"Search by Name"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/auctionroom/search?name=phòng
+   http://localhost:8081/api/auctionroom/search
    ```
-3. Vào tab **Params**
-4. Sửa giá trị `name` thành từ khóa bạn muốn tìm (ví dụ: `Modern`, `Art`, `phòng`)
-5. Click **Send**
+4. Vào tab **Body**
+5. Chọn **raw** và **JSON** format
+6. Nhập JSON body:
+   ```json
+   {
+     "name": "phòng"
+   }
+   ```
+    - Sửa giá trị `name` thành từ khóa bạn muốn tìm (ví dụ: `Modern`, `Art`, `phòng`)
+7. Click **Send**
 
 **Kết quả mong đợi**:
 
@@ -99,13 +115,21 @@
 **Các bước**:
 
 1. Click vào request **"Filter by Type"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/auctionroom/search?type=Modern
+   http://localhost:8081/api/auctionroom/search
    ```
-3. Vào tab **Params**
-4. Sửa giá trị `type` thành thể loại bạn muốn (ví dụ: `Modern`, `Classic`, `Contemporary`)
-5. Click **Send**
+4. Vào tab **Body**
+5. Chọn **raw** và **JSON** format
+6. Nhập JSON body:
+   ```json
+   {
+     "type": "Modern"
+   }
+   ```
+    - Sửa giá trị `type` thành thể loại bạn muốn (ví dụ: `Modern`, `Classic`, `Contemporary`)
+7. Click **Send**
 
 **Kết quả mong đợi**:
 
@@ -120,15 +144,24 @@
 **Các bước**:
 
 1. Click vào request **"Filter by Date Range"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/auctionroom/search?dateFrom=2024-01-01&dateTo=2024-12-31
+   http://localhost:8081/api/auctionroom/search
    ```
-3. Vào tab **Params**
-4. Sửa các giá trị:
-    - `dateFrom`: Ngày bắt đầu (format: `yyyy-MM-dd`, ví dụ: `2024-01-01`)
-    - `dateTo`: Ngày kết thúc (format: `yyyy-MM-dd`, ví dụ: `2024-12-31`)
-5. Click **Send**
+4. Vào tab **Body**
+5. Chọn **raw** và **JSON** format
+6. Nhập JSON body:
+   ```json
+   {
+     "dateFrom": "2024-01-01",
+     "dateTo": "2024-12-31"
+   }
+   ```
+    - Sửa các giá trị:
+        - `dateFrom`: Ngày bắt đầu (format: `yyyy-MM-dd`, ví dụ: `2024-01-01`)
+        - `dateTo`: Ngày kết thúc (format: `yyyy-MM-dd`, ví dụ: `2024-12-31`)
+7. Click **Send**
 
 **Lưu ý**:
 
@@ -145,16 +178,26 @@
 **Các bước**:
 
 1. Click vào request **"Combined Search (Name + Type + Date)"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/auctionroom/search?name=phòng&type=Modern&dateFrom=2024-01-01
+   http://localhost:8081/api/auctionroom/search
    ```
-3. Vào tab **Params**
-4. Sửa các giá trị:
-    - `name`: Tên phòng
-    - `type`: Thể loại
-    - `dateFrom`: Từ ngày
-5. Click **Send**
+4. Vào tab **Body**
+5. Chọn **raw** và **JSON** format
+6. Nhập JSON body:
+   ```json
+   {
+     "name": "phòng",
+     "type": "Modern",
+     "dateFrom": "2024-01-01"
+   }
+   ```
+    - Sửa các giá trị:
+        - `name`: Tên phòng
+        - `type`: Thể loại
+        - `dateFrom`: Từ ngày
+7. Click **Send**
 
 **Kết quả mong đợi**:
 
@@ -170,12 +213,18 @@
 **Các bước**:
 
 1. Click vào request **"Get All (No Filters)"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
    http://localhost:8081/api/auctionroom/search
    ```
-3. Không có query params
-4. Click **Send**
+4. Vào tab **Body**
+5. Chọn **raw** và **JSON** format
+6. Nhập JSON body rỗng:
+   ```json
+   {}
+   ```
+7. Click **Send**
 
 **Kết quả mong đợi**:
 
@@ -191,12 +240,20 @@
 
 1. Mở folder **"Artwork Search"**
 2. Click **"Search by ID"**
-3. URL:
+3. Đảm bảo Method là **POST**
+4. URL:
    ```
-   http://localhost:8081/api/artwork/search?id=Aw-12345
+   http://localhost:8081/api/artwork/search
    ```
-4. Sửa `id` thành ID artwork thật trong database
-5. Click **Send**
+5. Vào tab **Body**, chọn **raw** và **JSON**
+6. Nhập JSON body:
+   ```json
+   {
+     "id": "Aw-12345"
+   }
+   ```
+    - Sửa `id` thành ID artwork thật trong database
+7. Click **Send**
 
 **Kết quả**: Trả về 1 artwork object
 
@@ -207,13 +264,20 @@
 **Các bước**:
 
 1. Click **"Search by Title"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/artwork/search?name=Monet
+   http://localhost:8081/api/artwork/search
    ```
-3. Vào tab **Params**
-4. Sửa `name` thành title bạn muốn tìm (ví dụ: `Monet`, `Van Gogh`, `Picasso`)
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "name": "Monet"
+   }
+   ```
+    - Sửa `name` thành title bạn muốn tìm (ví dụ: `Monet`, `Van Gogh`, `Picasso`)
+6. Click **Send**
 
 **Kết quả**: Trả về tất cả artwork có title chứa từ khóa
 
@@ -224,13 +288,20 @@
 **Các bước**:
 
 1. Click **"Filter by Genre"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/artwork/search?type=Impressionism
+   http://localhost:8081/api/artwork/search
    ```
-3. Vào tab **Params**
-4. Sửa `type` thành genre bạn muốn (ví dụ: `Impressionism`, `Realism`, `Abstract`)
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "type": "Impressionism"
+   }
+   ```
+    - Sửa `type` thành genre bạn muốn (ví dụ: `Impressionism`, `Realism`, `Abstract`)
+6. Click **Send**
 
 **Kết quả**: Trả về tất cả artwork có `paintingGenre` = giá trị bạn nhập
 
@@ -241,16 +312,25 @@
 **Các bước**:
 
 1. Click **"Combined Search"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/artwork/search?name=Monet&type=Impressionism&dateFrom=2024-01-01
+   http://localhost:8081/api/artwork/search
    ```
-3. Vào tab **Params**
-4. Sửa các giá trị:
-    - `name`: Title artwork
-    - `type`: Genre
-    - `dateFrom`: Từ ngày
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "name": "Monet",
+     "type": "Impressionism",
+     "dateFrom": "2024-01-01"
+   }
+   ```
+    - Sửa các giá trị:
+        - `name`: Title artwork
+        - `type`: Genre
+        - `dateFrom`: Từ ngày
+6. Click **Send**
 
 **Kết quả**: Trả về artwork thỏa mãn TẤT CẢ điều kiện
 
@@ -264,12 +344,20 @@
 
 1. Mở folder **"Invoice Search"**
 2. Click **"Search by ID"**
-3. URL:
+3. Đảm bảo Method là **POST**
+4. URL:
    ```
-   http://localhost:8081/api/invoice/search?id=IV-12345
+   http://localhost:8081/api/invoice/search
    ```
-4. Sửa `id` thành ID invoice thật
-5. Click **Send**
+5. Vào tab **Body**, chọn **raw** và **JSON**
+6. Nhập JSON body:
+   ```json
+   {
+     "id": "IV-12345"
+   }
+   ```
+    - Sửa `id` thành ID invoice thật
+7. Click **Send**
 
 ---
 
@@ -278,13 +366,20 @@
 **Các bước**:
 
 1. Click **"Search by Artwork Title or Room Name"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/invoice/search?name=artwork
+   http://localhost:8081/api/invoice/search
    ```
-3. Vào tab **Params**
-4. Sửa `name` thành từ khóa (tìm trong cả `artworkTitle` và `roomName`)
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "name": "artwork"
+   }
+   ```
+    - Sửa `name` thành từ khóa (tìm trong cả `artworkTitle` và `roomName`)
+6. Click **Send**
 
 **Lưu ý**: API sẽ tìm trong CẢ HAI field: `artworkTitle` và `roomName`
 
@@ -295,13 +390,21 @@
 **Các bước**:
 
 1. Click **"Filter by Date Range"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/invoice/search?dateFrom=2024-01-01&dateTo=2024-12-31
+   http://localhost:8081/api/invoice/search
    ```
-3. Vào tab **Params**
-4. Sửa `dateFrom` và `dateTo`
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "dateFrom": "2024-01-01",
+     "dateTo": "2024-12-31"
+   }
+   ```
+    - Sửa `dateFrom` và `dateTo`
+6. Click **Send**
 
 **Kết quả**: Trả về invoice được tạo trong khoảng thời gian
 
@@ -315,12 +418,20 @@
 
 1. Mở folder **"Wallet Search"**
 2. Click **"Search by ID"**
-3. URL:
+3. Đảm bảo Method là **POST**
+4. URL:
    ```
-   http://localhost:8081/api/wallets/search?id=WL-12345
+   http://localhost:8081/api/wallets/search
    ```
-4. Sửa `id` thành ID wallet thật
-5. Click **Send**
+5. Vào tab **Body**, chọn **raw** và **JSON**
+6. Nhập JSON body:
+   ```json
+   {
+     "id": "WL-12345"
+   }
+   ```
+    - Sửa `id` thành ID wallet thật
+7. Click **Send**
 
 **Lưu ý**: Wallet không có field "name" và "type", chỉ tìm được theo ID và ngày
 
@@ -331,13 +442,21 @@
 **Các bước**:
 
 1. Click **"Filter by Date Range"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/wallets/search?dateFrom=2024-01-01&dateTo=2024-12-31
+   http://localhost:8081/api/wallets/search
    ```
-3. Vào tab **Params**
-4. Sửa `dateFrom` và `dateTo`
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "dateFrom": "2024-01-01",
+     "dateTo": "2024-12-31"
+   }
+   ```
+    - Sửa `dateFrom` và `dateTo`
+6. Click **Send**
 
 **Kết quả**: Trả về wallet được tạo trong khoảng thời gian
 
@@ -351,12 +470,20 @@
 
 1. Mở folder **"History (AuctionSession) Search"**
 2. Click **"Search by ID"**
-3. URL:
+3. Đảm bảo Method là **POST**
+4. URL:
    ```
-   http://localhost:8081/api/history/search?id=ATSS-12345
+   http://localhost:8081/api/history/search
    ```
-4. Sửa `id` thành ID session thật
-5. Click **Send**
+5. Vào tab **Body**, chọn **raw** và **JSON**
+6. Nhập JSON body:
+   ```json
+   {
+     "id": "ATSS-12345"
+   }
+   ```
+    - Sửa `id` thành ID session thật
+7. Click **Send**
 
 ---
 
@@ -365,13 +492,20 @@
 **Các bước**:
 
 1. Click **"Filter by Type"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/history/search?type=Modern
+   http://localhost:8081/api/history/search
    ```
-3. Vào tab **Params**
-4. Sửa `type` thành thể loại bạn muốn
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "type": "Modern"
+   }
+   ```
+    - Sửa `type` thành thể loại bạn muốn
+6. Click **Send**
 
 **Kết quả**: Trả về session có `type` = giá trị bạn nhập
 
@@ -382,13 +516,21 @@
 **Các bước**:
 
 1. Click **"Filter by Date Range"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/history/search?dateFrom=2024-01-01&dateTo=2024-12-31
+   http://localhost:8081/api/history/search
    ```
-3. Vào tab **Params**
-4. Sửa `dateFrom` và `dateTo`
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "dateFrom": "2024-01-01",
+     "dateTo": "2024-12-31"
+   }
+   ```
+    - Sửa `dateFrom` và `dateTo`
+6. Click **Send**
 
 **Lưu ý**: Lọc theo `startTime` của session (không phải `createdAt`)
 
@@ -399,13 +541,22 @@
 **Các bước**:
 
 1. Click **"Combined Search"**
-2. URL:
+2. Đảm bảo Method là **POST**
+3. URL:
    ```
-   http://localhost:8081/api/history/search?type=Modern&dateFrom=2024-01-01&dateTo=2024-12-31
+   http://localhost:8081/api/history/search
    ```
-3. Vào tab **Params**
-4. Sửa các giá trị
-5. Click **Send**
+4. Vào tab **Body**, chọn **raw** và **JSON**
+5. Nhập JSON body:
+   ```json
+   {
+     "type": "Modern",
+     "dateFrom": "2024-01-01",
+     "dateTo": "2024-12-31"
+   }
+   ```
+    - Sửa các giá trị
+6. Click **Send**
 
 **Kết quả**: Trả về session thỏa mãn TẤT CẢ điều kiện
 
@@ -562,8 +713,8 @@
 
 **Cách fix**:
 
-1. Test với "Get All" (không có filter) để xem có dữ liệu không
-2. Nới lỏng điều kiện (bỏ một số filter)
+1. Test với "Get All" (gửi body rỗng `{}`) để xem có dữ liệu không
+2. Nới lỏng điều kiện (bỏ một số field trong JSON body)
 3. Kiểm tra database có dữ liệu không
 
 ---

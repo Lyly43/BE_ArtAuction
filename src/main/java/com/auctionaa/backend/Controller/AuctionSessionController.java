@@ -23,9 +23,14 @@ public class AuctionSessionController {
      * Tìm kiếm và lọc auction session (history)
      * Request body (JSON): id, type, dateFrom, dateTo
      * Note: name param không áp dụng cho AuctionSession (không có field name)
+     * Có thể gửi body rỗng {} để lấy tất cả
      */
     @PostMapping("/search")
-    public SearchResponse<AuctionSession> searchAndFilter(@RequestBody BaseSearchRequest request) {
+    public SearchResponse<AuctionSession> searchAndFilter(@RequestBody(required = false) BaseSearchRequest request) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new BaseSearchRequest();
+        }
         List<AuctionSession> results = auctionSessionService.searchAndFilter(request);
         return SearchResponse.success(results);
     }

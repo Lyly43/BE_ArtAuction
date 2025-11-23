@@ -50,10 +50,15 @@ public class InvoiceController {
     /**
      * Tìm kiếm và lọc invoice
      * Request body (JSON): id, name (artworkTitle hoặc roomName), dateFrom, dateTo
+     * Có thể gửi body rỗng {} để lấy tất cả
      */
     @PostMapping("/search")
     public SearchResponse<Invoice> searchAndFilter(
-            @RequestBody com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
+        }
         List<Invoice> results = invoiceService.searchAndFilter(request);
         return SearchResponse.success(results);
     }

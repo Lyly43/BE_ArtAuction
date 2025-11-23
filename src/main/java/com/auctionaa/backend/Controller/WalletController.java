@@ -93,9 +93,14 @@ public class WalletController {
      * Tìm kiếm và lọc wallet
      * Request body (JSON): id, dateFrom, dateTo
      * Note: Wallet không có field "name" và "type" nên chỉ tìm theo ID và ngày
+     * Có thể gửi body rỗng {} để lấy tất cả
      */
     @PostMapping("/search")
-    public SearchResponse<Wallet> searchAndFilter(@RequestBody BaseSearchRequest request) {
+    public SearchResponse<Wallet> searchAndFilter(@RequestBody(required = false) BaseSearchRequest request) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new BaseSearchRequest();
+        }
         List<Wallet> results = genericSearchService.searchAndFilter(
                 request,
                 Wallet.class,

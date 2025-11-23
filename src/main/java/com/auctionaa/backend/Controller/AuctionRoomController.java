@@ -56,9 +56,14 @@ public class AuctionRoomController {
      * - type: Lọc theo thể loại
      * - dateFrom: Lọc từ ngày (format: yyyy-MM-dd)
      * - dateTo: Lọc đến ngày (format: yyyy-MM-dd)
+     * Có thể gửi body rỗng {} để lấy tất cả
      */
     @PostMapping("/search")
-    public SearchResponse<AuctionRoom> searchAndFilter(@RequestBody BaseSearchRequest request) {
+    public SearchResponse<AuctionRoom> searchAndFilter(@RequestBody(required = false) BaseSearchRequest request) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new BaseSearchRequest();
+        }
         List<AuctionRoom> results = auctionRoomService.searchAndFilter(request);
         return SearchResponse.success(results);
     }
