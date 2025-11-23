@@ -3,6 +3,7 @@ package com.auctionaa.backend.Controller;
 import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
+import com.auctionaa.backend.DTO.Response.MemberResponse;
 import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Jwt.JwtUtil;
@@ -32,6 +33,17 @@ public class AuctionRoomController {
     @GetMapping("/allAuctionRoom")
     public List<AuctionRoomLiveDTO> getAllPublicWithLivePrices() {
         return auctionRoomService.getRoomsWithLivePrices();
+    }
+
+    /**
+     * Lấy tất cả phòng đấu giá trong database
+     * GET /api/auctionroom/all
+     *
+     * @return Danh sách tất cả phòng đấu giá
+     */
+    @GetMapping("/all")
+    public List<AuctionRoom> getAllRooms() {
+        return auctionRoomService.getAllAuctionRoom();
     }
 
     // Endpoint tạo auction room mới
@@ -71,6 +83,18 @@ public class AuctionRoomController {
         String userId = jwtUtil.extractUserId(authHeader);
         List<AuctionRoom> results = auctionRoomService.searchAndFilter(request, userId);
         return SearchResponse.success(results);
+    }
+
+    /**
+     * Lấy danh sách member của một phòng đấu giá
+     * GET /api/auctionroom/{roomId}/members
+     *
+     * @param roomId ID của phòng đấu giá
+     * @return Danh sách member với id, username, avt
+     */
+    @GetMapping("/{roomId}/members")
+    public List<MemberResponse> getRoomMembers(@PathVariable String roomId) {
+        return auctionRoomService.getRoomMembers(roomId);
     }
 
 }

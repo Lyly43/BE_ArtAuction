@@ -3,6 +3,7 @@ package com.auctionaa.backend.Service;
 import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
+import com.auctionaa.backend.DTO.Response.MemberResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.User;
@@ -178,5 +179,53 @@ public class AuctionRoomService {
                 }
             });
         }
+    }
+
+    /**
+     * Lấy danh sách member của một phòng đấu giá
+     * Bao gồm cả admin và các member trong memberIds
+     *
+     * @param roomId ID của phòng đấu giá
+     * @return Danh sách member với id, username, avt
+     */
+    public List<MemberResponse> getRoomMembers(String roomId) {
+        // 1. Tìm phòng đấu giá
+        AuctionRoom room = auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Auction room not found"));
+
+        // 2. Tạo danh sách tất cả userIds (adminId + memberIds)
+        List<String> userIds = new ArrayList<>();
+
+        // Thêm adminId nếu có
+        if (room.getAdminId() != null && !room.getAdminId().isEmpty()) {
+            userIds.add(room.getAdminId());
+        }
+
+        // Thêm memberIds nếu có
+        if (room.getMemberIds() != null && !room.getMemberIds().isEmpty()) {
+            for (String memberId : room.getMemberIds()) {
+                // Tránh duplicate nếu adminId cũng có trong memberIds
+                if (!userIds.contains(memberId)) {
+                    userIds.add(memberId);
+                }
+            }
+        }
+
+        // 3. Nếu không có member nào, trả về empty list
+        if (userIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 4. Query tất cả users theo userIds
+        List<User> users = userRepository.findAllById(userIds);
+
+        // 5. Map sang MemberResponse
+        return users.stream()
+                .map(user -> new MemberResponse(
+                        user.getId(),
+                        user.getUsername(),
+                        user.getAvt()))
+                .toList();
     }
 }

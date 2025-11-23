@@ -10,6 +10,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -60,6 +61,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/wallets/topups").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/artwork/featured").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auctionroom/*").permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/api/auctionroom/*/members", "GET")).permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/artwork/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/artwork/*").permitAll()
