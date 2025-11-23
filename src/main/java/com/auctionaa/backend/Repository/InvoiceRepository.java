@@ -5,6 +5,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import java.util.List;
+import java.util.Optional;
 
 public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     Page<Invoice> findAll(Pageable pageable);
@@ -12,4 +13,8 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     Page<Invoice> findByUserId(String userId, Pageable pageable);
 
     List<Invoice> findByUserIdOrderByOrderDateDesc(String userId);
+
+    Optional<Invoice> findById(String id);
+
+    List<Invoice> findByUserIdAndPaymentStatus(String userId, int paymentStatus);
 }

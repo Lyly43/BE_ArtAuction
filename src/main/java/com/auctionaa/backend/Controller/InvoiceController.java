@@ -2,9 +2,15 @@ package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.CreateInvoiceRequest;
 import com.auctionaa.backend.DTO.Response.InvoiceListItemDTO;
+import com.auctionaa.backend.DTO.Response.InvoicePaymentResponse;
 import com.auctionaa.backend.Entity.Invoice;
+import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Jwt.JwtUtil;
+import com.auctionaa.backend.Repository.InvoiceRepository;
+import com.auctionaa.backend.Repository.UserRepository;
+import com.auctionaa.backend.Service.InvoicePaymentService;
 import com.auctionaa.backend.Service.InvoiceService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -15,15 +21,14 @@ import java.util.List;
 @RestController
 @CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/invoice")
+@RequiredArgsConstructor
 public class InvoiceController {
 
     private final JwtUtil jwtUtil;
     private final InvoiceService invoiceService;
-
-    public InvoiceController(InvoiceService invoiceService, JwtUtil jwtUtil) {
-        this.invoiceService = invoiceService;
-        this.jwtUtil = jwtUtil;
-    }
+    private final UserRepository userRepository;
+    private final InvoicePaymentService invoicePaymentService;
+    private  final InvoiceRepository invoiceRepository;
 
     // Admin/list: có phân trang
     @GetMapping("/list")
@@ -44,5 +49,40 @@ public class InvoiceController {
         String token = authHeader.replace("Bearer ", "");
         String email = jwtUtil.extractUserId(token);
         return invoiceService.getMyInvoicesArray(email);
+    }
+
+    @GetMapping("transaction-history")
+    public List<Invoice> getPaidInvoices(@RequestHeader("Authorization") String authHeader,
+                                         @RequestParam(defaultValue = "1") int paymentStatus)
+    {
+        String userId = jwtUtil.extractUserId(authHeader);
+        User user = userRepository.findById(userId)
+                .orElseThrow(()-> new IllegalArgumentException("User not found!"));
+        System.out.println("userId from token = " + userId);
+        List<Invoice> ins = invoiceRepository.findByUserIdAndPaymentStatus(userId, paymentStatus);
+        return ins;
+    }
+
+    @GetMapping("unpaid-transaction")
+    public List<Invoice> getUnpaidInvoices(@RequestHeader("Authorization") String authHeader,
+                                         @RequestParam(defaultValue = "0") int paymentStatus)
+    {
+        String userId = jwtUtil.extractUserId(authHeader);
+        User user = userRepository.findById(userId)
+                .orElseThrow(()-> new IllegalArgumentException("User not found!"));
+        System.out.println("userId from token = " + userId);
+        List<Invoice> ins = invoiceRepository.findByUserIdAndPaymentStatus(userId, paymentStatus);
+        return ins;
+    }
+
+    @PostMapping("/{Id}/pay-invoice")
+    public InvoicePaymentResponse payInvoice(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable String Id
+    ) {
+        String userId = jwtUtil.extractUserId(authHeader);
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+        return invoicePaymentService.payInvoice(Id, userId);
     }
 }
