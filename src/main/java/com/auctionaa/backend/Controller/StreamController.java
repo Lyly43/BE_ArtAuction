@@ -41,6 +41,7 @@ public class StreamController {
     private final AuctionRoomRepository roomRepo;
     @Value("${zegocloud.server-secret}")
     private String serverSecret;
+
     @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public StreamStartResponse creatStream(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
@@ -57,7 +58,6 @@ public class StreamController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-
         // Lấy userId từ token -> tìm user
         String userId = jwtUtil.extractUserId(token);
         User user = userRepository.findById(userId)
@@ -68,7 +68,8 @@ public class StreamController {
         if (sessionsJson != null && !sessionsJson.isBlank()) {
             try {
                 ObjectMapper mapper = new ObjectMapper();
-                sessions = mapper.readValue(sessionsJson, new TypeReference<List<AuctionSessionCreateRequest>>() {});
+                sessions = mapper.readValue(sessionsJson, new TypeReference<List<AuctionSessionCreateRequest>>() {
+                });
             } catch (Exception e) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid sessions format: " + e.getMessage());
             }
@@ -85,7 +86,6 @@ public class StreamController {
         // 5️⃣ Gọi service để tạo phòng + session
         AuctionRoom room = streamService.createdStream(rq, file);
 
-
         // Trả về kết quả
         return StreamStartResponse.builder()
                 .roomId(room.getId())
@@ -100,7 +100,7 @@ public class StreamController {
     }
 
     @GetMapping("/room/{roomId}")
-    public AuctionRoom getRoom(@PathVariable String roomId){
+    public AuctionRoom getRoom(@PathVariable String roomId) {
         return streamService.getRoom(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
     }
@@ -109,24 +109,22 @@ public class StreamController {
     public List<Invoice> stopStream(@PathVariable String roomId) {
         return streamService.stopStreamAndGenerateInvoice(roomId);
     }
+
     @PostMapping("/room/{roomId}/start-next")
     public Map<String, Object> startNext(@PathVariable String roomId) {
         var s = streamService.startNextSession(roomId);
         return Map.of(
-                "sessionId",  s.getId(),
+                "sessionId", s.getId(),
                 "orderIndex", s.getOrderIndex(),
-                "status",     s.getStatus(),  // 1
-                "startedAt",  s.getStartTime()
-        );
+                "status", s.getStatus(), // 1
+                "startedAt", s.getStartTime(),
+                "endTime", s.getEndedAt());
     }
-
-
 
     @GetMapping("/token")
     public Map<String, Object> issueToken(
             @RequestHeader("Authorization") String authHeader,
-            @RequestParam String roomId
-    ) {
+            @RequestParam String roomId) {
         String userId = jwtUtil.extractUserId(authHeader);
 
         var user = userRepository.findById(userId)
@@ -139,7 +137,6 @@ public class StreamController {
 
         long now = System.currentTimeMillis() / 1000;
         long expireAt = now + zegoConfig.getTokenTtl();
-
 
         return Map.of(
                 "appID", zegoConfig.getAppId(),
@@ -156,7 +153,6 @@ public class StreamController {
     public Map<String, Object> stopSession(@PathVariable String sessionId) {
         return streamService.stopAuctionSession(sessionId);
     }
-
 
     // --- helpers ---
     private String extractBearer(String header) {

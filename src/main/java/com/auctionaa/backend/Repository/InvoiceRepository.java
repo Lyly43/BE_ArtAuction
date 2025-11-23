@@ -19,6 +19,11 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
 
     List<Invoice> findByUserIdOrderByOrderDateDesc(String userId);
 
+    List<Invoice> findByUserIdAndPaymentStatus(String userId, int paymentStatus);
+
+    List<Invoice> findByArtworkIdInAndPaymentStatus(List<String> artworkIds, int paymentStatus);
+
+
     Optional<Invoice> findById(String id);
 
     List<Invoice> findByUserId(String userId);
@@ -40,3 +45,4 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     
     long countByInvoiceStatusIn(Collection<Integer> statuses);
 }
+

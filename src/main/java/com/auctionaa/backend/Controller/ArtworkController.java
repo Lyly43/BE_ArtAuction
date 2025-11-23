@@ -1,6 +1,7 @@
 package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Response.ArtworkResponse;
+import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Service.ArtworkService;
@@ -22,6 +23,7 @@ public class ArtworkController {
     @Autowired
     private JwtUtil jwtUtil;
 
+    // Lấy danh sách 6 tác phẩm có giá cao nhất
     @GetMapping("/featured")
     public List<ArtworkResponse> getFeaturedArtworks() {
         return artworkService.getFeaturedArtworks().stream()
@@ -82,8 +84,25 @@ public class ArtworkController {
 
         // Tạo artwork với avatar + nhiều ảnh phụ
         return artworkService.createArtworkWithImages(artwork, avtFile, imageFiles, email);
-        //comment test
+    }
 
+    /**
+     * Tìm kiếm và lọc artwork của user hiện tại
+     * Request body (JSON): id, name (title), type (paintingGenre), dateFrom, dateTo
+     * Có thể gửi body rỗng {} để lấy tất cả tranh của user
+     */
+    @PostMapping("/search")
+    public SearchResponse<Artwork> searchAndFilter(
+            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
+        }
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        List<Artwork> results = artworkService.searchAndFilter(request, userId);
+        return SearchResponse.success(results);
     }
 
 }

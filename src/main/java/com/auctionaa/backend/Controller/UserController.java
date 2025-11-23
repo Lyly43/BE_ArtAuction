@@ -4,6 +4,7 @@ import com.auctionaa.backend.DTO.Request.UserRequest;
 import com.auctionaa.backend.DTO.Response.KycVerifyResponse;
 import com.auctionaa.backend.DTO.Response.UserAVTResponse;
 import com.auctionaa.backend.DTO.Response.UserResponse;
+import com.auctionaa.backend.DTO.Response.UserTradeStatsResponse;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Service.KycService;
 import com.auctionaa.backend.Service.UserService;
@@ -58,5 +59,12 @@ public class UserController {
 
         String userId = jwtUtil.extractUserId(authHeader);
         return ResponseEntity.ok(kycService.verifyKycForProfile(userId, cccdFront, cccdBack, selfie));
+    }
+
+    @GetMapping("/trade-stats")
+    public ResponseEntity<UserTradeStatsResponse> getTradeStats(
+            @RequestHeader("Authorization") String authHeader) {
+        String userId = jwtUtil.extractUserId(authHeader);
+        return ResponseEntity.ok(userService.getTradingStats(userId));
     }
 }

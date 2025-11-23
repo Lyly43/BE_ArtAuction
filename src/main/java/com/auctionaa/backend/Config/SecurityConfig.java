@@ -5,18 +5,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 
 import java.util.List;
 
@@ -49,15 +46,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        
-                        // Admin user management endpoints - đặt trước để ưu tiên
-                        .requestMatchers("/api/admin/**").permitAll()
 
                         // Stream (theo cấu hình bạn đang test)
-                        // - startStream: bạn tự validate token trong controller => permitAll để vào controller
+                        // - startStream: bạn tự validate token trong controller => permitAll để vào
+                        // controller
                         .requestMatchers(HttpMethod.POST, "/api/stream/**").permitAll()
                         // - getRoom public để người xem lấy thông tin phòng
-                        .requestMatchers(HttpMethod.GET,  "/api/stream/room/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/stream/room/**").permitAll()
 
                         // Chat endpoints - cần authentication
                         .requestMatchers(HttpMethod.GET, "/api/chats/**").authenticated()
@@ -66,23 +61,30 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/wallets/topups").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/artwork/featured").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auctionroom/*").permitAll()
+                        .requestMatchers(new AntPathRequestMatcher("/api/auctionroom/*/members", "GET")).permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/artwork/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/artwork/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/wallets/{id}/verify-capture").permitAll()
                         .requestMatchers(HttpMethod.POST, "/register", "/api/auth/register").permitAll()
+
+                        // Search endpoints - public (POST với JSON body)
+                        .requestMatchers(HttpMethod.POST, "/api/auctionroom/search").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/artwork/search").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/invoice/search").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/wallets/search").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/history/search").permitAll()
                         // Cho phép /error để tránh 404 -> 403
                         .requestMatchers("/error").permitAll()
                         .requestMatchers("/api/user/**").permitAll()
-                        .requestMatchers(HttpMethod.PUT, "/api/user/profile", "/api/user/profile/avatar").authenticated()
-                        .requestMatchers(HttpMethod.GET,  "/api/user/info").authenticated()
-                        
+                        .requestMatchers(HttpMethod.PUT, "/api/user/profile", "/api/user/profile/avatar")
+                        .authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/user/info").authenticated()
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                         // Còn lại: yêu cầu đã đăng nhập (JWT)
-                        .anyRequest().authenticated()
-                )
+                        .anyRequest().authenticated())
 
                 // Đưa JWT filter vào trước UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -96,45 +98,45 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(List.of("*"));
         config.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowedHeaders(List.of("*")); // hoặc liệt kê: Authorization, Content-Type, ...
         config.setAllowCredentials(true); // QUAN TRỌNG: Phải là true cho WebSocket
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
-        
+
         // Cấu hình đặc biệt cho WebSocket endpoints
         CorsConfiguration wsConfig = new CorsConfiguration();
         wsConfig.setAllowedOriginPatterns(List.of("*"));
         wsConfig.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        wsConfig.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        wsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         wsConfig.setAllowedHeaders(List.of("*"));
         wsConfig.setAllowCredentials(true);
         wsConfig.setMaxAge(3600L);
-        
+
         source.registerCorsConfiguration("/ws/**", wsConfig);
         source.registerCorsConfiguration("/stomp/**", wsConfig);
         source.registerCorsConfiguration("/ws/info/**", wsConfig);
-        
+
         // Cấu hình đặc biệt cho SockJS info endpoint
         CorsConfiguration sockjsConfig = new CorsConfiguration();
         sockjsConfig.setAllowedOriginPatterns(List.of("*"));
         sockjsConfig.setAllowedOrigins(List.of("http://localhost:5173", "http://localhost:3000"));
-        sockjsConfig.setAllowedMethods(List.of("GET","POST","PUT","DELETE","PATCH","OPTIONS"));
+        sockjsConfig.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         sockjsConfig.setAllowedHeaders(List.of("*"));
         sockjsConfig.setAllowCredentials(true);
         sockjsConfig.setMaxAge(3600L);
-        
+
         // Thêm exposed headers cho SockJS
         sockjsConfig.addExposedHeader("Access-Control-Allow-Credentials");
         sockjsConfig.addExposedHeader("Access-Control-Allow-Origin");
         sockjsConfig.addExposedHeader("Access-Control-Allow-Methods");
         sockjsConfig.addExposedHeader("Access-Control-Allow-Headers");
-        
+
         source.registerCorsConfiguration("/ws/info", sockjsConfig);
         source.registerCorsConfiguration("/ws/info/**", sockjsConfig);
-        
+
         return source;
     }
 

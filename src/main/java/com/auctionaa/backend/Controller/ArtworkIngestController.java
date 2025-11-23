@@ -30,10 +30,10 @@ public class ArtworkIngestController {
      * - Gọi Flask /predict.
      * - Nếu AI -> trả message.
      * - Nếu Human -> đảm bảo folder user tồn tại, upload, lưu Artwork.
-     *
+     * <p>
      * Body: multipart/form-data
-     *  - image: File (bắt buộc)
-     *  - metadata: JSON (ArtworkCreateRequest) (bắt buộc) — có thể nhận String & parse nếu cần
+     * - image: File (bắt buộc)
+     * - metadata: JSON (ArtworkCreateRequest) (bắt buộc) — có thể nhận String & parse nếu cần
      */
     @PostMapping(value = "/ingest", consumes = {"multipart/form-data"})
     public ResponseEntity<?> ingest(

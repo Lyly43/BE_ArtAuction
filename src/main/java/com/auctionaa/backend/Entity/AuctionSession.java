@@ -24,7 +24,7 @@ import java.time.LocalDateTime;
 @Document(collection = "auction_sessions")
 @CompoundIndexes({
         @CompoundIndex(name = "idx_room_status", def = "{'auctionRoomId': 1, 'status': 1}"),
-        @CompoundIndex(name = "idx_time",       def = "{'startTime': 1, 'endTime': 1}"),
+        @CompoundIndex(name = "idx_time", def = "{'startTime': 1, 'endTime': 1}"),
         @CompoundIndex(name = "idx_status_price", def = "{'status': 1, 'current_price': 1}")
 })
 public class AuctionSession extends BaseEntity {
@@ -33,7 +33,7 @@ public class AuctionSession extends BaseEntity {
     private String auctionRoomId;
 
     @Indexed
-    private String artworkId;                    // FK tới tác phẩm
+    private String artworkId; // FK tới tác phẩm
 
     private String imageUrl;
 
@@ -42,7 +42,6 @@ public class AuctionSession extends BaseEntity {
 
     @Indexed
     private LocalDateTime endedAt;
-
 
     @DecimalMin(value = "0.0", inclusive = true)
     @Field(value = "starting_price", targetType = FieldType.DECIMAL128)
@@ -59,7 +58,10 @@ public class AuctionSession extends BaseEntity {
     @Indexed
     private int status;
 
-    /** người đang dẫn hiện tại (email/userId); khi CLOSED có thể copy sang winnerId/finalPrice */
+    /**
+     * người đang dẫn hiện tại (email/userId); khi CLOSED có thể copy sang
+     * winnerId/finalPrice
+     */
     @Indexed
     private String winnerId;
 
@@ -79,6 +81,21 @@ public class AuctionSession extends BaseEntity {
     @Field(value = "bid_step", targetType = FieldType.DECIMAL128)
     private BigDecimal bidStep;
 
+    @Field(value = "duration_seconds", targetType = FieldType.INT32)
+    private Integer durationSeconds;
+
+    @Field(value = "duration_minutes", targetType = FieldType.INT32)
+    private Integer durationMinutes; // Lưu thời gian bằng phút (để dễ đọc, không cần tính toán)
+
+    @Field(value = "max_duration_seconds", targetType = FieldType.INT32)
+    private Integer maxDurationSeconds;
+
+    @Field(value = "extend_step_seconds", targetType = FieldType.INT32)
+    private Integer extendStepSeconds;
+
+    @Field(value = "extend_threshold_seconds", targetType = FieldType.INT32)
+    private Integer extendThresholdSeconds;
+
     @Field(value = "final_price", targetType = FieldType.DECIMAL128)
     private BigDecimal finalPrice;
 
@@ -88,12 +105,29 @@ public class AuctionSession extends BaseEntity {
     private String sellerId;
 
     @Override
-    public String getPrefix() { return "ATSS-"; }
+    public String getPrefix() {
+        return "ATSS-";
+    }
+
     private Integer orderIndex;
+
     /** đảm bảo currentPrice luôn có giá trị hợp lệ để so sánh */
     @Transient
     public BigDecimal safeCurrentPrice() {
-        if (currentPrice != null) return currentPrice;
+        if (currentPrice != null)
+            return currentPrice;
         return startingPrice == null ? BigDecimal.ZERO : startingPrice;
+    }
+
+    @Transient
+    public LocalDateTime computeMaxEndTime() {
+        if (startTime == null) {
+            return null;
+        }
+        Integer duration = maxDurationSeconds != null ? maxDurationSeconds : durationSeconds;
+        if (duration == null || duration <= 0) {
+            return null;
+        }
+        return startTime.plusSeconds(duration);
     }
 }

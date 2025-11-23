@@ -15,4 +15,8 @@ public class PlaceBidResponse {
     private String message;
     /** Thời điểm server xử lý lệnh đặt giá */
     private LocalDateTime bidTime;
+    /** thời điểm phiên hiện tại dự kiến kết thúc (để FE countdown) */
+    private LocalDateTime sessionEndTime;
+    /** true nếu phiên vừa được gia hạn tự động */
+    private boolean extended;
 }

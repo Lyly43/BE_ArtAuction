@@ -13,6 +13,7 @@ public class AuctionRoomLiveDTO {
     private String imageAuctionRoom;
     private String description;
     private Integer viewCount;
+    private BigDecimal depositAmount;
     private String type;
     private int status;                // status của room
     private List<String> memberIds;

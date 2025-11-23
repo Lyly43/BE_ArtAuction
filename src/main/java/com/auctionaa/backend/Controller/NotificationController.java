@@ -6,6 +6,7 @@ import com.auctionaa.backend.Repository.NotificationRepository;
 import com.auctionaa.backend.Service.NotificationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
 
 @RestController
@@ -24,7 +25,7 @@ public class NotificationController {
      */
 
     public NotificationController(NotificationService notificationService,
-            NotificationRepository notificationRepository) {
+                                  NotificationRepository notificationRepository) {
         this.notificationService = notificationService;
         this.notificationRepository = notificationRepository;
     }

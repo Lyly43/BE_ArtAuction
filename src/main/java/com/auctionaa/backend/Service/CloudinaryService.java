@@ -26,16 +26,17 @@ public class CloudinaryService {
         this.cloudinary = cloudinary;
     }
 
-    @Getter @AllArgsConstructor
+    @Getter
+    @AllArgsConstructor
     public static class UploadResult {
-        private String url;      // secure_url
+        private String url; // secure_url
         private String publicId; // public_id
     }
 
     // Giữ backward-compat cho code cũ (nếu còn gọi)
     public String uploadFile(MultipartFile file) throws IOException {
         ensureValidImage(file);
-        Map<?,?> res = cloudinary.uploader().upload(
+        Map<?, ?> res = cloudinary.uploader().upload(
                 file.getBytes(),
                 ObjectUtils.asMap(
                         "folder", baseFolder + "/misc",
@@ -43,16 +44,15 @@ public class CloudinaryService {
                         "overwrite", true,
                         "unique_filename", true,
                         "use_filename", true,
-                        "transformation", new Transformation().quality("auto").fetchFormat("auto")
-                )
-        );
+                        "transformation", new Transformation().quality("auto").fetchFormat("auto")));
         return (String) res.get("secure_url");
     }
 
     // Core upload có folder + public_id
-    public UploadResult uploadImage(MultipartFile file, String folder, String publicId, Transformation tf) throws IOException {
+    public UploadResult uploadImage(MultipartFile file, String folder, String publicId, Transformation tf)
+            throws IOException {
         ensureValidImage(file);
-        Map<?,?> res = cloudinary.uploader().upload(
+        Map<?, ?> res = cloudinary.uploader().upload(
                 file.getBytes(),
                 ObjectUtils.asMap(
                         "folder", folder,
@@ -61,21 +61,20 @@ public class CloudinaryService {
                         "resource_type", "image",
                         "unique_filename", false,
                         "use_filename", true,
-                        "transformation", tf != null ? tf : new Transformation().quality("auto").fetchFormat("auto")
-                )
-        );
+                        "transformation", tf != null ? tf : new Transformation().quality("auto").fetchFormat("auto")));
         return new UploadResult((String) res.get("secure_url"), (String) res.get("public_id"));
     }
 
     // Upload từ byte array (dùng cho base64)
-    public UploadResult uploadImage(byte[] imageBytes, String folder, String publicId, Transformation tf) throws IOException {
+    public UploadResult uploadImage(byte[] imageBytes, String folder, String publicId, Transformation tf)
+            throws IOException {
         if (imageBytes == null || imageBytes.length == 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Image bytes rỗng");
         }
         if (imageBytes.length > 10 * 1024 * 1024) { // 10MB
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kích thước ảnh vượt 10MB");
         }
-        Map<?,?> res = cloudinary.uploader().upload(
+        Map<?, ?> res = cloudinary.uploader().upload(
                 imageBytes,
                 ObjectUtils.asMap(
                         "folder", folder,
@@ -84,12 +83,9 @@ public class CloudinaryService {
                         "resource_type", "image",
                         "unique_filename", false,
                         "use_filename", true,
-                        "transformation", tf != null ? tf : new Transformation().quality("auto").fetchFormat("auto")
-                )
-        );
+                        "transformation", tf != null ? tf : new Transformation().quality("auto").fetchFormat("auto")));
         return new UploadResult((String) res.get("secure_url"), (String) res.get("public_id"));
     }
-
 
     // Avatar người dùng: auctionaa/avatars/<userId>/avatar
     public UploadResult uploadUserAvatar(String userId, MultipartFile file) throws IOException {
@@ -111,9 +107,20 @@ public class CloudinaryService {
         return uploadImage(file, folder, "detail_" + index, null);
     }
 
+    // Ảnh tố cáo: auctionaa/reports/<reportId>/evidence
+    public UploadResult uploadReportImage(String reportId, MultipartFile file) throws IOException {
+        String folder = baseFolder + "/reports/" + reportId;
+        Transformation tf = new Transformation()
+                .quality("auto")
+                .fetchFormat("auto");
+        return uploadImage(file, folder, "evidence", tf);
+    }
+
     public void deleteByPublicId(String publicId) {
-        try { cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap()); }
-        catch (IOException ignored) {}
+        try {
+            cloudinary.uploader().destroy(publicId, ObjectUtils.emptyMap());
+        } catch (IOException ignored) {
+        }
     }
 
     private void ensureValidImage(MultipartFile file) {
