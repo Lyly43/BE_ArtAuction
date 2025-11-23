@@ -49,6 +49,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        
+                        // Admin user management endpoints - đặt trước để ưu tiên
+                        .requestMatchers("/api/admin/**").permitAll()
 
                         // Stream (theo cấu hình bạn đang test)
                         // - startStream: bạn tự validate token trong controller => permitAll để vào controller
@@ -73,6 +76,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/**").permitAll()
                         .requestMatchers(HttpMethod.PUT, "/api/user/profile", "/api/user/profile/avatar").authenticated()
                         .requestMatchers(HttpMethod.GET,  "/api/user/info").authenticated()
+                        
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 

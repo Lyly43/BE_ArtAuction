@@ -4,6 +4,7 @@ import com.auctionaa.backend.Entity.Artwork;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.Meta;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
 
@@ -21,4 +22,26 @@ public interface ArtworkRepository extends MongoRepository<Artwork, String> {
     List<Artwork> findTop6ByOrderByStartedPriceDesc();
 
     List<Artwork> findByOwnerIdAndStatus(String ownerId, int status);
+    
+    // Count methods for statistics
+    long countByStatus(int status);
+    
+    // Search methods for admin - tìm kiếm theo title hoặc id
+    @Query("{ $or: [ " +
+           "{ 'id': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'title': { $regex: ?0, $options: 'i' } } " +
+           "] }")
+    List<Artwork> searchArtworksByTitleOrId(String searchTerm);
+    
+    // Tìm artworks theo danh sách ownerIds
+    List<Artwork> findByOwnerIdIn(List<String> ownerIds);
+    
+    // Tìm artworks theo paintingGenre
+    List<Artwork> findByPaintingGenre(String paintingGenre);
+    
+    // Tìm artworks theo paintingGenre (case insensitive)
+    List<Artwork> findByPaintingGenreContainingIgnoreCase(String paintingGenre);
+    
+    // Tìm artworks theo material (case insensitive)
+    List<Artwork> findByMaterialContainingIgnoreCase(String material);
 }

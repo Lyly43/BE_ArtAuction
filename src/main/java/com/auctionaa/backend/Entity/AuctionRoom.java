@@ -27,11 +27,14 @@ public class AuctionRoom extends BaseEntity {
     private String description;
     private String imageAuctionRoom;
     private String type;
-    private int status;
+    private int status; //1: Đang diễn ra, 2: Sắp diễn ra,0: Đã kết thúc
 
     @DecimalMin(value = "0.0", inclusive = true)
     @Field(value = "deposit_amount", targetType = FieldType.DECIMAL128)
     private BigDecimal depositAmount;
+
+    // Thời hạn thanh toán sau khi thắng (số ngày)
+    private Integer paymentDeadlineDays;
 
     //check các user đã trả phí hồ sơ
     private List<String> applicationFeePaidUserIds;
