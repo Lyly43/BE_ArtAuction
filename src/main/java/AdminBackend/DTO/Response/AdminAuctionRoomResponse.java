@@ -23,5 +23,6 @@ public class AdminAuctionRoomResponse {
     private LocalDateTime createdAt;
     private BigDecimal startingPrice;
     private BigDecimal currentPrice;
+    private Integer totalMembers; // Tổng số người tham gia (tổng số user trong memberIds)
 }
 

@@ -255,6 +255,13 @@ public class AdminAuctionRoomService {
         response.setStartingPrice(pricePair.startingPrice());
         response.setCurrentPrice(pricePair.currentPrice());
 
+        // Tính tổng số người tham gia từ memberIds
+        if (room.getMemberIds() != null) {
+            response.setTotalMembers(room.getMemberIds().size());
+        } else {
+            response.setTotalMembers(0);
+        }
+
         return response;
     }
 
