@@ -3,6 +3,7 @@ package com.auctionaa.backend.Controller;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Request.CreateTopUpRequest;
 import com.auctionaa.backend.DTO.Response.CreateTopUpResponse;
+import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.DTO.Response.VerifyTopUpResponse;
 import com.auctionaa.backend.Entity.Wallet;
 import com.auctionaa.backend.Entity.WalletTransaction;
@@ -15,12 +16,10 @@ import com.auctionaa.backend.Service.VerifyCaptureService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/wallets")
@@ -92,35 +91,12 @@ public class WalletController {
 
     /**
      * Tìm kiếm và lọc wallet
-     * Query params: id, dateFrom, dateTo
+     * Request body (JSON): id, dateFrom, dateTo
      * Note: Wallet không có field "name" và "type" nên chỉ tìm theo ID và ngày
      */
-    @GetMapping("/search")
-    public List<Wallet> searchAndFilter(
-            @RequestParam(required = false) String id,
-            @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
-
-        BaseSearchRequest request = new BaseSearchRequest();
-        request.setId(id);
-
-        if (dateFrom != null && !dateFrom.isEmpty()) {
-            try {
-                request.setDateFrom(java.time.LocalDate.parse(dateFrom));
-            } catch (Exception e) {
-                // Ignore invalid date format
-            }
-        }
-
-        if (dateTo != null && !dateTo.isEmpty()) {
-            try {
-                request.setDateTo(java.time.LocalDate.parse(dateTo));
-            } catch (Exception e) {
-                // Ignore invalid date format
-            }
-        }
-
-        return genericSearchService.searchAndFilter(
+    @PostMapping("/search")
+    public SearchResponse<Wallet> searchAndFilter(@RequestBody BaseSearchRequest request) {
+        List<Wallet> results = genericSearchService.searchAndFilter(
                 request,
                 Wallet.class,
                 "_id", // idField
@@ -128,5 +104,6 @@ public class WalletController {
                 null, // typeField (không có)
                 "createdAt" // dateField
         );
+        return SearchResponse.success(results);
     }
 }

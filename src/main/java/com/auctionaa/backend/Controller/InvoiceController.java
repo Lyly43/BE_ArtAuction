@@ -2,6 +2,7 @@ package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.CreateInvoiceRequest;
 import com.auctionaa.backend.DTO.Response.InvoiceListItemDTO;
+import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Service.InvoiceService;
@@ -48,35 +49,12 @@ public class InvoiceController {
 
     /**
      * Tìm kiếm và lọc invoice
-     * Query params: id, name (artworkTitle hoặc roomName), dateFrom, dateTo
+     * Request body (JSON): id, name (artworkTitle hoặc roomName), dateFrom, dateTo
      */
-    @GetMapping("/search")
-    public List<Invoice> searchAndFilter(
-            @RequestParam(required = false) String id,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
-
-        com.auctionaa.backend.DTO.Request.BaseSearchRequest request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
-        request.setId(id);
-        request.setName(name);
-
-        if (dateFrom != null && !dateFrom.isEmpty()) {
-            try {
-                request.setDateFrom(java.time.LocalDate.parse(dateFrom));
-            } catch (Exception e) {
-                // Ignore invalid date format
-            }
-        }
-
-        if (dateTo != null && !dateTo.isEmpty()) {
-            try {
-                request.setDateTo(java.time.LocalDate.parse(dateTo));
-            } catch (Exception e) {
-                // Ignore invalid date format
-            }
-        }
-
-        return invoiceService.searchAndFilter(request);
+    @PostMapping("/search")
+    public SearchResponse<Invoice> searchAndFilter(
+            @RequestBody com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+        List<Invoice> results = invoiceService.searchAndFilter(request);
+        return SearchResponse.success(results);
     }
 }

@@ -6,7 +6,7 @@ Tài liệu này mô tả tất cả các API endpoint để tìm kiếm và l�
 
 **Base URL**: `http://localhost:8081`
 
-**Method**: `GET`
+**Method**: `POST`
 
 **Content-Type**: `application/json`
 
@@ -17,13 +17,13 @@ Tài liệu này mô tả tất cả các API endpoint để tìm kiếm và l�
 ### Endpoint
 
 ```
-GET /api/auctionroom/search
+POST /api/auctionroom/search
 ```
 
-### Query Parameters
+### Request Body (JSON)
 
-| Tên tham số | Kiểu | Bắt buộc | Mô tả | Ví dụ |
-|------------|------|----------|-------|-------|
+| Tên field | Kiểu | Bắt buộc | Mô tả | Ví dụ |
+|-----------|------|----------|-------|-------|
 | `id` | String | Không | Tìm kiếm theo ID chính xác | `ACR-12345` |
 | `name` | String | Không | Tìm kiếm theo tên phòng (partial match, case-insensitive) | `phòng`, `Modern` |
 | `type` | String | Không | Lọc theo thể loại (exact match) | `Modern`, `Classic` |
@@ -35,33 +35,32 @@ GET /api/auctionroom/search
 **JavaScript/Axios**:
 ```javascript
 // Tìm theo ID
-const response = await axios.get('http://localhost:8081/api/auctionroom/search', {
-  params: {
-    id: 'ACR-12345'
-  }
+const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
+  id: 'ACR-12345'
 });
 
 // Tìm theo tên
-const response = await axios.get('http://localhost:8081/api/auctionroom/search', {
-  params: {
-    name: 'phòng'
-  }
+const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
+  name: 'phòng'
 });
 
 // Kết hợp nhiều điều kiện
-const response = await axios.get('http://localhost:8081/api/auctionroom/search', {
-  params: {
-    name: 'phòng',
-    type: 'Modern',
-    dateFrom: '2024-01-01',
-    dateTo: '2024-12-31'
-  }
+const response = await axios.post('http://localhost:8081/api/auctionroom/search', {
+  name: 'phòng',
+  type: 'Modern',
+  dateFrom: '2024-01-01',
+  dateTo: '2024-12-31'
 });
 ```
 
-**URL đầy đủ**:
-```
-http://localhost:8081/api/auctionroom/search?name=phòng&type=Modern&dateFrom=2024-01-01&dateTo=2024-12-31
+**Request Body (JSON)**:
+```json
+{
+  "name": "phòng",
+  "type": "Modern",
+  "dateFrom": "2024-01-01",
+  "dateTo": "2024-12-31"
+}
 ```
 
 ### Response Format
@@ -88,13 +87,13 @@ http://localhost:8081/api/auctionroom/search?name=phòng&type=Modern&dateFrom=20
 ### Endpoint
 
 ```
-GET /api/artwork/search
+POST /api/artwork/search
 ```
 
-### Query Parameters
+### Request Body (JSON)
 
-| Tên tham số | Kiểu | Bắt buộc | Mô tả | Ví dụ |
-|------------|------|----------|-------|-------|
+| Tên field | Kiểu | Bắt buộc | Mô tả | Ví dụ |
+|-----------|------|----------|-------|-------|
 | `id` | String | Không | Tìm kiếm theo ID chính xác | `Aw-12345` |
 | `name` | String | Không | Tìm kiếm theo title (partial match, case-insensitive) | `Monet`, `Van Gogh` |
 | `type` | String | Không | Lọc theo paintingGenre (exact match) | `Impressionism`, `Realism` |
@@ -106,32 +105,30 @@ GET /api/artwork/search
 **JavaScript/Axios**:
 ```javascript
 // Tìm theo title
-const response = await axios.get('http://localhost:8081/api/artwork/search', {
-  params: {
-    name: 'Monet'
-  }
+const response = await axios.post('http://localhost:8081/api/artwork/search', {
+  name: 'Monet'
 });
 
 // Lọc theo genre
-const response = await axios.get('http://localhost:8081/api/artwork/search', {
-  params: {
-    type: 'Impressionism'
-  }
+const response = await axios.post('http://localhost:8081/api/artwork/search', {
+  type: 'Impressionism'
 });
 
 // Kết hợp điều kiện
-const response = await axios.get('http://localhost:8081/api/artwork/search', {
-  params: {
-    name: 'Monet',
-    type: 'Impressionism',
-    dateFrom: '2024-01-01'
-  }
+const response = await axios.post('http://localhost:8081/api/artwork/search', {
+  name: 'Monet',
+  type: 'Impressionism',
+  dateFrom: '2024-01-01'
 });
 ```
 
-**URL đầy đủ**:
-```
-http://localhost:8081/api/artwork/search?name=Monet&type=Impressionism&dateFrom=2024-01-01
+**Request Body (JSON)**:
+```json
+{
+  "name": "Monet",
+  "type": "Impressionism",
+  "dateFrom": "2024-01-01"
+}
 ```
 
 ### Response Format
@@ -156,50 +153,48 @@ http://localhost:8081/api/artwork/search?name=Monet&type=Impressionism&dateFrom=
 ### Endpoint
 
 ```
-GET /api/invoice/search
+POST /api/invoice/search
 ```
 
-### Query Parameters
+### Request Body (JSON)
 
-| Tên tham số | Kiểu | Bắt buộc | Mô tả | Ví dụ |
-|------------|------|----------|-------|-------|
+| Tên field | Kiểu | Bắt buộc | Mô tả | Ví dụ |
+|-----------|------|----------|-------|-------|
 | `id` | String | Không | Tìm kiếm theo ID chính xác | `IV-12345` |
 | `name` | String | Không | Tìm trong `artworkTitle` HOẶC `roomName` (partial match) | `artwork`, `phòng` |
 | `dateFrom` | String | Không | Lọc từ ngày tạo (format: `yyyy-MM-dd`) | `2024-01-01` |
 | `dateTo` | String | Không | Lọc đến ngày tạo (format: `yyyy-MM-dd`) | `2024-12-31` |
 
-**Lưu ý**: Tham số `name` sẽ tìm trong CẢ HAI field: `artworkTitle` và `roomName`
+**Lưu ý**: Field `name` sẽ tìm trong CẢ HAI field: `artworkTitle` và `roomName`
 
 ### Ví dụ Request từ Frontend
 
 **JavaScript/Axios**:
 ```javascript
 // Tìm theo ID
-const response = await axios.get('http://localhost:8081/api/invoice/search', {
-  params: {
-    id: 'IV-12345'
-  }
+const response = await axios.post('http://localhost:8081/api/invoice/search', {
+  id: 'IV-12345'
 });
 
 // Tìm trong artworkTitle hoặc roomName
-const response = await axios.get('http://localhost:8081/api/invoice/search', {
-  params: {
-    name: 'artwork'
-  }
+const response = await axios.post('http://localhost:8081/api/invoice/search', {
+  name: 'artwork'
 });
 
 // Lọc theo khoảng ngày
-const response = await axios.get('http://localhost:8081/api/invoice/search', {
-  params: {
-    dateFrom: '2024-01-01',
-    dateTo: '2024-12-31'
-  }
+const response = await axios.post('http://localhost:8081/api/invoice/search', {
+  dateFrom: '2024-01-01',
+  dateTo: '2024-12-31'
 });
 ```
 
-**URL đầy đủ**:
-```
-http://localhost:8081/api/invoice/search?name=artwork&dateFrom=2024-01-01&dateTo=2024-12-31
+**Request Body (JSON)**:
+```json
+{
+  "name": "artwork",
+  "dateFrom": "2024-01-01",
+  "dateTo": "2024-12-31"
+}
 ```
 
 ### Response Format
@@ -224,13 +219,13 @@ http://localhost:8081/api/invoice/search?name=artwork&dateFrom=2024-01-01&dateTo
 ### Endpoint
 
 ```
-GET /api/wallets/search
+POST /api/wallets/search
 ```
 
-### Query Parameters
+### Request Body (JSON)
 
-| Tên tham số | Kiểu | Bắt buộc | Mô tả | Ví dụ |
-|------------|------|----------|-------|-------|
+| Tên field | Kiểu | Bắt buộc | Mô tả | Ví dụ |
+|-----------|------|----------|-------|-------|
 | `id` | String | Không | Tìm kiếm theo ID chính xác | `WL-12345` |
 | `dateFrom` | String | Không | Lọc từ ngày tạo (format: `yyyy-MM-dd`) | `2024-01-01` |
 | `dateTo` | String | Không | Lọc đến ngày tạo (format: `yyyy-MM-dd`) | `2024-12-31` |
@@ -242,24 +237,23 @@ GET /api/wallets/search
 **JavaScript/Axios**:
 ```javascript
 // Tìm theo ID
-const response = await axios.get('http://localhost:8081/api/wallets/search', {
-  params: {
-    id: 'WL-12345'
-  }
+const response = await axios.post('http://localhost:8081/api/wallets/search', {
+  id: 'WL-12345'
 });
 
 // Lọc theo khoảng ngày
-const response = await axios.get('http://localhost:8081/api/wallets/search', {
-  params: {
-    dateFrom: '2024-01-01',
-    dateTo: '2024-12-31'
-  }
+const response = await axios.post('http://localhost:8081/api/wallets/search', {
+  dateFrom: '2024-01-01',
+  dateTo: '2024-12-31'
 });
 ```
 
-**URL đầy đủ**:
-```
-http://localhost:8081/api/wallets/search?dateFrom=2024-01-01&dateTo=2024-12-31
+**Request Body (JSON)**:
+```json
+{
+  "dateFrom": "2024-01-01",
+  "dateTo": "2024-12-31"
+}
 ```
 
 ### Response Format
@@ -283,20 +277,20 @@ http://localhost:8081/api/wallets/search?dateFrom=2024-01-01&dateTo=2024-12-31
 ### Endpoint
 
 ```
-GET /api/history/search
+POST /api/history/search
 ```
 
-### Query Parameters
+### Request Body (JSON)
 
-| Tên tham số | Kiểu | Bắt buộc | Mô tả | Ví dụ |
-|------------|------|----------|-------|-------|
+| Tên field | Kiểu | Bắt buộc | Mô tả | Ví dụ |
+|-----------|------|----------|-------|-------|
 | `id` | String | Không | Tìm kiếm theo ID chính xác | `ATSS-12345` |
 | `type` | String | Không | Lọc theo type (exact match) | `Modern`, `Classic` |
 | `dateFrom` | String | Không | Lọc từ ngày startTime (format: `yyyy-MM-dd`) | `2024-01-01` |
 | `dateTo` | String | Không | Lọc đến ngày startTime (format: `yyyy-MM-dd`) | `2024-12-31` |
 
 **Lưu ý**:
-- Không có tham số `name` (AuctionSession không có field name)
+- Không có field `name` (AuctionSession không có field name)
 - Lọc theo `startTime` của session (không phải `createdAt`)
 
 ### Ví dụ Request từ Frontend
@@ -304,32 +298,30 @@ GET /api/history/search
 **JavaScript/Axios**:
 ```javascript
 // Tìm theo ID
-const response = await axios.get('http://localhost:8081/api/history/search', {
-  params: {
-    id: 'ATSS-12345'
-  }
+const response = await axios.post('http://localhost:8081/api/history/search', {
+  id: 'ATSS-12345'
 });
 
 // Lọc theo type
-const response = await axios.get('http://localhost:8081/api/history/search', {
-  params: {
-    type: 'Modern'
-  }
+const response = await axios.post('http://localhost:8081/api/history/search', {
+  type: 'Modern'
 });
 
 // Kết hợp điều kiện
-const response = await axios.get('http://localhost:8081/api/history/search', {
-  params: {
-    type: 'Modern',
-    dateFrom: '2024-01-01',
-    dateTo: '2024-12-31'
-  }
+const response = await axios.post('http://localhost:8081/api/history/search', {
+  type: 'Modern',
+  dateFrom: '2024-01-01',
+  dateTo: '2024-12-31'
 });
 ```
 
-**URL đầy đủ**:
-```
-http://localhost:8081/api/history/search?type=Modern&dateFrom=2024-01-01&dateTo=2024-12-31
+**Request Body (JSON)**:
+```json
+{
+  "type": "Modern",
+  "dateFrom": "2024-01-01",
+  "dateTo": "2024-12-31"
+}
 ```
 
 ### Response Format
@@ -352,18 +344,18 @@ http://localhost:8081/api/history/search?type=Modern&dateFrom=2024-01-01&dateTo=
 
 ## TỔNG HỢP CÁC THAM SỐ CHUNG
 
-### Tham số dùng chung cho tất cả API
+### Field dùng chung cho tất cả API
 
-| Tham số | Kiểu | Mô tả | Format | Ví dụ |
-|---------|------|-------|--------|-------|
+| Field | Kiểu | Mô tả | Format | Ví dụ |
+|-------|------|-------|--------|-------|
 | `id` | String | Tìm theo ID chính xác | Bất kỳ | `ACR-12345` |
 | `dateFrom` | String | Lọc từ ngày | `yyyy-MM-dd` | `2024-01-01` |
 | `dateTo` | String | Lọc đến ngày | `yyyy-MM-dd` | `2024-12-31` |
 
-### Tham số đặc biệt
+### Field đặc biệt
 
-| API | Tham số đặc biệt | Mô tả |
-|-----|------------------|-------|
+| API | Field đặc biệt | Mô tả |
+|-----|---------------|-------|
 | Auction Room | `name` | Tìm trong `roomName` |
 | Auction Room | `type` | Lọc theo `type` |
 | Artwork | `name` | Tìm trong `title` |
@@ -401,8 +393,8 @@ Tham số `type` và `id` là exact match (chính xác):
 
 ### 5. Combined Filters
 
-Khi kết hợp nhiều tham số, logic là **AND** (tất cả điều kiện phải thỏa mãn):
-- `name=phòng&type=Modern` = Tên chứa "phòng" **VÀ** type = "Modern"
+Khi kết hợp nhiều field, logic là **AND** (tất cả điều kiện phải thỏa mãn):
+- `{"name": "phòng", "type": "Modern"}` = Tên chứa "phòng" **VÀ** type = "Modern"
 
 ### 6. Empty Response
 
@@ -428,15 +420,13 @@ const SearchAuctionRoom = () => {
 
   const handleSearch = async () => {
     try {
-      const params = {};
-      if (searchParams.name) params.name = searchParams.name;
-      if (searchParams.type) params.type = searchParams.type;
-      if (searchParams.dateFrom) params.dateFrom = searchParams.dateFrom;
-      if (searchParams.dateTo) params.dateTo = searchParams.dateTo;
+      const requestBody = {};
+      if (searchParams.name) requestBody.name = searchParams.name;
+      if (searchParams.type) requestBody.type = searchParams.type;
+      if (searchParams.dateFrom) requestBody.dateFrom = searchParams.dateFrom;
+      if (searchParams.dateTo) requestBody.dateTo = searchParams.dateTo;
 
-      const response = await axios.get('http://localhost:8081/api/auctionroom/search', {
-        params: params
-      });
+      const response = await axios.post('http://localhost:8081/api/auctionroom/search', requestBody);
       
       console.log(response.data);
     } catch (error) {
@@ -496,15 +486,13 @@ export default {
   methods: {
     async handleSearch() {
       try {
-        const params = {};
-        if (this.searchParams.name) params.name = this.searchParams.name;
-        if (this.searchParams.type) params.type = this.searchParams.type;
-        if (this.searchParams.dateFrom) params.dateFrom = this.searchParams.dateFrom;
-        if (this.searchParams.dateTo) params.dateTo = this.searchParams.dateTo;
+        const requestBody = {};
+        if (this.searchParams.name) requestBody.name = this.searchParams.name;
+        if (this.searchParams.type) requestBody.type = this.searchParams.type;
+        if (this.searchParams.dateFrom) requestBody.dateFrom = this.searchParams.dateFrom;
+        if (this.searchParams.dateTo) requestBody.dateTo = this.searchParams.dateTo;
 
-        const response = await axios.get('http://localhost:8081/api/auctionroom/search', {
-          params: params
-        });
+        const response = await axios.post('http://localhost:8081/api/auctionroom/search', requestBody);
         
         console.log(response.data);
       } catch (error) {
@@ -544,9 +532,7 @@ export default {
 
 ```javascript
 try {
-  const response = await axios.get('http://localhost:8081/api/auctionroom/search', {
-    params: searchParams
-  });
+  const response = await axios.post('http://localhost:8081/api/auctionroom/search', searchParams);
   
   if (response.data.length === 0) {
     // Không tìm thấy kết quả (không phải lỗi)
@@ -570,15 +556,16 @@ try {
 
 ## TÓM TẮT ENDPOINTS
 
-| Endpoint | Method | Tham số chính |
-|----------|--------|---------------|
-| `/api/auctionroom/search` | GET | `id`, `name`, `type`, `dateFrom`, `dateTo` |
-| `/api/artwork/search` | GET | `id`, `name`, `type`, `dateFrom`, `dateTo` |
-| `/api/invoice/search` | GET | `id`, `name`, `dateFrom`, `dateTo` |
-| `/api/wallets/search` | GET | `id`, `dateFrom`, `dateTo` |
-| `/api/history/search` | GET | `id`, `type`, `dateFrom`, `dateTo` |
+| Endpoint | Method | Request Body Fields |
+|----------|--------|---------------------|
+| `/api/auctionroom/search` | POST | `id`, `name`, `type`, `dateFrom`, `dateTo` |
+| `/api/artwork/search` | POST | `id`, `name`, `type`, `dateFrom`, `dateTo` |
+| `/api/invoice/search` | POST | `id`, `name`, `dateFrom`, `dateTo` |
+| `/api/wallets/search` | POST | `id`, `dateFrom`, `dateTo` |
+| `/api/history/search` | POST | `id`, `type`, `dateFrom`, `dateTo` |
 
 ---
 
-**Lưu ý cuối**: Tất cả các tham số đều là **optional** (không bắt buộc). Nếu không gửi tham số nào, API sẽ trả về tất cả records.
+**Lưu ý cuối**: Tất cả các field đều là **optional** (không bắt buộc). Nếu không gửi field nào hoặc gửi body rỗng `{}`, API sẽ trả về tất cả records.
+
 
