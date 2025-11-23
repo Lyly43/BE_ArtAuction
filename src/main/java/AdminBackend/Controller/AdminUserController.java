@@ -57,6 +57,16 @@ public class AdminUserController {
     }
 
     /**
+     * GET /api/admin/thong-ke-user
+     * Thống kê so sánh tháng này vs tháng trước cho users
+     * (Endpoint này trả về thống kê so sánh, endpoint cũ vẫn giữ nguyên)
+     */
+    @GetMapping("/thong-ke-user-monthly")
+    public ResponseEntity<?> getUserMonthlyComparison() {
+        return adminUserService.getUserMonthlyComparison();
+    }
+
+    /**
      * PUT /api/admin/cap-nhat-user/{userId}
      * Admin cập nhật thông tin người dùng
      */

@@ -47,12 +47,12 @@ public class AdminAuthController {
         }
 
         // Kiểm tra trạng thái admin: 0 = Bị Khóa, 1 = Hoạt động
-        if (admin.getStatus() == 0) {
+        if (admin.getStatus() == null || admin.getStatus() == 0) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
                     .body(new AdminLoginResponse(0, "Admin account is locked", null));
         }
 
-        String role = admin.getRole() != null ? admin.getRole() : "4";
+        Integer role = admin.getRole() != null && admin.getRole() != 0 ? admin.getRole() : 3;
         String token = adminJwtUtil.generateAdminToken(admin.getId(), role);
 
         // Status đã là 1 (Hoạt động) trong database, không cần set lại

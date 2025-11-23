@@ -103,18 +103,28 @@ public class AdminStatisticsService {
 
     /**
      * Thống kê doanh thu (invoice) theo ngày
+     * Xử lý cả trường hợp totalAmount là String hoặc Number trong database
      */
     public ChartDataResponse getRevenueStats(DateRangeRequest request) {
         LocalDateTime startDateTime = request.getBegin().atStartOfDay();
         LocalDateTime endDateTime = request.getEnd().atTime(23, 59, 59);
 
+        // Sử dụng $convert để chuyển String thành Double nếu cần
+        // Xử lý cả trường hợp totalAmount là String hoặc Number trong database
         Aggregation aggregation = Aggregation.newAggregation(
                 Aggregation.match(Criteria.where("createdAt").gte(startDateTime).lte(endDateTime)),
                 Aggregation.project()
                         .andExpression("dateToString('%d/%m/%Y', createdAt)").as("date")
-                        .and("totalAmount").as("totalAmount"),
+                        .andExpression(
+                            "{$convert: {" +
+                                "input: '$totalAmount', " +
+                                "to: 'double', " +
+                                "onError: 0, " +
+                                "onNull: 0" +
+                            "}}"
+                        ).as("convertedAmount"),
                 Aggregation.group("date")
-                        .sum("totalAmount").as("totalAmount"),
+                        .sum("convertedAmount").as("totalAmount"),
                 Aggregation.sort(org.springframework.data.domain.Sort.Direction.ASC, "_id")
         );
 
@@ -130,6 +140,12 @@ public class AdminStatisticsService {
                                 return ((BigDecimal) totalAmount).doubleValue();
                             } else if (totalAmount instanceof Number) {
                                 return ((Number) totalAmount).doubleValue();
+                            } else if (totalAmount instanceof String) {
+                                try {
+                                    return Double.parseDouble((String) totalAmount);
+                                } catch (NumberFormatException e) {
+                                    return 0.0;
+                                }
                             } else {
                                 return 0.0;
                             }

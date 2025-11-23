@@ -4,6 +4,7 @@ import AdminBackend.DTO.Request.AddUserRequest;
 import AdminBackend.DTO.Request.UpdateUserRequest;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.AdminUserResponse;
+import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import AdminBackend.DTO.Response.UserStatisticsResponse;
 import com.auctionaa.backend.Entity.User;
@@ -30,6 +31,9 @@ public class AdminUserService {
 
     @Autowired
     private WalletRepository walletRepository;
+
+    @Autowired
+    private MonthlyStatisticsService monthlyStatisticsService;
 
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
@@ -120,6 +124,14 @@ public class AdminUserService {
         );
 
         return ResponseEntity.ok(statistics);
+    }
+
+    /**
+     * Thống kê so sánh tháng này vs tháng trước cho users
+     */
+    public ResponseEntity<MonthlyComparisonResponse> getUserMonthlyComparison() {
+        MonthlyComparisonResponse response = monthlyStatisticsService.getMonthlyComparison("users", "createdAt");
+        return ResponseEntity.ok(response);
     }
 
     /**

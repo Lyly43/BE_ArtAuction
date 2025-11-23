@@ -6,6 +6,7 @@ import AdminBackend.DTO.Response.AdminArtworkResponse;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
 import AdminBackend.DTO.Response.ArtworkStatisticsResponse;
+import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.User;
@@ -29,6 +30,9 @@ public class AdminArtworkService {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private MonthlyStatisticsService monthlyStatisticsService;
 
     /**
      * Admin thêm tác phẩm mới
@@ -231,6 +235,14 @@ public class AdminArtworkService {
         );
 
         return ResponseEntity.ok(statistics);
+    }
+
+    /**
+     * Thống kê so sánh tháng này vs tháng trước cho artworks
+     */
+    public ResponseEntity<MonthlyComparisonResponse> getArtworkMonthlyComparison() {
+        MonthlyComparisonResponse response = monthlyStatisticsService.getMonthlyComparison("artworks", "createdAt");
+        return ResponseEntity.ok(response);
     }
 
     /**

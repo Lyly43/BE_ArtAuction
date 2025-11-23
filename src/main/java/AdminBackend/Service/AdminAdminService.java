@@ -45,7 +45,7 @@ public class AdminAdminService {
         admin.setPhoneNumber(request.getPhoneNumber());
         admin.setAddress(request.getAddress());
         admin.setStatus(request.getStatus());
-        admin.setRole("4"); // Default role for admin
+        admin.setRole(3); // Default role for admin
         admin.setCreatedAt(LocalDateTime.now());
         admin.setUpdatedAt(LocalDateTime.now());
         admin.generateId();
@@ -171,8 +171,8 @@ public class AdminAdminService {
         response.setPhoneNumber(admin.getPhoneNumber());
         response.setAddress(admin.getAddress());
         response.setAvatar(admin.getAvatar());
-        response.setRole(admin.getRole());
-        response.setStatus(admin.getStatus());
+        response.setRole(admin.getRole() != null ? admin.getRole() : 3); // Default role 3 (admin)
+        response.setStatus(admin.getStatus() != null ? admin.getStatus() : 1); // Default status 1 (Hoạt động)
         response.setCreatedAt(admin.getCreatedAt());
         response.setUpdatedAt(admin.getUpdatedAt());
         return response;

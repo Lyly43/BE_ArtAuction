@@ -54,6 +54,15 @@ public class AdminAuctionRoomController {
     }
 
     /**
+     * GET /api/admin/auction-rooms/thong-ke-monthly
+     * Thống kê so sánh tháng này vs tháng trước cho auction rooms
+     */
+    @GetMapping("/thong-ke-monthly")
+    public ResponseEntity<?> getAuctionRoomMonthlyComparison() {
+        return adminAuctionRoomService.getAuctionRoomMonthlyComparison();
+    }
+
+    /**
      * POST /api/admin/auction-rooms/tao-phong-hoan-chinh
      * Tạo phòng đấu giá hoàn chỉnh với tất cả thông tin:
      * - Thông tin phòng (roomName, description, startedAt, adminId, ...)

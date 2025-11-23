@@ -4,6 +4,7 @@ import AdminBackend.DTO.Request.UpdateReportRequest;
 import AdminBackend.DTO.Response.AdminReportApiResponse;
 import AdminBackend.DTO.Response.AdminReportResponse;
 import AdminBackend.DTO.Response.AdminReportStatisticsResponse;
+import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import com.auctionaa.backend.Entity.ReportObject;
 import com.auctionaa.backend.Entity.Reports;
 import com.auctionaa.backend.Entity.User;
@@ -40,6 +41,9 @@ public class AdminReportService {
 
     @Autowired
     private MongoTemplate mongoTemplate;
+
+    @Autowired
+    private MonthlyStatisticsService monthlyStatisticsService;
 
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
@@ -139,6 +143,14 @@ public class AdminReportService {
 
         AdminReportStatisticsResponse stats = new AdminReportStatisticsResponse(total, pending, investigating, resolved);
         return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Thống kê báo cáo", stats));
+    }
+
+    /**
+     * Thống kê so sánh tháng này vs tháng trước cho reports
+     */
+    public ResponseEntity<MonthlyComparisonResponse> getReportMonthlyComparison() {
+        MonthlyComparisonResponse response = monthlyStatisticsService.getMonthlyComparison("reports", "createdAt");
+        return ResponseEntity.ok(response);
     }
 
     /**

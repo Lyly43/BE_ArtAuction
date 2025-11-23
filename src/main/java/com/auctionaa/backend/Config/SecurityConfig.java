@@ -1,6 +1,5 @@
 package com.auctionaa.backend.Config;
 
-import AdminBackend.Jwt.AdminJwtAuthFilter;
 import com.auctionaa.backend.Jwt.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -26,11 +25,8 @@ import java.util.List;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-    // JWT filter cho user
+    // JWT filter của bạn (nếu chưa có bean, tạo @Component cho JwtAuthFilter)
     private final JwtAuthFilter jwtAuthFilter;
-    
-    // JWT filter cho admin
-    private final AdminJwtAuthFilter adminJwtAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -54,11 +50,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
                         
-                        // Admin auth endpoints (public)
-                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
-                        
-                        // Admin endpoints - yêu cầu admin token
-                        .requestMatchers("/api/admin/**").authenticated()
+                        // Admin user management endpoints - đặt trước để ưu tiên
+                        .requestMatchers("/api/admin/**").permitAll()
 
                         // Stream (theo cấu hình bạn đang test)
                         // - startStream: bạn tự validate token trong controller => permitAll để vào controller
@@ -91,10 +84,7 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
 
-                // Đưa Admin JWT filter vào trước User JWT filter
-                // Admin filter sẽ xử lý /api/admin/** trước
-                .addFilterBefore(adminJwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
-                // Đưa User JWT filter vào sau Admin filter
+                // Đưa JWT filter vào trước UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

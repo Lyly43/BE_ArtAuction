@@ -68,6 +68,15 @@ public class AdminArtworkController {
     }
 
     /**
+     * GET /api/admin/artworks/thong-ke-tac-pham-monthly
+     * Thống kê so sánh tháng này vs tháng trước cho artworks
+     */
+    @GetMapping("/thong-ke-tac-pham-monthly")
+    public ResponseEntity<?> getArtworkMonthlyComparison() {
+        return adminArtworkService.getArtworkMonthlyComparison();
+    }
+
+    /**
      * GET /api/admin/artworks/tim-kiem-tac-pham?q={searchTerm}
      * Tìm kiếm tác phẩm theo title, author (username), hoặc id
      */

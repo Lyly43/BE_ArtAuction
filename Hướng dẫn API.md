@@ -4,13 +4,9 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ## 1. Quy ước chung
 
-- **Base URL:** `http://{host}:8085`
+- **Base URL:** `http://localhost:8081`
 - **Prefix:** Tất cả API quản trị dùng tiền tố `/api/admin`.
-- **Xác thực:** 
-  - Tất cả API admin (trừ `/api/admin/auth/login`) **BẮT BUỘC** phải có header `Authorization: Bearer {adminToken}`.
-  - Token phải là admin token (được tạo từ API login admin).
-  - Nếu không có token hoặc token không hợp lệ, hệ thống sẽ trả về lỗi 401 Unauthorized.
-  - Chỉ admin đã đăng nhập mới có thể truy cập các API quản trị.
+- **Xác thực:** Gửi header `Authorization: Bearer {token}` cho mọi API (trừ login).
 - **Trạng thái:** Các response JSON dùng trường `status` với giá trị `1` (thành công) hoặc `0` (thất bại). `message` mô tả ngắn gọn kết quả.
 
 ---
@@ -45,106 +41,14 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       "message": "Token is valid",
       "name": "Admin Root",
       "email": "admin@example.com",
-      "avatar": "https://cdn.example.com/avatar.png"
+      "avatar": "https://cdn.example.com/avatar.png",
+      "adminStatus": "ONLINE"
     }
     ```
 
 ---
 
-## 3. Quản lý Admin
-
-### Thêm admin
-- Method & URL: `POST /api/admin/admins/them-admin`
-- Request:
-  ```json
-  {
-    "fullName": "Nguyễn Văn A",
-    "email": "admin2@example.com",
-    "password": "Abc@1234",
-    "phoneNumber": "0912345678",
-    "address": "Hà Nội, Việt Nam",
-    "status": 1
-  }
-  ```
-- Response:
-  ```json
-  {
-    "status": 1,
-    "message": "Admin created successfully",
-    "data": {
-      "id": "Ad-2",
-      "fullName": "Nguyễn Văn A",
-      "email": "admin2@example.com",
-      "phoneNumber": "0912345678",
-      "address": "Hà Nội, Việt Nam",
-      "avatar": null,
-      "role": "4",
-      "status": 1,
-      "createdAt": "2025-11-20T10:00:00",
-      "updatedAt": "2025-11-20T10:00:00"
-    }
-  }
-  ```
-- Lưu ý: Password sẽ được tự động hash bằng BCrypt. Status: 0 = Bị Khóa, 1 = Hoạt động.
-
-### Lấy danh sách admin
-- Method & URL: `GET /api/admin/admins/lay-du-lieu`
-- Response: Mảng `AdminAdminResponse` gồm `id, fullName, email, phoneNumber, address, avatar, role, status, createdAt, updatedAt`.
-
-### Tìm kiếm admin
-- Method & URL: `GET /api/admin/admins/tim-kiem?q={searchTerm}`
-- Tìm kiếm theo: ID, fullName, email, phoneNumber
-- Nếu không có `q`, trả về tất cả admin
-- Response: Mảng `AdminAdminResponse`
-
-### Thống kê admin
-- Method & URL: `GET /api/admin/admins/thong-ke`
-- Response:
-  ```json
-  {
-    "totalAdmins": 10,
-    "activeAdmins": 8,
-    "lockedAdmins": 2
-  }
-  ```
-
-### Cập nhật admin
-- Method & URL: `PUT /api/admin/admins/cap-nhat/{adminId}`
-- Request (chỉ gửi các trường cần đổi):
-  ```json
-  {
-    "fullName": "Nguyễn Văn A Updated",
-    "email": "admin2_new@example.com",
-    "phoneNumber": "0987654321",
-    "address": "TP. Hồ Chí Minh, Việt Nam",
-    "status": 1,
-    "password": "NewPassword@123"
-  }
-  ```
-- Lưu ý: `password` là optional, chỉ cập nhật nếu có giá trị
-- Response:
-  ```json
-  {
-    "status": 1,
-    "message": "Admin updated successfully",
-    "data": { ...AdminAdminResponse }
-  }
-  ```
-
-### Xóa admin
-- Method & URL: `DELETE /api/admin/admins/xoa/{adminId}`
-- Response:
-  ```json
-  {
-    "status": 1,
-    "message": "Admin deleted successfully",
-    "data": null
-  }
-  ```
-
----
-
-## 4. Quản lý Người dùng
+## 3. Quản lý Người dùng
 
 ### Thêm người dùng
 - Method & URL: `POST /api/admin/them-user`
@@ -176,6 +80,32 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - `GET /api/admin/thong-ke-user`
 - Response: `{ "totalUsers", "totalSellers", "totalBlockedUsers" }`.
 
+### Thống kê so sánh tháng này vs tháng trước
+- Method & URL: `GET /api/admin/thong-ke-user-monthly`
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": {
+      "currentMonth": {
+        "total": 1222,
+        "month": "11/2025"
+      },
+      "previousMonth": {
+        "total": 1210,
+        "month": "10/2025"
+      },
+      "change": {
+        "amount": 12,
+        "percentage": 0.99,
+        "isIncrease": true
+      }
+    }
+  }
+  ```
+- Lưu ý: `amount` là số thay đổi (có thể âm nếu giảm), `percentage` là phần trăm thay đổi, `isIncrease` là `true` nếu tăng, `false` nếu giảm.
+
 ### Cập nhật
 - Method & URL: `PUT /api/admin/cap-nhat-user/{userId}`
 - Request (chỉ gửi các trường cần đổi):
@@ -202,7 +132,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 5. Quản lý Tác phẩm
+## 4. Quản lý Tác phẩm
 
 - **Thêm tác phẩm**
   - `POST /api/admin/artworks/them-tac-pham`
@@ -240,10 +170,12 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   - Response `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/artworks/xoa-tac-pham/{artworkId}`
 - **Thống kê:** `GET /api/admin/artworks/thong-ke-tac-pham`
+- **Thống kê so sánh tháng:** `GET /api/admin/artworks/thong-ke-tac-pham-monthly`
+  - Response tương tự format thống kê user (so sánh tháng này vs tháng trước)
 
 ---
 
-## 6. Quản lý Phòng đấu giá
+## 5. Quản lý Phòng đấu giá
 
 - **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `adminId`, `type`, `imageAuctionRoom`…).
 - **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại).
@@ -251,6 +183,8 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - **Cập nhật:** `PUT /api/admin/auction-rooms/cap-nhat/{roomId}` → `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/auction-rooms/xoa/{roomId}`.
 - **Thống kê:** `GET /api/admin/auction-rooms/thong-ke` → `{ totalRooms, runningRooms, upcomingRooms, completedRooms }`.
+- **Thống kê so sánh tháng:** `GET /api/admin/auction-rooms/thong-ke-monthly`
+  - Response tương tự format thống kê user (so sánh tháng này vs tháng trước)
 - **Tạo phòng hoàn chỉnh (4 bước trong 1 API):** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh`
   ```json
   {
@@ -272,7 +206,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 7. Quản lý Thông báo
+## 6. Quản lý Thông báo
 
 - **Lấy dữ liệu:** `GET /api/admin/notifications/lay-du-lieu`
 - **Tìm kiếm:** `GET /api/admin/notifications/tim-kiem?q=...`
@@ -301,11 +235,13 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 8. Quản lý Hóa đơn
+## 7. Quản lý Hóa đơn
 
 - `GET /api/admin/invoices/lay-du-lieu`
 - `GET /api/admin/invoices/tim-kiem?q=...`
 - `GET /api/admin/invoices/thong-ke`
+- **Thống kê so sánh tháng (doanh thu):** `GET /api/admin/invoices/thong-ke-monthly`
+  - Response tương tự format thống kê user, nhưng `total` là tổng doanh thu (số tiền) thay vì số lượng
 - **Cập nhật hóa đơn**
   - `PUT /api/admin/invoices/cap-nhat/{invoiceId}`
   - Request mẫu:
@@ -327,71 +263,171 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 9. Quản lý Report
+## 8. Quản lý Report
 
 - `GET /api/admin/reports/lay-du-lieu` – trả `AdminReportResponse` (bao gồm thông tin người báo cáo, đối tượng bị báo cáo, reportReason, status, thời gian).
 - `GET /api/admin/reports/tim-kiem?q=...`
 - `GET /api/admin/reports/thong-ke`
+- **Thống kê so sánh tháng:** `GET /api/admin/reports/thong-ke-monthly`
+  - Response tương tự format thống kê user (so sánh tháng này vs tháng trước)
 - `PUT /api/admin/reports/cap-nhat/{reportId}` – body `UpdateReportRequest` (reportReason, reportStatus, reportDoneTime).
 - `DELETE /api/admin/reports/xoa/{reportId}`
 - Response chuẩn `AdminReportApiResponse`.
 
 ---
 
-## 10. Thống kê Hệ thống (Biểu đồ)
+## 9. Dashboard
 
-Tất cả API thống kê sử dụng phương thức POST và nhận request body với `begin` và `end` (format: `dd/MM/yyyy`).
-
-**Lưu ý quan trọng:** API sẽ trả về tất cả các ngày trong khoảng từ `begin` đến `end`, kể cả những ngày không có dữ liệu (sẽ có giá trị 0).
-
-### Thống kê người dùng đăng ký
-- Method & URL: `POST /api/admin/statistics/users-registration`
-- Request Body:
+### 1. Thống kê chung
+- Method & URL: `GET /api/admin/dashboard/thong-ke`
+- Response:
   ```json
   {
-    "begin": "02/11/2025",
-    "end": "17/11/2025"
+    "status": 1,
+    "message": "Success",
+    "data": {
+      "totalUsers": {
+        "currentMonth": 120,
+        "previousMonth": 107,
+        "change": 13,
+        "percentage": 12.15,
+        "isIncrease": true
+      },
+      "totalArtworks": {
+        "currentMonth": 100,
+        "previousMonth": 89,
+        "change": 11,
+        "percentage": 12.36,
+        "isIncrease": true
+      },
+      "totalBids": {
+        "currentMonth": 120,
+        "previousMonth": 107,
+        "change": 13,
+        "percentage": 12.15,
+        "isIncrease": true
+      },
+      "revenue": {
+        "currentMonth": 50000000.0,
+        "previousMonth": 45000000.0,
+        "change": 5000000.0,
+        "percentage": 11.11,
+        "isIncrease": true
+      },
+      "totalAuctionRooms": 23,
+      "activeUsers": 10
+    }
   }
   ```
+- Lưu ý:
+  - `totalUsers`, `totalArtworks`, `totalBids`, `revenue`: Có so sánh tháng này vs tháng trước
+  - `totalAuctionRooms`, `activeUsers`: Chỉ là tổng số, không so sánh
+  - `revenue`: Tính từ tổng `totalAmount` của tất cả Invoice trong tháng (dựa trên `createdAt`). API tự động xử lý cả trường hợp `totalAmount` là String hoặc Number trong database để đảm bảo tính toán chính xác.
+
+### 2. Top 10 AuctionRoom mới nhất
+- Method & URL: `GET /api/admin/dashboard/top-auction-rooms`
 - Response:
   ```json
   {
     "status": 1,
     "message": "Success",
     "data": [
-      { "date": "02/11/2025", "count": 10 },
-      { "date": "03/11/2025", "count": 0 },
-      { "date": "04/11/2025", "count": 15 },
-      ...
-      { "date": "17/11/2025", "count": 5 }
-    ],
-    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
-    "datasets": [{
-      "label": "Thống kê người dùng đăng ký",
-      "data": [10, 0, 15, ..., 5],
-      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
-    }]
+      {
+        "id": "ACR-1",
+        "roomName": "Tranh sơn dầu",
+        "description": "...",
+        "imageAuctionRoom": "...",
+        "type": "VIP",
+        "status": 1,
+        "startedAt": "2025-11-23T10:00:00",
+        "stoppedAt": "2025-11-23T12:00:00",
+        "sessions": [
+          {
+            "id": "AS-1",
+            "artworkId": "A-1",
+            "artworkTitle": "Tranh phong cảnh mùa thu",
+            "imageUrl": "...",
+            "startingPrice": 10000.0,
+            "currentPrice": 15000.0,
+            "status": 1,
+            "orderIndex": 1,
+            "startTime": "2025-11-23T10:00:00",
+            "endedAt": null
+          }
+        ]
+      }
+    ]
   }
   ```
+- Lưu ý: Sắp xếp theo `startedAt` mới nhất, mỗi room có danh sách tất cả `sessions` trong room đó
 
-### Thống kê phòng đấu giá
-- Method & URL: `POST /api/admin/statistics/auction-rooms`
-- Request Body:
+### 3. Top 10 User mới đăng ký
+- Method & URL: `GET /api/admin/dashboard/top-new-users`
+- Response:
   ```json
   {
-    "begin": "02/11/2025",
-    "end": "17/11/2025"
+    "status": 1,
+    "message": "Success",
+    "data": [
+      {
+        "id": "U-1",
+        "username": "N Nguyễn Thị A",
+        "email": "a@gmail.com",
+        "createdAt": "2025-10-22T10:00:00",
+        "status": 1
+      }
+    ]
   }
   ```
-- Response: Tương tự format trên, với `label: "Thống kê phòng đấu giá"`. Trả về tất cả các ngày trong khoảng.
+- Lưu ý: Sắp xếp theo `createdAt` mới nhất
 
-### Thống kê doanh thu
+### 4. Top 10 Session có giá cao nhất
+- Method & URL: `GET /api/admin/dashboard/top-sessions`
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": [
+      {
+        "sessionId": "AS-1",
+        "auctionRoomId": "ACR-1",
+        "roomName": "Tranh sơn dầu",
+        "artworkId": "A-1",
+        "artworkTitle": "Tranh phong cảnh mùa thu",
+        "artworkImageUrl": "...",
+        "artistName": "Nguyễn Văn A",
+        "totalAmount": 100000.0,
+        "winnerName": "Trần Văn B",
+        "winnerEmail": "b@gmail.com",
+        "orderDate": "2025-11-23T12:00:00",
+        "viewCount": 150
+      }
+    ]
+  }
+  ```
+- Lưu ý: 
+  - **Sắp xếp theo `currentPrice` từ AuctionSession** (giá đấu giá cao nhất), giảm dần
+  - API lấy dữ liệu chính từ **AuctionSession** để đảm bảo chính xác với session thực tế
+  - `totalAmount`: Lấy từ Invoice nếu có (khi đã có người thắng và tạo invoice), nếu không có Invoice thì dùng `currentPrice` từ session
+  - `winnerName`, `winnerEmail`, `orderDate`: Lấy từ Invoice nếu có, nếu không có Invoice thì lấy từ `winnerId` trong AuctionSession
+  - `viewCount`: Lượt xem của session (lấy từ AuctionSession)
+  - `artworkTitle`, `artworkImageUrl`, `artistName`: Lấy từ Artwork entity, đảm bảo dữ liệu đầy đủ và chính xác
+  - `roomName`: Lấy từ AuctionRoom entity
+
+---
+
+## 10. Thống kê theo khoảng thời gian (Statistics)
+
+Các API này cho phép thống kê dữ liệu theo khoảng thời gian với format biểu đồ.
+
+### Thống kê doanh thu (Revenue)
 - Method & URL: `POST /api/admin/statistics/revenue`
-- Request Body:
+- Request:
   ```json
   {
-    "begin": "02/11/2025",
-    "end": "17/11/2025"
+    "begin": "2025-11-01",
+    "end": "2025-11-30"
   }
   ```
 - Response:
@@ -400,94 +436,42 @@ Tất cả API thống kê sử dụng phương thức POST và nhận request b
     "status": 1,
     "message": "Success",
     "data": [
-      { "date": "02/11/2025", "totalAmount": 5000000.0 },
-      { "date": "03/11/2025", "totalAmount": 0.0 },
-      { "date": "04/11/2025", "totalAmount": 7500000.0 },
-      ...
-      { "date": "17/11/2025", "totalAmount": 3000000.0 }
+      {
+        "date": "01/11/2025",
+        "totalAmount": 5000000.0
+      },
+      {
+        "date": "02/11/2025",
+        "totalAmount": 7500000.0
+      }
     ],
-    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
-    "datasets": [{
-      "label": "Thống kê doanh thu",
-      "data": [5000000.0, 0.0, 7500000.0, ..., 3000000.0],
-      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
-    }]
+    "labels": ["01/11/2025", "02/11/2025", ...],
+    "datasets": [
+      {
+        "label": "Thống kê doanh thu",
+        "data": [5000000.0, 7500000.0, ...],
+        "backgroundColor": ["#...", "#...", ...]
+      }
+    ]
   }
   ```
-- Lưu ý: `data` trong response chứa `totalAmount` (Double) thay vì `count` (Long). Trả về tất cả các ngày trong khoảng, ngày không có doanh thu sẽ có `totalAmount: 0.0`.
+- Lưu ý:
+  - Tính tổng `totalAmount` từ Invoice theo ngày (dựa trên `createdAt`)
+  - API tự động xử lý cả trường hợp `totalAmount` là **String hoặc Number** trong database để đảm bảo tính toán chính xác
+  - Sử dụng MongoDB aggregation với `$convert` để chuyển String sang Double nếu cần
+  - Format ngày: `dd/MM/yyyy`
+  - Mỗi item trong `data` có `totalAmount` (số tiền) thay vì `count` (số lượng)
 
-### Thống kê báo cáo
-- Method & URL: `POST /api/admin/statistics/reports`
-- Request Body:
-  ```json
-  {
-    "begin": "02/11/2025",
-    "end": "17/11/2025"
-  }
-  ```
-- Response:
-  ```json
-  {
-    "status": 1,
-    "message": "Success",
-    "data": [
-      { "date": "02/11/2025", "count": 5 },
-      { "date": "03/11/2025", "count": 0 },
-      { "date": "04/11/2025", "count": 8 },
-      ...
-      { "date": "17/11/2025", "count": 3 }
-    ],
-    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
-    "datasets": [{
-      "label": "Thống kê báo cáo",
-      "data": [5, 0, 8, ..., 3],
-      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
-    }]
-  }
-  ```
-- Lưu ý: Trả về tất cả các ngày trong khoảng, ngày không có báo cáo sẽ có `count: 0`.
+### Các API thống kê khác
+- `POST /api/admin/statistics/users-registration` - Thống kê số người dùng đăng ký theo ngày
+- `POST /api/admin/statistics/auction-rooms` - Thống kê số phòng đấu giá được lập theo ngày
+- `POST /api/admin/statistics/reports` - Thống kê số report được báo cáo theo ngày
+- `POST /api/admin/statistics/artworks` - Thống kê số tác phẩm được thêm vào theo ngày
+- `POST /api/admin/statistics/bids` - Thống kê số đấu giá (bids) theo ngày
 
-### Thống kê tác phẩm
-- Method & URL: `POST /api/admin/statistics/artworks`
-- Request Body:
-  ```json
-  {
-    "begin": "02/11/2025",
-    "end": "17/11/2025"
-  }
-  ```
-- Response: Tương tự format trên, với `label: "Thống kê tác phẩm"`. Trả về tất cả các ngày trong khoảng.
-
-### Thống kê đấu giá
-- Method & URL: `POST /api/admin/statistics/bids`
-- Request Body:
-  ```json
-  {
-    "begin": "02/11/2025",
-    "end": "17/11/2025"
-  }
-  ```
-- Response:
-  ```json
-  {
-    "status": 1,
-    "message": "Success",
-    "data": [
-      { "date": "02/11/2025", "count": 25 },
-      { "date": "03/11/2025", "count": 0 },
-      { "date": "04/11/2025", "count": 42 },
-      ...
-      { "date": "17/11/2025", "count": 18 }
-    ],
-    "labels": ["02/11/2025", "03/11/2025", "04/11/2025", ..., "17/11/2025"],
-    "datasets": [{
-      "label": "Thống kê đấu giá",
-      "data": [25, 0, 42, ..., 18],
-      "backgroundColor": ["#A1B2C3", "#D4E5F6", ...]
-    }]
-  }
-  ```
-- Lưu ý: Trả về tất cả các ngày trong khoảng, ngày không có đấu giá sẽ có `count: 0`.
+Tất cả các API này có format request và response tương tự, chỉ khác:
+- Request: `{ "begin": "YYYY-MM-DD", "end": "YYYY-MM-DD" }`
+- Response: `data` là mảng các object có `date` và `count` (số lượng) thay vì `totalAmount`
 
 ---
 
@@ -495,22 +479,12 @@ Tất cả API thống kê sử dụng phương thức POST và nhận request b
 
 1. **Header mặc định**
    ```
-   Authorization: Bearer {adminToken}
+   Authorization: Bearer {token}
    Content-Type: application/json
    ```
-   - **Lưu ý quan trọng:** Token phải là admin token (lấy từ `/api/admin/auth/login`).
-   - Tất cả API admin (trừ login) đều yêu cầu header này.
-   - Nếu thiếu hoặc token không hợp lệ, server sẽ trả về 401 Unauthorized.
-
-2. **Xử lý lỗi authentication:**
-   - Khi nhận 401 Unauthorized, frontend nên redirect về trang login.
-   - Token có thể hết hạn, cần kiểm tra và refresh token nếu cần.
-
-3. **Status field:** luôn dùng `status` 1/0 để hiển thị toast thành công/thất bại.
-
-4. **Datetime:** API dùng `ISO 8601` (ví dụ `2025-11-21T10:00:00`). Frontend cần chuyển timezone nếu hiển thị theo giờ địa phương.
-
-5. **List pagination:** hiện tại tất cả API trả toàn bộ dữ liệu. Nếu cần phân trang bổ sung query `page`, `size` ở phiên bản sau.
+2. **Status field:** luôn dùng `status` 1/0 để hiển thị toast thành công/thất bại.
+3. **Datetime:** API dùng `ISO 8601` (ví dụ `2025-11-21T10:00:00`). Frontend cần chuyển timezone nếu hiển thị theo giờ địa phương.
+4. **List pagination:** hiện tại tất cả API trả toàn bộ dữ liệu. Nếu cần phân trang bổ sung query `page`, `size` ở phiên bản sau.
 
 ---
 

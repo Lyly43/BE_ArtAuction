@@ -33,12 +33,13 @@ public class AdminJwtUtil {
         this.key = Keys.hmacShaKeyFor(adminSecret.getBytes(StandardCharsets.UTF_8));
     }
 
-    public String generateAdminToken(String adminId, String role) {
+    public String generateAdminToken(String adminId, Integer role) {
+        int roleValue = (role != null && role != 0) ? role : 3; // Default role 3 for admin
         return Jwts.builder()
                 .setSubject(adminId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + ADMIN_EXPIRATION_TIME))
-                .claim("role", role == null ? "4" : role)
+                .claim("role", roleValue)
                 .claim("tokenType", "ADMIN")
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
@@ -69,24 +70,6 @@ public class AdminJwtUtil {
             String token = sanitize(headerOrToken);
             Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token);
             return true;
-        } catch (JwtException | IllegalArgumentException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Kiểm tra token có phải là admin token không (có claim tokenType = "ADMIN")
-     */
-    public boolean isAdminToken(String headerOrToken) {
-        try {
-            String token = sanitize(headerOrToken);
-            Claims claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(token)
-                    .getBody();
-            String tokenType = (String) claims.get("tokenType");
-            return "ADMIN".equals(tokenType);
         } catch (JwtException | IllegalArgumentException e) {
             return false;
         }

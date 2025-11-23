@@ -35,6 +35,15 @@ public class AdminReportController {
         return adminReportService.getReportStatistics();
     }
 
+    /**
+     * GET /api/admin/reports/thong-ke-monthly
+     * Thống kê so sánh tháng này vs tháng trước cho reports
+     */
+    @GetMapping("/thong-ke-monthly")
+    public ResponseEntity<?> getReportMonthlyComparison() {
+        return adminReportService.getReportMonthlyComparison();
+    }
+
     @PutMapping("/cap-nhat/{reportId}")
     public ResponseEntity<AdminReportApiResponse<AdminReportResponse>> updateReport(
             @PathVariable String reportId,

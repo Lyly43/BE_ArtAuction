@@ -35,6 +35,15 @@ public class AdminInvoiceController {
         return adminInvoiceService.getInvoiceStatistics();
     }
 
+    /**
+     * GET /api/admin/invoices/thong-ke-monthly
+     * Thống kê so sánh tháng này vs tháng trước cho invoices (doanh thu)
+     */
+    @GetMapping("/thong-ke-monthly")
+    public ResponseEntity<?> getInvoiceMonthlyComparison() {
+        return adminInvoiceService.getInvoiceMonthlyComparison();
+    }
+
     @PutMapping("/cap-nhat/{invoiceId}")
     public ResponseEntity<AdminInvoiceApiResponse<AdminInvoiceResponse>> updateInvoice(
             @PathVariable String invoiceId,

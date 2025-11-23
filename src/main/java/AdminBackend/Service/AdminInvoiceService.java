@@ -4,6 +4,7 @@ import AdminBackend.DTO.Request.UpdateInvoiceRequest;
 import AdminBackend.DTO.Response.AdminInvoiceApiResponse;
 import AdminBackend.DTO.Response.AdminInvoiceResponse;
 import AdminBackend.DTO.Response.AdminInvoiceStatisticsResponse;
+import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Repository.InvoiceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +25,9 @@ public class AdminInvoiceService {
 
     @Autowired
     private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private MonthlyStatisticsService monthlyStatisticsService;
 
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "orderDate");
 
@@ -110,6 +114,14 @@ public class AdminInvoiceService {
 
         AdminInvoiceStatisticsResponse stats = new AdminInvoiceStatisticsResponse(total, paid, pending, failed);
         return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, "Thống kê hóa đơn", stats));
+    }
+
+    /**
+     * Thống kê so sánh tháng này vs tháng trước cho invoices (doanh thu)
+     */
+    public ResponseEntity<MonthlyComparisonResponse> getInvoiceMonthlyComparison() {
+        MonthlyComparisonResponse response = monthlyStatisticsService.getMonthlyRevenueComparison("invoices", "createdAt", "totalAmount");
+        return ResponseEntity.ok(response);
     }
 
     private AdminInvoiceResponse mapToResponse(Invoice invoice) {

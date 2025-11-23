@@ -7,6 +7,7 @@ import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.AuctionRoomStatisticsResponse;
+import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
@@ -36,6 +37,9 @@ public class AdminAuctionRoomService {
 
     @Autowired
     private ArtworkRepository artworkRepository;
+
+    @Autowired
+    private MonthlyStatisticsService monthlyStatisticsService;
 
     /**
      * Admin thêm phòng đấu giá mới
@@ -188,6 +192,14 @@ public class AdminAuctionRoomService {
         );
 
         return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Thống kê so sánh tháng này vs tháng trước cho auction rooms
+     */
+    public ResponseEntity<MonthlyComparisonResponse> getAuctionRoomMonthlyComparison() {
+        MonthlyComparisonResponse response = monthlyStatisticsService.getMonthlyComparison("auction_rooms", "createdAt");
+        return ResponseEntity.ok(response);
     }
 
     /**
