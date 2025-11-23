@@ -27,7 +27,7 @@ public class AuctionRoom extends BaseEntity {
     private String description;
     private String imageAuctionRoom;
     private String type;
-    private int status;
+    private int status; // 2: sap dien ra , 1: dang dien ra, 0:off
 
     @DecimalMin(value = "0.0", inclusive = true)
     @Field(value = "deposit_amount", targetType = FieldType.DECIMAL128)

@@ -26,11 +26,10 @@ public class AuctionSessionService {
         return genericSearchService.searchAndFilter(
                 request,
                 AuctionSession.class,
-                "_id",           // idField
-                null,            // nameField (không có field name, chỉ có auctionRoomId)
-                "type",          // typeField
-                "startTime"      // dateField (lọc theo startTime)
+                "_id", // idField
+                null, // nameField (không có field name, chỉ có auctionRoomId)
+                "type", // typeField
+                "startTime" // dateField (lọc theo startTime)
         );
     }
 }
-

@@ -4,18 +4,27 @@ import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.Entity.AuctionRoom;
+import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
+import com.auctionaa.backend.Repository.AuctionSessionRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
 public class AuctionRoomService {
+
+    private static final BigDecimal DEPOSIT_RATE = new BigDecimal("0.10");
+    private static final int SESSION_STATUS_RUNNING = 1;
+
     @Autowired
     private AuctionRoomRepository auctionRoomRepository;
 
@@ -25,14 +34,21 @@ public class AuctionRoomService {
     @Autowired
     private GenericSearchService genericSearchService;
 
+    @Autowired
+    private AuctionSessionRepository auctionSessionRepository;
+
     public List<AuctionRoom> getByOwnerEmail(String email) {
         User user = userRepository.findById(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        return auctionRoomRepository.findByMemberIdsContaining(user.getId());
+        List<AuctionRoom> rooms = auctionRoomRepository.findByMemberIdsContaining(user.getId());
+        initializeDepositForRooms(rooms);
+        return rooms;
     }
 
     public List<AuctionRoom> getAllAuctionRoom() {
-        return auctionRoomRepository.findAll();
+        List<AuctionRoom> rooms = auctionRoomRepository.findAll();
+        initializeDepositForRooms(rooms);
+        return rooms;
     }
 
     // Hàm thêm auction room mới
@@ -49,6 +65,7 @@ public class AuctionRoomService {
         room.setStatus(req.getStatus());
         room.setCreatedAt(LocalDateTime.now());
         room.setUpdatedAt(LocalDateTime.now());
+        room.setDepositAmount(BigDecimal.ZERO);
 
         // admin = người tạo
         room.setAdminId(creator.getId());
@@ -64,14 +81,15 @@ public class AuctionRoomService {
     }
 
     public List<AuctionRoomLiveDTO> getTop6HotAuctionRooms() {
-        return auctionRoomRepository.findTop6ByMembersCount();
+        List<AuctionRoomLiveDTO> rooms = auctionRoomRepository.findTop6ByMembersCount();
+        initializeDepositForLiveRooms(rooms);
+        return rooms;
     }
 
-    // AuctionRoomService.java
-    private static final int SESSION_STATUS_RUNNING = 1;
-
     public List<AuctionRoomLiveDTO> getRoomsWithLivePrices() {
-        return auctionRoomRepository.findRoomsWithLivePrices(SESSION_STATUS_RUNNING);
+        List<AuctionRoomLiveDTO> rooms = auctionRoomRepository.findRoomsWithLivePrices(SESSION_STATUS_RUNNING);
+        initializeDepositForLiveRooms(rooms);
+        return rooms;
     }
 
     /**
@@ -82,7 +100,7 @@ public class AuctionRoomService {
      * - Lọc theo ngày tạo (dateFrom, dateTo)
      */
     public List<AuctionRoom> searchAndFilter(BaseSearchRequest request) {
-        return genericSearchService.searchAndFilter(
+        List<AuctionRoom> rooms = genericSearchService.searchAndFilter(
                 request,
                 AuctionRoom.class,
                 "_id", // idField
@@ -90,6 +108,63 @@ public class AuctionRoomService {
                 "type", // typeField
                 "createdAt" // dateField
         );
+        initializeDepositForRooms(rooms);
+        return rooms;
     }
 
+    public BigDecimal recomputeAndPersistDeposit(String roomId) {
+        AuctionRoom room = auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Auction room not found"));
+        BigDecimal deposit = calculateDepositAmount(roomId);
+        room.setDepositAmount(deposit);
+        auctionRoomRepository.save(room);
+        return deposit;
+    }
+
+    private BigDecimal calculateDepositAmount(String roomId) {
+        if (roomId == null) {
+            return BigDecimal.ZERO;
+        }
+        return auctionSessionRepository
+                .findFirstByAuctionRoomIdOrderByStartingPriceDesc(roomId)
+                .map(AuctionSession::getStartingPrice)
+                .filter(price -> price != null && price.compareTo(BigDecimal.ZERO) > 0)
+                .map(price -> price.multiply(DEPOSIT_RATE))
+                .orElse(BigDecimal.ZERO);
+    }
+
+    private void initializeDepositForRooms(List<AuctionRoom> rooms) {
+        if (rooms == null || rooms.isEmpty()) {
+            return;
+        }
+        for (AuctionRoom room : rooms) {
+            if (room == null || room.getId() == null) {
+                continue;
+            }
+            BigDecimal deposit = calculateDepositAmount(room.getId());
+            if (room.getDepositAmount() == null || room.getDepositAmount().compareTo(deposit) != 0) {
+                room.setDepositAmount(deposit);
+                auctionRoomRepository.save(room);
+            }
+        }
+    }
+
+    private void initializeDepositForLiveRooms(List<AuctionRoomLiveDTO> rooms) {
+        if (rooms == null || rooms.isEmpty()) {
+            return;
+        }
+        for (AuctionRoomLiveDTO dto : rooms) {
+            if (dto == null || dto.getId() == null) {
+                continue;
+            }
+            BigDecimal deposit = calculateDepositAmount(dto.getId());
+            dto.setDepositAmount(deposit);
+            auctionRoomRepository.findById(dto.getId()).ifPresent(room -> {
+                if (room.getDepositAmount() == null || room.getDepositAmount().compareTo(deposit) != 0) {
+                    room.setDepositAmount(deposit);
+                    auctionRoomRepository.save(room);
+                }
+            });
+        }
+    }
 }

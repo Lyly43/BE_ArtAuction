@@ -22,8 +22,7 @@ public class AdminSellerRequestController {
      * Lấy danh sách request theo status (PENDING, APPROVED, REJECTED)
      */
     @GetMapping
-    public ResponseEntity<List<SellerRequestResponse>> getRequestsByStatus(
-            @RequestParam(defaultValue = "PENDING") String status) {
+    public ResponseEntity<List<SellerRequestResponse>> getRequestsByStatus(@RequestParam(defaultValue = "PENDING") String status) {
         return ResponseEntity.ok(sellerRequestService.getRequestsByStatus(status));
     }
 
@@ -31,9 +30,7 @@ public class AdminSellerRequestController {
      * Admin duyệt request → set role = 2 (seller)
      */
     @PutMapping(value = "/{requestId}/approve", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SellerRequestResponse> approveRequest(
-            @PathVariable String requestId,
-            @RequestBody(required = false) AdminNoteRequest adminNote) {
+    public ResponseEntity<SellerRequestResponse> approveRequest(@PathVariable String requestId, @RequestBody(required = false) AdminNoteRequest adminNote) {
 
         String note = adminNote != null ? adminNote.getNote() : null;
         return ResponseEntity.ok(sellerRequestService.approveSellerRequest(requestId, note));
@@ -43,9 +40,7 @@ public class AdminSellerRequestController {
      * Admin từ chối request
      */
     @PutMapping(value = "/{requestId}/reject", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<SellerRequestResponse> rejectRequest(
-            @PathVariable String requestId,
-            @RequestBody(required = false) AdminNoteRequest adminNote) {
+    public ResponseEntity<SellerRequestResponse> rejectRequest(@PathVariable String requestId, @RequestBody(required = false) AdminNoteRequest adminNote) {
 
         String note = adminNote != null ? adminNote.getNote() : null;
         return ResponseEntity.ok(sellerRequestService.rejectSellerRequest(requestId, note));

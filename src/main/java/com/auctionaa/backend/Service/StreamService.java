@@ -7,10 +7,10 @@ import com.auctionaa.backend.Entity.*;
 import com.auctionaa.backend.Repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import static com.auctionaa.backend.Entity.SessionStatus.STARTED;
-import static com.auctionaa.backend.Entity.SessionStatus.STOPPED;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -33,12 +34,20 @@ public class StreamService {
     private final AuctionSessionRepository auctionSessionRepository;
     private final NotificationService notificationService;
     private final MbProps mbProps;
+    private final AuctionRoomService auctionRoomService;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    public AuctionRoom startStream(String roomId){
+    private static final int DEFAULT_SESSION_DURATION_MINUTES = 10;
+    private static final int DEFAULT_MAX_EXTENSION_BUFFER_SECONDS = 600;
+    private static final int DEFAULT_EXTEND_STEP_SECONDS = 120;
+    private static final int DEFAULT_EXTEND_THRESHOLD_SECONDS = 60;
+    private static final String SESSION_TOPIC_PREFIX = "/topic/auction-room/";
+
+    public AuctionRoom startStream(String roomId) {
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
-         room.setStatus(1);
-         return auctionRoomRepository.save(room);
+        room.setStatus(1);
+        return auctionRoomRepository.save(room);
     }
 
     public AuctionRoom createdStream(StreamStartRequest rq, MultipartFile file) throws IOException {
@@ -57,8 +66,8 @@ public class StreamService {
         room.setUpdatedAt(LocalDateTime.now());
 
         if (file != null && !file.isEmpty()) {
-            CloudinaryService.UploadResult result =
-                    cloudinaryService.uploadImage(file, "auctionaa/liveStream/" + room.getId(), "cover", null);
+            CloudinaryService.UploadResult result = cloudinaryService.uploadImage(file,
+                    "auctionaa/liveStream/" + room.getId(), "cover", null);
             room.setImageAuctionRoom(result.getUrl());
         }
 
@@ -84,30 +93,42 @@ public class StreamService {
                 session.setBidStep(s.getBidStep());
                 session.setStatus(0); // DRAFT
                 session.setOrderIndex(i++);
-                session.setStartTime(null);     // mặc định null
+                session.setStartTime(null); // mặc định null
                 session.setEndedAt(null);
                 session.setCreatedAt(LocalDateTime.now());
                 session.setUpdatedAt(LocalDateTime.now());
                 session.setBidCount(0);
                 session.setViewCount(0);
 
-                // chỉ lưu thời lượng (phút)
-                session.setType(s.getDurationMinutes() + "m"); // lưu dạng text đơn giản, ví dụ "15m"
+                int durationMinutes = (s.getDurationMinutes() > 0) ? s.getDurationMinutes()
+                        : DEFAULT_SESSION_DURATION_MINUTES;
+                int durationSeconds = durationMinutes * 60;
+                session.setDurationSeconds(durationSeconds);
+                session.setDurationMinutes(durationMinutes); // Lưu thời gian bằng phút vào field riêng
+                session.setMaxDurationSeconds(resolveMaxDurationSeconds(s, durationSeconds));
+                session.setExtendStepSeconds(DEFAULT_EXTEND_STEP_SECONDS);
+                session.setExtendThresholdSeconds(DEFAULT_EXTEND_THRESHOLD_SECONDS);
+
+                // type không còn lưu thời gian, có thể dùng cho mục đích khác (thể loại, v.v.)
+                // session.setType(...) - để trống hoặc set từ request nếu có
 
                 sessions.add(session);
             }
             auctionSessionRepository.saveAll(sessions);
         }
 
+        BigDecimal depositAmount = auctionRoomService.recomputeAndPersistDeposit(savedRoom.getId());
+        savedRoom.setDepositAmount(depositAmount);
+
         return savedRoom;
     }
 
-
-
-    public Optional<AuctionRoom> getRoom(String roomId){
+    public Optional<AuctionRoom> getRoom(String roomId) {
         Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(roomId);
         roomOpt.ifPresent(room -> {
-            room.setViewCount((room.getViewCount()==null ? 0 : room.getViewCount())+1);
+            room.setViewCount((room.getViewCount() == null ? 0 : room.getViewCount()) + 1);
+            BigDecimal depositAmount = auctionRoomService.recomputeAndPersistDeposit(room.getId());
+            room.setDepositAmount(depositAmount);
             auctionRoomRepository.save(room);
         });
         return roomOpt;
@@ -133,20 +154,23 @@ public class StreamService {
         for (AuctionSession session : sessions) {
             Artwork artwork = artworkRepository.findById(session.getArtworkId()).orElse(null);
             var topBidOpt = bidsRepository.findTopByAuctionSessionIdOrderByAmountAtThatTimeDesc(session.getId());
-            if (topBidOpt.isEmpty()) continue;
+            if (topBidOpt.isEmpty())
+                continue;
 
             Bids topBid = topBidOpt.get();
             User winner = userRepository.findById(topBid.getUserId()).orElse(null);
-            if (winner == null) continue;
+            if (winner == null)
+                continue;
 
             User artist = (artwork != null && artwork.getOwnerId() != null)
-                    ? userRepository.findById(artwork.getOwnerId()).orElse(null) : null;
+                    ? userRepository.findById(artwork.getOwnerId()).orElse(null)
+                    : null;
 
             BigDecimal artworkPrice = topBid.getAmountAtThatTime();
             BigDecimal buyerPremium = artworkPrice.multiply(BigDecimal.valueOf(0.15));
             BigDecimal insurance = BigDecimal.valueOf(125);
-            BigDecimal shipping  = BigDecimal.valueOf(75);
-            BigDecimal salesTax  = artworkPrice.multiply(BigDecimal.valueOf(0.085));
+            BigDecimal shipping = BigDecimal.valueOf(75);
+            BigDecimal salesTax = artworkPrice.multiply(BigDecimal.valueOf(0.085));
             BigDecimal total = artworkPrice.add(buyerPremium).add(insurance).add(shipping).add(salesTax);
 
             Invoice invoice = new Invoice();
@@ -182,11 +206,11 @@ public class StreamService {
                     "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s%s",
                     url(mbProps.getBankCode()),
                     url(mbProps.getAccountNo()),
-                    url(total.toPlainString()),   // tổng tiền phải thanh toán
-                    url(paymentNote),             // nội dung chuyển khoản để đối soát
+                    url(total.toPlainString()), // tổng tiền phải thanh toán
+                    url(paymentNote), // nội dung chuyển khoản để đối soát
                     (mbProps.getAccountName() != null && !mbProps.getAccountName().isBlank())
-                            ? "&accountName=" + url(mbProps.getAccountName()) : ""
-            );
+                            ? "&accountName=" + url(mbProps.getAccountName())
+                            : "");
 
             // 🔹 Lưu QR vào invoice
             invoice.setPaymentQr(paymentQr);
@@ -203,57 +227,116 @@ public class StreamService {
                     "Chúc mừng! Bạn thắng phiên %s với tác phẩm \"%s\". Tổng thanh toán: %s.",
                     session.getId(),
                     invoice.getArtworkTitle(),
-                    total.toPlainString()
-            ));
+                    total.toPlainString()));
             // Nếu cần deep link:
             // noti.setLink("/invoices/" + invoice.getId());
             notifications.add(noti);
         }
 
         invoiceRepository.saveAll(invoices);
-        if (!notifications.isEmpty()) notificationService.addAll(notifications);
+        if (!notifications.isEmpty())
+            notificationService.addAll(notifications);
 
         return invoices;
     }
 
-
-
     public AuctionSession startNextSession(String roomId) {
-        // 1) Chặn nếu đã có phiên đang chạy
+        AuctionSession started = startNextSessionInternal(roomId);
+        publishSessionEvent(started, "SESSION_STARTED", Map.of("autoStart", false));
+        return started;
+    }
+
+    public Map<String, Object> stopAuctionSession(String sessionId) {
+        AuctionSession session = auctionSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
+        Map<String, Object> resp = finalizeSession(session, LocalDateTime.now());
+        publishSessionEvent(session, "SESSION_ENDED", Map.of("reason", "MANUAL_STOP"));
+        return resp;
+    }
+
+    public AuctionSession getLiveOrNextSessionInRoom(String roomId) {
+        auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+
+        // 1) LIVE trước (status = 1)
+        var liveOpt = auctionSessionRepository
+                .findFirstByAuctionRoomIdAndStatusOrderByStartTimeDesc(roomId, 1);
+
+        // 2) Không có LIVE -> lấy phiên kế tiếp (status = 0, chưa start)
+        var s = liveOpt.orElseGet(() -> auctionSessionRepository
+                .findFirstByAuctionRoomIdAndStatusAndStartTimeIsNullOrderByOrderIndexAsc(roomId, 0)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No session in this room")));
+
+        // 3) Fallback ảnh nếu thiếu
+        if ((s.getImageUrl() == null || s.getImageUrl().isBlank()) && s.getArtworkId() != null) {
+            artworkRepository.findById(s.getArtworkId()).ifPresent(art -> {
+                String img = null;
+                if (art.getAvtArtwork() != null && !art.getAvtArtwork().isBlank()) {
+                    img = art.getAvtArtwork();
+                } else if (art.getImageUrls() != null && !art.getImageUrls().isEmpty()) {
+                    img = art.getImageUrls().get(0);
+                }
+                if (img != null) {
+                    s.setImageUrl(img); // set vào object trả về (không nhất thiết phải save)
+                }
+            });
+        }
+
+        return s;
+    }
+
+    private AuctionSession startNextSessionInternal(String roomId) {
         auctionSessionRepository.findFirstByAuctionRoomIdAndStatus(roomId, SessionStatus.STARTED)
                 .ifPresent(running -> {
                     throw new ResponseStatusException(HttpStatus.CONFLICT,
                             "A session is already running: " + running.getId());
                 });
 
-        // 2) Tìm phiên SẴN SÀNG đầu tiên: status = 0 **và chưa từng start** (startTime == null)
         var nextOpt = auctionSessionRepository
                 .findFirstByAuctionRoomIdAndStatusAndStartTimeIsNullOrderByOrderIndexAsc(
                         roomId, SessionStatus.STOPPED);
 
-        var next = nextOpt.orElseThrow(() ->
-                new ResponseStatusException(HttpStatus.NOT_FOUND, "No session available to start"));
+        var next = nextOpt
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No session available to start"));
 
-        // 3) Cho chạy + set startTime (không bao giờ reset về null nữa)
+        LocalDateTime now = LocalDateTime.now();
         next.setStatus(SessionStatus.STARTED);
-        next.setStartTime(LocalDateTime.now());
+        next.setStartTime(now);
+        next.setEndedAt(now.plusSeconds(resolveDurationSeconds(next)));
+        next.setUpdatedAt(now);
         return auctionSessionRepository.save(next);
     }
 
+    private Optional<AuctionSession> autoStartNextSession(String roomId) {
+        try {
+            AuctionSession started = startNextSessionInternal(roomId);
+            publishSessionEvent(started, "SESSION_STARTED", Map.of("autoStart", true));
+            return Optional.of(started);
+        } catch (ResponseStatusException ex) {
+            if (ex.getStatusCode().equals(HttpStatus.NOT_FOUND) || ex.getStatusCode().equals(HttpStatus.CONFLICT)) {
+                return Optional.empty();
+            }
+            throw ex;
+        }
+    }
 
+    // 🧩 Hàm tạo note ngắn 12 ký tự
+    @SuppressWarnings("unused")
+    private String generateShortNote(String walletId) {
+        String suffix = walletId.length() > 5 ? walletId.substring(walletId.length() - 5) : walletId;
+        String millis = String.valueOf(System.currentTimeMillis());
+        String last4 = millis.substring(millis.length() - 4);
+        return "TP" + suffix + "_" + last4;
+    }
 
+    private Map<String, Object> finalizeSession(AuctionSession session, LocalDateTime endedAtOverride) {
+        LocalDateTime endedAt = endedAtOverride != null ? endedAtOverride : LocalDateTime.now();
+        session.setEndedAt(endedAt);
+        session.setStatus(SessionStatus.STOPPED);
+        session.setUpdatedAt(LocalDateTime.now());
 
-    public Map<String, Object> stopAuctionSession(String sessionId) {
-        AuctionSession session = auctionSessionRepository.findById(sessionId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Session not found"));
-
-        // cập nhật kết thúc
-        session.setEndedAt(LocalDateTime.now());
-        session.setStatus(0);
-
-        // bid cao nhất (có thể null)
         Bids highestBid = bidsRepository
-                .findTopByAuctionSessionIdOrderByAmountAtThatTimeDesc(sessionId)
+                .findTopByAuctionSessionIdOrderByAmountAtThatTimeDesc(session.getId())
                 .orElse(null);
 
         BigDecimal highestAmount = null;
@@ -270,13 +353,11 @@ public class StreamService {
             session.setFinalPrice(highestAmount);
         }
 
-        // artwork (có thể null)
         Artwork artwork = (session.getArtworkId() != null)
                 ? artworkRepository.findById(session.getArtworkId()).orElse(null)
                 : null;
 
         auctionSessionRepository.save(session);
-
 
         Map<String, Object> resp = new LinkedHashMap<>();
         resp.put("sessionId", session.getId());
@@ -286,57 +367,71 @@ public class StreamService {
         resp.put("winnerId", winnerId);
         resp.put("winnerName", winnerName);
         resp.put("highestBidAmount", highestAmount);
-        resp.put("endedAt", session.getEndedAt());   // đã set ở trên
+        resp.put("endedAt", session.getEndedAt());
         return resp;
     }
 
-
-    public AuctionSession getLiveOrNextSessionInRoom(String roomId) {
-        auctionRoomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
-
-        // 1) LIVE trước (status = 1)
-        var liveOpt = auctionSessionRepository
-                .findFirstByAuctionRoomIdAndStatusOrderByStartTimeDesc(roomId, 1);
-
-        // 2) Không có LIVE -> lấy phiên kế tiếp (status = 0, chưa start)
-        var s = liveOpt.orElseGet(() ->
-                auctionSessionRepository
-                        .findFirstByAuctionRoomIdAndStatusAndStartTimeIsNullOrderByOrderIndexAsc(roomId, 0)
-                        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "No session in this room"))
-        );
-
-        // 3) Fallback ảnh nếu thiếu
-        if ((s.getImageUrl() == null || s.getImageUrl().isBlank()) && s.getArtworkId() != null) {
-            artworkRepository.findById(s.getArtworkId()).ifPresent(art -> {
-                String img = null;
-                if (art.getAvtArtwork() != null && !art.getAvtArtwork().isBlank()) {
-                    img = art.getAvtArtwork();
-                } else if (art.getImageUrls() != null && !art.getImageUrls().isEmpty()) {
-                    img = art.getImageUrls().get(0);
-                }
-                if (img != null) {
-                    s.setImageUrl(img);  // set vào object trả về (không nhất thiết phải save)
-                }
-            });
-        }
-
-        return s;
-    }
-
-    // 🧩 Hàm tạo note ngắn 12 ký tự
-    private String generateShortNote(String walletId) {
-        String suffix = walletId.length() > 5 ? walletId.substring(walletId.length() - 5) : walletId;
-        String millis = String.valueOf(System.currentTimeMillis());
-        String last4 = millis.substring(millis.length() - 4);
-        return "TP" + suffix + "_" + last4;
-    }
-
     private String url(String s) {
-        try { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
-        catch (Exception e) { return s; }
+        try {
+            return URLEncoder.encode(s, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return s;
+        }
     }
 
+    private int resolveMaxDurationSeconds(AuctionSessionCreateRequest request, int durationSeconds) {
+        if (request != null && request.getStartTime() != null && request.getEndTime() != null) {
+            long diff = Duration.between(request.getStartTime(), request.getEndTime()).getSeconds();
+            if (diff > durationSeconds) {
+                return (int) diff;
+            }
+        }
+        return durationSeconds + DEFAULT_MAX_EXTENSION_BUFFER_SECONDS;
+    }
+
+    private int resolveDurationSeconds(AuctionSession session) {
+        if (session != null && session.getDurationSeconds() != null && session.getDurationSeconds() > 0) {
+            return session.getDurationSeconds();
+        }
+        return DEFAULT_SESSION_DURATION_MINUTES * 60;
+    }
+
+    private void publishSessionEvent(AuctionSession session, String eventType, Map<String, Object> extras) {
+        if (messagingTemplate == null || session == null) {
+            return;
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("eventType", eventType);
+        payload.put("sessionId", session.getId());
+        payload.put("roomId", session.getAuctionRoomId());
+        payload.put("orderIndex", session.getOrderIndex());
+        payload.put("startTime", session.getStartTime());
+        payload.put("endTime", session.getEndedAt());
+        payload.put("currentPrice", session.safeCurrentPrice());
+        payload.put("status", session.getStatus());
+        if (extras != null) {
+            payload.putAll(extras);
+        }
+        messagingTemplate.convertAndSend(SESSION_TOPIC_PREFIX + session.getAuctionRoomId(), payload);
+    }
+
+    @Scheduled(fixedDelayString = "${auction.session.monitor-interval-ms:1000}")
+    @Transactional
+    public void autoCloseSessionsWhenExpired() {
+        LocalDateTime now = LocalDateTime.now();
+        List<AuctionSession> expired = auctionSessionRepository
+                .findByStatusAndEndedAtLessThanEqual(SessionStatus.STARTED, now);
+        if (expired.isEmpty()) {
+            return;
+        }
+        expired.forEach(session -> {
+            finalizeSession(session, now);
+            publishSessionEvent(session, "SESSION_ENDED", Map.of("reason", "TIMEOUT"));
+            autoStartNextSession(session.getAuctionRoomId());
+        });
+    }
+
+    @SuppressWarnings("unused")
     private String generateTransactionId() {
         String random = Long.toHexString(Double.doubleToLongBits(Math.random())).substring(0, 4);
         return "TXN-" + System.currentTimeMillis() + "-" + random;

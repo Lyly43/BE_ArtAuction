@@ -5,7 +5,6 @@ import com.auctionaa.backend.Entity.AuctionRoom;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
-
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -20,6 +19,7 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
                     "   id: '$_id', " + // thêm dòng này
                     "   roomName: 1, description: 1, " +
                     "   viewCount: '$viewCount', " +
+                    "   depositAmount: '$depositAmount', " +
                     "   memberIds: 1, imageAuctionRoom: 1, type: 1, status: 1, " +
                     "   createdAt: 1, updatedAt: 1, " +
                     "   membersCount: { $size: { $ifNull: ['$memberIds', []] } } " + // xem mục 2
@@ -52,6 +52,7 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
                     "   type: 1, " +
                     "   status: 1, " +
                     "   memberIds: 1, " +
+                    "   depositAmount: '$depositAmount', " +
                     // lấy viewCount của PHÒNG
                     "   viewCount: '$viewCount', " +
                     // thông tin phiên

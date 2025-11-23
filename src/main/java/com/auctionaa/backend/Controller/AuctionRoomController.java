@@ -35,8 +35,7 @@ public class AuctionRoomController {
 
     // Endpoint tạo auction room mới
     @PostMapping("/create")
-    public AuctionRoom createAuctionRoom(@RequestBody AuctionRoomRequest req,
-                                         @RequestHeader("Authorization") String authHeader) {
+    public AuctionRoom createAuctionRoom(@RequestBody AuctionRoomRequest req, @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "").trim();
         String email = jwtUtil.extractUserId(token);
         return auctionRoomService.createAuctionRoom(req, email);
@@ -57,12 +56,7 @@ public class AuctionRoomController {
      * - dateTo: Lọc đến ngày (format: yyyy-MM-dd)
      */
     @GetMapping("/search")
-    public List<AuctionRoom> searchAndFilter(
-            @RequestParam(required = false) String id,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) String dateFrom,
-            @RequestParam(required = false) String dateTo) {
+    public List<AuctionRoom> searchAndFilter(@RequestParam(required = false) String id, @RequestParam(required = false) String name, @RequestParam(required = false) String type, @RequestParam(required = false) String dateFrom, @RequestParam(required = false) String dateTo) {
 
         BaseSearchRequest request = new BaseSearchRequest();
         request.setId(id);

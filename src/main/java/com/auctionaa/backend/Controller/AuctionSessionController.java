@@ -53,4 +53,3 @@ public class AuctionSessionController {
         return auctionSessionService.searchAndFilter(request);
     }
 }
-
