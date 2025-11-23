@@ -48,18 +48,21 @@ public class InvoiceController {
     }
 
     /**
-     * Tìm kiếm và lọc invoice
+     * Tìm kiếm và lọc invoice của user hiện tại
      * Request body (JSON): id, name (artworkTitle hoặc roomName), dateFrom, dateTo
-     * Có thể gửi body rỗng {} để lấy tất cả
+     * Có thể gửi body rỗng {} để lấy tất cả invoice của user
      */
     @PostMapping("/search")
     public SearchResponse<Invoice> searchAndFilter(
-            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request,
+            @RequestHeader("Authorization") String authHeader) {
         // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
         if (request == null) {
             request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
         }
-        List<Invoice> results = invoiceService.searchAndFilter(request);
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        List<Invoice> results = invoiceService.searchAndFilter(request, userId);
         return SearchResponse.success(results);
     }
 }

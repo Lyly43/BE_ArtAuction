@@ -90,24 +90,30 @@ public class WalletController {
     }
 
     /**
-     * Tìm kiếm và lọc wallet
+     * Tìm kiếm và lọc wallet của user hiện tại
      * Request body (JSON): id, dateFrom, dateTo
      * Note: Wallet không có field "name" và "type" nên chỉ tìm theo ID và ngày
-     * Có thể gửi body rỗng {} để lấy tất cả
+     * Có thể gửi body rỗng {} để lấy wallet của user
      */
     @PostMapping("/search")
-    public SearchResponse<Wallet> searchAndFilter(@RequestBody(required = false) BaseSearchRequest request) {
+    public SearchResponse<Wallet> searchAndFilter(
+            @RequestBody(required = false) BaseSearchRequest request,
+            @RequestHeader("Authorization") String authHeader) {
         // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
         if (request == null) {
             request = new BaseSearchRequest();
         }
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
         List<Wallet> results = genericSearchService.searchAndFilter(
                 request,
                 Wallet.class,
                 "_id", // idField
                 null, // nameField (không có)
                 null, // typeField (không có)
-                "createdAt" // dateField
+                "createdAt", // dateField
+                "userId", // userIdField
+                userId // userId
         );
         return SearchResponse.success(results);
     }

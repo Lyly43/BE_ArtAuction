@@ -28,12 +28,19 @@ public class GenericSearchService {
     /**
      * Generic method để tìm kiếm và lọc entity
      *
-     * @param request BaseSearchRequest với các điều kiện tìm kiếm
+     * @param request     BaseSearchRequest với các điều kiện tìm kiếm
      * @param entityClass Class của entity cần tìm
-     * @param idField Tên field ID (thường là "_id" hoặc "id")
-     * @param nameField Tên field để tìm kiếm theo tên (ví dụ: "title", "roomName", "artworkTitle")
-     * @param typeField Tên field để lọc theo thể loại (ví dụ: "type", "paintingGenre")
-     * @param dateField Tên field để lọc theo ngày (ví dụ: "createdAt", "paymentDate", "startTime")
+     * @param idField     Tên field ID (thường là "_id" hoặc "id")
+     * @param nameField   Tên field để tìm kiếm theo tên (ví dụ: "title",
+     *                    "roomName", "artworkTitle")
+     * @param typeField   Tên field để lọc theo thể loại (ví dụ: "type",
+     *                    "paintingGenre")
+     * @param dateField   Tên field để lọc theo ngày (ví dụ: "createdAt",
+     *                    "paymentDate", "startTime")
+     * @param userIdField Tên field để filter theo userId (ví dụ: "ownerId",
+     *                    "userId", "sellerId")
+     * @param userId      ID của user để filter (nếu null thì không filter theo
+     *                    user)
      * @return List các entity thỏa mãn điều kiện
      */
     public <T> List<T> searchAndFilter(
@@ -42,7 +49,9 @@ public class GenericSearchService {
             String idField,
             String nameField,
             String typeField,
-            String dateField) {
+            String dateField,
+            String userIdField,
+            String userId) {
 
         Query query = new Query();
         Criteria criteria = new Criteria();
@@ -82,11 +91,21 @@ public class GenericSearchService {
             criteria.andOperator(dateCriteria);
         }
 
+        // 5. Filter theo userId (nếu có)
+        if (StringUtils.hasText(userId) && StringUtils.hasText(userIdField)) {
+            criteria.and(userIdField).is(userId);
+        }
+
         // Áp dụng criteria vào query
         if (criteria.getCriteriaObject().size() > 0) {
             query.addCriteria(criteria);
         } else {
-            // Nếu không có điều kiện nào, trả về tất cả
+            // Nếu không có điều kiện nào, trả về tất cả (hoặc filter theo userId nếu có)
+            if (StringUtils.hasText(userId) && StringUtils.hasText(userIdField)) {
+                Criteria userIdCriteria = new Criteria(userIdField).is(userId);
+                query.addCriteria(userIdCriteria);
+                return mongoTemplate.find(query, entityClass);
+            }
             return mongoTemplate.findAll(entityClass);
         }
 
@@ -94,4 +113,3 @@ public class GenericSearchService {
         return mongoTemplate.find(query, entityClass);
     }
 }
-

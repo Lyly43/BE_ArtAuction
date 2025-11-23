@@ -87,18 +87,21 @@ public class ArtworkController {
     }
 
     /**
-     * Tìm kiếm và lọc artwork
+     * Tìm kiếm và lọc artwork của user hiện tại
      * Request body (JSON): id, name (title), type (paintingGenre), dateFrom, dateTo
-     * Có thể gửi body rỗng {} để lấy tất cả
+     * Có thể gửi body rỗng {} để lấy tất cả tranh của user
      */
     @PostMapping("/search")
     public SearchResponse<Artwork> searchAndFilter(
-            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request) {
+            @RequestBody(required = false) com.auctionaa.backend.DTO.Request.BaseSearchRequest request,
+            @RequestHeader("Authorization") String authHeader) {
         // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
         if (request == null) {
             request = new com.auctionaa.backend.DTO.Request.BaseSearchRequest();
         }
-        List<Artwork> results = artworkService.searchAndFilter(request);
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        List<Artwork> results = artworkService.searchAndFilter(request, userId);
         return SearchResponse.success(results);
     }
 

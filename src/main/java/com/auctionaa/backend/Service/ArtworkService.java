@@ -17,8 +17,6 @@ import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Service
 public class ArtworkService {
@@ -154,15 +152,41 @@ public class ArtworkService {
      * - Tìm theo title (tên)
      * - Lọc theo paintingGenre (thể loại)
      * - Lọc theo createdAt (ngày tạo)
+     * - Filter theo ownerId (chỉ lấy tranh của user đó)
+     *
+     * @param request       BaseSearchRequest với các điều kiện tìm kiếm
+     * @param userIdOrEmail userId hoặc email từ JWT token
      */
-    public List<Artwork> searchAndFilter(BaseSearchRequest request) {
+    public List<Artwork> searchAndFilter(BaseSearchRequest request, String userIdOrEmail) {
+        // Xử lý cả 2 trường hợp: userId hoặc email
+        String ownerIdToSearch = userIdOrEmail;
+
+        // Nếu là email (có chứa @), cần convert sang userId
+        if (userIdOrEmail != null && userIdOrEmail.contains("@")) {
+            User user = userRepository.findById(userIdOrEmail)
+                    .orElse(null);
+            if (user != null) {
+                ownerIdToSearch = user.getId();
+            } else {
+                // Nếu không tìm thấy user, trả về empty list
+                return new ArrayList<>();
+            }
+        }
+
+        // Nếu ownerIdToSearch vẫn null hoặc empty, trả về empty list
+        if (ownerIdToSearch == null || ownerIdToSearch.isEmpty()) {
+            return new ArrayList<>();
+        }
+
         return genericSearchService.searchAndFilter(
                 request,
                 Artwork.class,
                 "_id", // idField
                 "title", // nameField
                 "paintingGenre", // typeField
-                "createdAt" // dateField
+                "createdAt", // dateField
+                "ownerId", // userIdField
+                ownerIdToSearch // userId (đã convert nếu cần)
         );
     }
 

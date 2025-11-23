@@ -49,22 +49,27 @@ public class AuctionRoomController {
     }
 
     /**
-     * Tìm kiếm và lọc auction room
+     * Tìm kiếm và lọc auction room của user hiện tại
      * Request body (JSON):
      * - id: Tìm kiếm theo ID (exact match)
      * - name: Tìm kiếm theo tên phòng (partial match, case-insensitive)
      * - type: Lọc theo thể loại
      * - dateFrom: Lọc từ ngày (format: yyyy-MM-dd)
      * - dateTo: Lọc đến ngày (format: yyyy-MM-dd)
-     * Có thể gửi body rỗng {} để lấy tất cả
+     * Có thể gửi body rỗng {} để lấy tất cả phòng mà user tham gia (là admin hoặc
+     * member)
      */
     @PostMapping("/search")
-    public SearchResponse<AuctionRoom> searchAndFilter(@RequestBody(required = false) BaseSearchRequest request) {
+    public SearchResponse<AuctionRoom> searchAndFilter(
+            @RequestBody(required = false) BaseSearchRequest request,
+            @RequestHeader("Authorization") String authHeader) {
         // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
         if (request == null) {
             request = new BaseSearchRequest();
         }
-        List<AuctionRoom> results = auctionRoomService.searchAndFilter(request);
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        List<AuctionRoom> results = auctionRoomService.searchAndFilter(request, userId);
         return SearchResponse.success(results);
     }
 

@@ -93,21 +93,33 @@ public class AuctionRoomService {
     }
 
     /**
-     * Tìm kiếm và lọc auction room theo các tiêu chí:
+     * Tìm kiếm và lọc auction room của user hiện tại theo các tiêu chí:
      * - Tìm kiếm theo ID (exact match)
      * - Tìm kiếm theo tên phòng (partial match, case-insensitive)
      * - Lọc theo thể loại (type)
      * - Lọc theo ngày tạo (dateFrom, dateTo)
+     * - Filter theo adminId hoặc memberIds (user là admin hoặc member)
      */
-    public List<AuctionRoom> searchAndFilter(BaseSearchRequest request) {
+    public List<AuctionRoom> searchAndFilter(BaseSearchRequest request, String userId) {
         List<AuctionRoom> rooms = genericSearchService.searchAndFilter(
                 request,
                 AuctionRoom.class,
                 "_id", // idField
                 "roomName", // nameField
                 "type", // typeField
-                "createdAt" // dateField
+                "createdAt", // dateField
+                null, // userIdField (không dùng vì cần check cả adminId và memberIds)
+                null // userId (sẽ filter sau)
         );
+
+        // Filter theo userId: user là admin hoặc là member
+        if (userId != null && !userId.isEmpty()) {
+            rooms = rooms.stream()
+                    .filter(room -> userId.equals(room.getAdminId())
+                            || (room.getMemberIds() != null && room.getMemberIds().contains(userId)))
+                    .toList();
+        }
+
         initializeDepositForRooms(rooms);
         return rooms;
     }
