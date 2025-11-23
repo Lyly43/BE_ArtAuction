@@ -36,10 +36,6 @@ public class AuctionRoom extends BaseEntity {
     // Thời hạn thanh toán sau khi thắng (số ngày)
     private Integer paymentDeadlineDays;
 
-    @DecimalMin(value = "0.0", inclusive = true)
-    @Field(value = "deposit_amount", targetType = FieldType.DECIMAL128)
-    private BigDecimal depositAmount;
-
     //check các user đã trả phí hồ sơ
     private List<String> applicationFeePaidUserIds;
 

@@ -32,6 +32,7 @@ public class DashboardStatisticsResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MonthlyStat {
+        private long total; // Tổng số lượng trong database
         private long currentMonth;
         private long previousMonth;
         private long change;
@@ -43,6 +44,7 @@ public class DashboardStatisticsResponse {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class MonthlyRevenueStat {
+        private BigDecimal total; // Tổng doanh thu trong database
         private BigDecimal currentMonth;
         private BigDecimal previousMonth;
         private BigDecimal change;

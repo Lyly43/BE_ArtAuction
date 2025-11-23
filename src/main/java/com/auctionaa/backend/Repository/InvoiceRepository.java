@@ -22,4 +22,21 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     Optional<Invoice> findById(String id);
 
     List<Invoice> findByUserId(String userId);
+    
+    // Search methods for admin - tìm kiếm theo id, userId, artworkTitle, artistName, roomName, winnerName, transactionId
+    @Query("{ $or: [ " +
+           "{ 'id': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'userId': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'artworkTitle': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'artistName': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'roomName': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'winnerName': { $regex: ?0, $options: 'i' } }, " +
+           "{ 'transactionId': { $regex: ?0, $options: 'i' } } " +
+           "] }")
+    List<Invoice> searchInvoices(String searchTerm);
+    
+    // Count methods for statistics
+    long countByInvoiceStatus(int status);
+    
+    long countByInvoiceStatusIn(Collection<Integer> statuses);
 }

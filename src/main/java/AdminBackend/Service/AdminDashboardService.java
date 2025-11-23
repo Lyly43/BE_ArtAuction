@@ -74,7 +74,10 @@ public class AdminDashboardService {
         MonthlyComparisonResponse comparison = monthlyStatisticsService.getMonthlyComparison("users", "createdAt");
         MonthlyComparisonResponse.MonthlyComparisonData compData = comparison.getData();
         
+        long totalUsers = userRepository.count();
+        
         return new DashboardStatisticsResponse.MonthlyStat(
+            totalUsers,
             compData.getCurrentMonth().getTotal(),
             compData.getPreviousMonth().getTotal(),
             compData.getChange().getAmount(),
@@ -90,7 +93,10 @@ public class AdminDashboardService {
         MonthlyComparisonResponse comparison = monthlyStatisticsService.getMonthlyComparison("artworks", "createdAt");
         MonthlyComparisonResponse.MonthlyComparisonData compData = comparison.getData();
         
+        long totalArtworks = artworkRepository.count();
+        
         return new DashboardStatisticsResponse.MonthlyStat(
+            totalArtworks,
             compData.getCurrentMonth().getTotal(),
             compData.getPreviousMonth().getTotal(),
             compData.getChange().getAmount(),
@@ -106,7 +112,10 @@ public class AdminDashboardService {
         MonthlyComparisonResponse comparison = monthlyStatisticsService.getMonthlyComparison("bids", "createdAt");
         MonthlyComparisonResponse.MonthlyComparisonData compData = comparison.getData();
         
+        long totalBids = bidsRepository.count();
+        
         return new DashboardStatisticsResponse.MonthlyStat(
+            totalBids,
             compData.getCurrentMonth().getTotal(),
             compData.getPreviousMonth().getTotal(),
             compData.getChange().getAmount(),
@@ -129,17 +138,65 @@ public class AdminDashboardService {
         BigDecimal previousMonth = BigDecimal.valueOf(compData.getPreviousMonth().getTotal());
         BigDecimal change = BigDecimal.valueOf(compData.getChange().getAmount());
         
+        // Tính tổng doanh thu từ tất cả invoices
+        BigDecimal totalRevenue = calculateTotalRevenue();
+        
         System.out.println("DEBUG getRevenueMonthlyStat - currentMonth: " + currentMonth + 
             ", previousMonth: " + previousMonth + 
-            ", change: " + change);
+            ", change: " + change +
+            ", totalRevenue: " + totalRevenue);
         
         return new DashboardStatisticsResponse.MonthlyRevenueStat(
+            totalRevenue,
             currentMonth,
             previousMonth,
             change,
             compData.getChange().getPercentage(),
             compData.getChange().isIncrease()
         );
+    }
+    
+    /**
+     * Tính tổng doanh thu từ tất cả invoices (không filter theo thời gian)
+     */
+    private BigDecimal calculateTotalRevenue() {
+        org.springframework.data.mongodb.core.aggregation.Aggregation aggregation = 
+            org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
+                org.springframework.data.mongodb.core.aggregation.Aggregation.match(
+                    org.springframework.data.mongodb.core.query.Criteria.where("totalAmount").ne(null)
+                ),
+                org.springframework.data.mongodb.core.aggregation.Aggregation.project()
+                    .andExpression(
+                        "{$convert: {" +
+                            "input: '$totalAmount', " +
+                            "to: 'double', " +
+                            "onError: 0, " +
+                            "onNull: 0" +
+                        "}}"
+                    ).as("convertedAmount"),
+                org.springframework.data.mongodb.core.aggregation.Aggregation.group()
+                    .sum("convertedAmount").as("total")
+            );
+
+        org.springframework.data.mongodb.core.aggregation.AggregationResults<java.util.Map> results = 
+            mongoTemplate.aggregate(aggregation, "invoices", java.util.Map.class);
+
+        if (results.getMappedResults().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        java.util.Map<String, Object> result = results.getMappedResults().get(0);
+        Object total = result.get("total");
+        
+        if (total == null) {
+            return BigDecimal.ZERO;
+        }
+        
+        if (total instanceof Number) {
+            return BigDecimal.valueOf(((Number) total).doubleValue());
+        }
+        
+        return BigDecimal.ZERO;
     }
 
     /**
