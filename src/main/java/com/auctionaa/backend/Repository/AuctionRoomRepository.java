@@ -67,6 +67,7 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
     })
     List<AuctionRoomLiveDTO> findRoomsWithLivePrices(int runningStatus);
 
+
     // Tìm kiếm theo ID (exact match)
     Optional<AuctionRoom> findById(String id);
 
@@ -90,5 +91,9 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
     // Lọc theo ngày tạo (khoảng thời gian)
     @Query("{ 'createdAt': { $gte: ?0, $lte: ?1 } }")
     List<AuctionRoom> findByCreatedAtBetween(LocalDateTime dateFrom, LocalDateTime dateTo);
+
+    long countByStatus(int status);
+
+//    List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
 
 }

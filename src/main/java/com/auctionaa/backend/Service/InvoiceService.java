@@ -3,6 +3,7 @@ package com.auctionaa.backend.Service;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Request.CreateInvoiceRequest;
 import com.auctionaa.backend.DTO.Response.InvoiceListItemDTO;
+import com.auctionaa.backend.DTO.Response.InvoiceSmall;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.Invoice;
@@ -13,7 +14,10 @@ import com.auctionaa.backend.Repository.InvoiceRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -189,6 +193,26 @@ public class InvoiceService {
                         : null,
                 "userId", // userIdField
                 userId // userId
+        );
+    }
+
+    public InvoiceSmall getLatestInvoiceSmallForUser(String userId) {
+        Invoice invoice = invoiceRepository
+                .findTopByUserIdOrderByOrderDateDesc(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Không tìm thấy hóa đơn nào cho user"
+                ));
+
+        String totalAmountStr = invoice.getTotalAmount() != null
+                ? invoice.getTotalAmount().toPlainString()
+                : null;
+
+        return new InvoiceSmall(
+                invoice.getArtworkTitle(),
+                invoice.getArtworkImageUrl(),
+                invoice.getRoomName(),
+                totalAmountStr,
+                invoice.getPaymentStatus()  // int
         );
     }
 

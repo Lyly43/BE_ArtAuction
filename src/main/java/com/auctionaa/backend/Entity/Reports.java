@@ -16,6 +16,7 @@ import java.time.LocalDateTime;
 @Document(collection = "reports")
 public class Reports extends BaseEntity {
 
+
     // ========== INT FIELDS ==========
     private int entityType; // Loại entity: int (1=User, 2=Artwork, 3=Auction Room, 4=AI Artwork)
     private int status; // Trạng thái: int (0=Pending, 1=Processing, 2=Resolved, 3=Rejected)
@@ -28,6 +29,16 @@ public class Reports extends BaseEntity {
     private String imageUrl; // URL ảnh chứng minh từ Cloudinary: String (optional)
     private String imagePublicId; // Public ID của ảnh trên Cloudinary: String (để xóa sau)
     private String adminNote; // Ghi chú của admin: String (optional)
+
+    private String userId;
+    private String objectId; // id đối tượng bị báo cáo
+    private String object; // đóio tượng
+    private String reportReason; // lis do baos caos
+    private int reportStatus;
+//        "PENDING", "CHỜ XỬ LÝ" → 0
+//        "INVESTIGATING", "ĐANG ĐIỀU TRA", "IN_PROGRESS" → 1
+//        "RESOLVED", "ĐÃ GIẢI QUYẾT", "DONE" → 2
+
 
     @CreatedDate
     private LocalDateTime createdAt;
