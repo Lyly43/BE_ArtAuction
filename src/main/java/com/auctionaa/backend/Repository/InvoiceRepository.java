@@ -8,24 +8,18 @@ import org.springframework.data.mongodb.repository.Query;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface InvoiceRepository extends MongoRepository<Invoice, String> {
     Page<Invoice> findAll(Pageable pageable);
 
     Page<Invoice> findByUserId(String userId, Pageable pageable);
 
+    Optional<Invoice> findTopByUserIdOrderByOrderDateDesc(String userId);
+
     List<Invoice> findByUserIdOrderByOrderDateDesc(String userId);
 
-    @Query("{ $or: [ " +
-            "{ 'id': { $regex: ?0, $options: 'i' } }, " +
-            "{ 'userId': { $regex: ?0, $options: 'i' } }, " +
-            "{ 'auctionRoomId': { $regex: ?0, $options: 'i' } }, " +
-            "{ 'roomName': { $regex: ?0, $options: 'i' } }, " +
-            "{ 'sessionId': { $regex: ?0, $options: 'i' } } " +
-            "] }")
-    List<Invoice> searchInvoices(String searchTerm);
+    Optional<Invoice> findById(String id);
 
-    long countByInvoiceStatus(int invoiceStatus);
-
-    long countByInvoiceStatusIn(Collection<Integer> invoiceStatuses);
+    List<Invoice> findByUserId(String userId);
 }

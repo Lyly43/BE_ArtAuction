@@ -30,5 +30,6 @@ public class UserResponse {
 
     private LocalDate dateOfBirth;
     private Integer gender;// 0 = male, 1 = female, 2 = other
-
+    private int role;
+    private int kycStatus; // 0 = chưa xác thực, 1 = đã xác thực thành công
 }
