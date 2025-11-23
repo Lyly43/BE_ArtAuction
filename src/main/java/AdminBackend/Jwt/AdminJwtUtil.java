@@ -57,12 +57,25 @@ public class AdminJwtUtil {
 
     public String extractRole(String headerOrToken) {
         String token = sanitize(headerOrToken);
-        return (String) Jwts.parserBuilder()
+        Object roleObj = Jwts.parserBuilder()
                 .setSigningKey(key)
                 .build()
                 .parseClaimsJws(token)
                 .getBody()
                 .get("role");
+        
+        // Xử lý cả trường hợp role là Integer hoặc String
+        if (roleObj == null) {
+            return "3"; // Default role
+        }
+        if (roleObj instanceof Integer) {
+            return String.valueOf((Integer) roleObj);
+        }
+        if (roleObj instanceof String) {
+            return (String) roleObj;
+        }
+        // Fallback: convert sang String
+        return String.valueOf(roleObj);
     }
 
     public boolean validateToken(String headerOrToken) {

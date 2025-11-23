@@ -47,10 +47,25 @@ public class MonthlyStatisticsService {
 
         // Tính toán sự thay đổi
         long changeAmount = currentMonthCount - previousMonthCount;
-        double changePercentage = previousMonthCount == 0 
-            ? (currentMonthCount > 0 ? 100.0 : 0.0)
-            : ((double) changeAmount / previousMonthCount) * 100.0;
-        boolean isIncrease = changeAmount >= 0;
+        double changePercentage;
+        boolean isIncrease;
+        
+        if (previousMonthCount == 0) {
+            // Trường hợp tháng trước = 0
+            if (currentMonthCount > 0) {
+                // Tháng này có dữ liệu, tháng trước không có -> tăng 100%
+                changePercentage = 100.0;
+                isIncrease = true;
+            } else {
+                // Cả hai tháng đều = 0 -> không thay đổi
+                changePercentage = 0.0;
+                isIncrease = false; // Không phải tăng, cũng không phải giảm
+            }
+        } else {
+            // Trường hợp tháng trước > 0
+            changePercentage = ((double) changeAmount / previousMonthCount) * 100.0;
+            isIncrease = changeAmount > 0; // Chỉ true khi thực sự tăng (> 0), = 0 thì false
+        }
 
         // Tạo response
         MonthlyComparisonResponse.MonthlyComparisonData data = 
@@ -110,10 +125,25 @@ public class MonthlyStatisticsService {
 
         // Tính toán sự thay đổi
         long changeAmount = Math.round(currentMonthTotal - previousMonthTotal);
-        double changePercentage = previousMonthTotal == 0 
-            ? (currentMonthTotal > 0 ? 100.0 : 0.0)
-            : ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100.0;
-        boolean isIncrease = changeAmount >= 0;
+        double changePercentage;
+        boolean isIncrease;
+        
+        if (previousMonthTotal == 0) {
+            // Trường hợp tháng trước = 0
+            if (currentMonthTotal > 0) {
+                // Tháng này có doanh thu, tháng trước không có -> tăng 100%
+                changePercentage = 100.0;
+                isIncrease = true;
+            } else {
+                // Cả hai tháng đều = 0 -> không thay đổi
+                changePercentage = 0.0;
+                isIncrease = false; // Không phải tăng, cũng không phải giảm
+            }
+        } else {
+            // Trường hợp tháng trước > 0
+            changePercentage = ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100.0;
+            isIncrease = changeAmount > 0; // Chỉ true khi thực sự tăng (> 0), = 0 thì false
+        }
 
         // Tạo response
         MonthlyComparisonResponse.MonthlyComparisonData data = 
