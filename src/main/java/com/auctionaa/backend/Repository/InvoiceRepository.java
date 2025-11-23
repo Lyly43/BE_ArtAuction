@@ -12,9 +12,11 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
 
     Page<Invoice> findByUserId(String userId, Pageable pageable);
 
+    Optional<Invoice> findTopByUserIdOrderByOrderDateDesc(String userId);
+
     List<Invoice> findByUserIdOrderByOrderDateDesc(String userId);
 
     Optional<Invoice> findById(String id);
 
-    List<Invoice> findByUserIdAndPaymentStatus(String userId, int paymentStatus);
+    List<Invoice> findByUserId(String userId);
 }

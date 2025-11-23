@@ -3,6 +3,7 @@ package com.auctionaa.backend.Controller;
 import com.auctionaa.backend.DTO.Request.CreateInvoiceRequest;
 import com.auctionaa.backend.DTO.Response.InvoiceListItemDTO;
 import com.auctionaa.backend.DTO.Response.InvoicePaymentResponse;
+import com.auctionaa.backend.DTO.Response.InvoiceSmall;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Jwt.JwtUtil;
@@ -51,28 +52,25 @@ public class InvoiceController {
         return invoiceService.getMyInvoicesArray(email);
     }
 
-    @GetMapping("transaction-history")
-    public List<Invoice> getPaidInvoices(@RequestHeader("Authorization") String authHeader,
-                                         @RequestParam(defaultValue = "1") int paymentStatus)
-    {
+    @GetMapping("/my-invoice/small-latest")
+    public InvoiceSmall getMyLatestInvoiceSmall(
+            @RequestHeader("Authorization") String authHeader
+    ) {
         String userId = jwtUtil.extractUserId(authHeader);
-        User user = userRepository.findById(userId)
-                .orElseThrow(()-> new IllegalArgumentException("User not found!"));
-        System.out.println("userId from token = " + userId);
-        List<Invoice> ins = invoiceRepository.findByUserIdAndPaymentStatus(userId, paymentStatus);
-        return ins;
+
+        // Optional: đảm bảo user tồn tại
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+
+        return invoiceService.getLatestInvoiceSmallForUser(userId);
     }
 
-    @GetMapping("unpaid-transaction")
-    public List<Invoice> getUnpaidInvoices(@RequestHeader("Authorization") String authHeader,
-                                         @RequestParam(defaultValue = "0") int paymentStatus)
-    {
+    @GetMapping("/my-invoices/latest")
+    public List<Invoice> GetMyInvoices(@RequestHeader("Authorization") String authHeader){
         String userId = jwtUtil.extractUserId(authHeader);
-        User user = userRepository.findById(userId)
-                .orElseThrow(()-> new IllegalArgumentException("User not found!"));
-        System.out.println("userId from token = " + userId);
-        List<Invoice> ins = invoiceRepository.findByUserIdAndPaymentStatus(userId, paymentStatus);
-        return ins;
+        userRepository.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+        return invoiceRepository.findByUserId(userId);
     }
 
     @PostMapping("/{Id}/pay-invoice")

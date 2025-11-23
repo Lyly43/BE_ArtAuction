@@ -18,6 +18,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @Service
@@ -42,13 +43,20 @@ public class AuctionRoomDepositService {
             throw new IllegalArgumentException("userId không được để trống");
         }
 
+        // ❗ BẮT BUỘC ĐÃ THANH TOÁN PHÍ HỒ SƠ TRƯỚC
+        if (!hasPaidApplicationFee(room, userId)) {
+            throw new ResponseStatusException(
+                    BAD_REQUEST,
+                    "Bạn cần thanh toán phí hồ sơ cho phòng này trước khi thanh toán tiền cọc."
+            );
+        }
+
         // LẤY TIỀN CỌC TỪ auction_rooms.depositAmount
         BigDecimal amount = room.getDepositAmount();
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("depositAmount của phòng không hợp lệ");
         }
 
-        // Ghi chú: AR-roomId-userId-last4
         String note = generateArNote(roomId, userId);
 
         return processPayment(
@@ -56,16 +64,17 @@ public class AuctionRoomDepositService {
                 note,
                 () -> {
                     addMemberIfNotExists(room, userId);
+                    // (tuỳ bro) có thể set room.setPaymentStatus(1)…
                     auctionRoomRepository.save(room);
                 },
                 "Thanh toán cọc thành công, bạn đã được thêm vào phòng đấu giá."
         );
     }
 
+
     // 🔹 THANH TOÁN PHÍ HỒ SƠ (100.000 VND)
     public AuctionRegistrationResponse payApplicationFee(String roomId, String userId) {
 
-        // Chỉ để check room tồn tại
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
 
@@ -76,16 +85,20 @@ public class AuctionRoomDepositService {
         BigDecimal amount = APPLICATION_FEE;
         String note = generateAppFeeNote(roomId, userId);
 
-        // Phí hồ sơ KHÔNG add member (tùy nghiệp vụ)
         return processPayment(
                 amount,
                 note,
-                null,
+                () -> {
+                    // ✅ Ghi nhận user này đã thanh toán phí hồ sơ cho phòng này
+                    markApplicationFeePaid(room, userId);
+                    auctionRoomRepository.save(room);
+                },
                 "Thanh toán phí hồ sơ thành công."
         );
     }
 
-    // 🔹 THANH TOÁN COMBO: PHÍ HỒ SƠ + TIỀN CỌC
+
+    // 🔹 THANH TOÁN COMBO: PHÍ HỒ SƠ + CỌC
     public AuctionRegistrationResponse payApplicationFeeAndDeposit(
             String roomId,
             String userId
@@ -102,21 +115,23 @@ public class AuctionRoomDepositService {
             throw new IllegalArgumentException("depositAmount của phòng không hợp lệ");
         }
 
-        BigDecimal total = deposit.add(APPLICATION_FEE);   // combo
-
+        BigDecimal total = deposit.add(APPLICATION_FEE);
         String note = generateComboNote(roomId, userId);
 
         return processPayment(
                 total,
                 note,
                 () -> {
-                    // combo này coi như đủ điều kiện vào phòng
+                    // ✅ Combo: vừa ghi nhận đã trả phí hồ sơ
+                    markApplicationFeePaid(room, userId);
+                    // ✅ Vừa cho vào phòng luôn
                     addMemberIfNotExists(room, userId);
                     auctionRoomRepository.save(room);
                 },
                 "Thanh toán phí hồ sơ và tiền cọc thành công, bạn đã được thêm vào phòng đấu giá."
         );
     }
+
 
     // ================== HELPER METHODS ==================
 
@@ -240,4 +255,19 @@ public class AuctionRoomDepositService {
 
         return new AuctionRegistrationResponse(qrUrl, note, paid, message);
     }
+
+    private boolean hasPaidApplicationFee(AuctionRoom room, String userId) {
+        return room.getApplicationFeePaidUserIds() != null
+                && room.getApplicationFeePaidUserIds().contains(userId);
+    }
+
+    private void markApplicationFeePaid(AuctionRoom room, String userId) {
+        if (room.getApplicationFeePaidUserIds() == null) {
+            room.setApplicationFeePaidUserIds(new ArrayList<>());
+        }
+        if (!room.getApplicationFeePaidUserIds().contains(userId)) {
+            room.getApplicationFeePaidUserIds().add(userId);
+        }
+    }
+
 }

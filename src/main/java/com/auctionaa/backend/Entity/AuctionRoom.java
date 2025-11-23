@@ -33,6 +33,9 @@ public class AuctionRoom extends BaseEntity {
     @Field(value = "deposit_amount", targetType = FieldType.DECIMAL128)
     private BigDecimal depositAmount;
 
+    //check các user đã trả phí hồ sơ
+    private List<String> applicationFeePaidUserIds;
+
     private LocalDateTime startedAt;
     private LocalDateTime stoppedAt;
 
