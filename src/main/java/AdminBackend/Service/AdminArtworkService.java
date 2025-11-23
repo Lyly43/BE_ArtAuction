@@ -219,7 +219,7 @@ public class AdminArtworkService {
     }
 
     /**
-     * Lấy thống kê tác phẩm
+     * Lấy thống kê tác phẩm (bao gồm so sánh tháng này vs tháng trước)
      */
     public ResponseEntity<ArtworkStatisticsResponse> getArtworkStatistics() {
         long totalArtworks = artworkRepository.count();
@@ -227,11 +227,27 @@ public class AdminArtworkService {
         long approvedArtworks = artworkRepository.countByStatus(1); // Đã duyệt
         long rejectedArtworks = artworkRepository.countByStatus(3); // Từ chối
 
+        // Lấy thống kê so sánh tháng này vs tháng trước
+        MonthlyComparisonResponse monthlyComparison = monthlyStatisticsService.getMonthlyComparison("artworks", "createdAt");
+        MonthlyComparisonResponse.MonthlyComparisonData compData = monthlyComparison.getData();
+        
+        // Tạo monthly comparison data
+        ArtworkStatisticsResponse.MonthlyComparison monthlyComp = new ArtworkStatisticsResponse.MonthlyComparison(
+            compData.getCurrentMonth().getTotal(),
+            compData.getPreviousMonth().getTotal(),
+            compData.getChange().getAmount(),
+            compData.getChange().getPercentage(),
+            compData.getChange().isIncrease(),
+            compData.getCurrentMonth().getMonth(),
+            compData.getPreviousMonth().getMonth()
+        );
+
         ArtworkStatisticsResponse statistics = new ArtworkStatisticsResponse(
                 totalArtworks,
                 pendingArtworks,
                 approvedArtworks,
-                rejectedArtworks
+                rejectedArtworks,
+                monthlyComp
         );
 
         return ResponseEntity.ok(statistics);

@@ -112,7 +112,22 @@ public class AdminInvoiceService {
         long pending = invoiceRepository.countByInvoiceStatusIn(Arrays.asList(0, 1));
         long failed = invoiceRepository.countByInvoiceStatus(3);
 
-        AdminInvoiceStatisticsResponse stats = new AdminInvoiceStatisticsResponse(total, paid, pending, failed);
+        // Lấy thống kê so sánh tháng này vs tháng trước cho số lượng invoice
+        MonthlyComparisonResponse monthlyComparison = monthlyStatisticsService.getMonthlyComparison("invoices", "createdAt");
+        MonthlyComparisonResponse.MonthlyComparisonData compData = monthlyComparison.getData();
+        
+        // Tạo monthly comparison data (số lượng invoice)
+        AdminInvoiceStatisticsResponse.MonthlyComparison monthlyComp = new AdminInvoiceStatisticsResponse.MonthlyComparison(
+            compData.getCurrentMonth().getTotal(),
+            compData.getPreviousMonth().getTotal(),
+            compData.getChange().getAmount(),
+            compData.getChange().getPercentage(),
+            compData.getChange().isIncrease(),
+            compData.getCurrentMonth().getMonth(),
+            compData.getPreviousMonth().getMonth()
+        );
+
+        AdminInvoiceStatisticsResponse stats = new AdminInvoiceStatisticsResponse(total, paid, pending, failed, monthlyComp);
         return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, "Thống kê hóa đơn", stats));
     }
 

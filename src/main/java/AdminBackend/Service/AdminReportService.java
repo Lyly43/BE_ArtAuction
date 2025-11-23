@@ -141,7 +141,22 @@ public class AdminReportService {
         long investigating = reportsRepository.countByReportStatus(1);
         long resolved = reportsRepository.countByReportStatus(2);
 
-        AdminReportStatisticsResponse stats = new AdminReportStatisticsResponse(total, pending, investigating, resolved);
+        // Lấy thống kê so sánh tháng này vs tháng trước
+        MonthlyComparisonResponse monthlyComparison = monthlyStatisticsService.getMonthlyComparison("reports", "createdAt");
+        MonthlyComparisonResponse.MonthlyComparisonData compData = monthlyComparison.getData();
+        
+        // Tạo monthly comparison data
+        AdminReportStatisticsResponse.MonthlyComparison monthlyComp = new AdminReportStatisticsResponse.MonthlyComparison(
+            compData.getCurrentMonth().getTotal(),
+            compData.getPreviousMonth().getTotal(),
+            compData.getChange().getAmount(),
+            compData.getChange().getPercentage(),
+            compData.getChange().isIncrease(),
+            compData.getCurrentMonth().getMonth(),
+            compData.getPreviousMonth().getMonth()
+        );
+
+        AdminReportStatisticsResponse stats = new AdminReportStatisticsResponse(total, pending, investigating, resolved, monthlyComp);
         return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Thống kê báo cáo", stats));
     }
 

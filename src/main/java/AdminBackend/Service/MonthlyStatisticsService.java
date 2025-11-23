@@ -63,8 +63,9 @@ public class MonthlyStatisticsService {
             }
         } else {
             // Trường hợp tháng trước > 0
-            changePercentage = ((double) changeAmount / previousMonthCount) * 100.0;
-            isIncrease = changeAmount > 0; // Chỉ true khi thực sự tăng (> 0), = 0 thì false
+            // Tính phần trăm thay đổi (luôn là số dương - giá trị tuyệt đối)
+            changePercentage = Math.abs(((double) changeAmount / previousMonthCount) * 100.0);
+            isIncrease = changeAmount > 0; // true nếu tăng, false nếu giảm hoặc không đổi
         }
 
         // Tạo response
@@ -141,8 +142,9 @@ public class MonthlyStatisticsService {
             }
         } else {
             // Trường hợp tháng trước > 0
-            changePercentage = ((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100.0;
-            isIncrease = changeAmount > 0; // Chỉ true khi thực sự tăng (> 0), = 0 thì false
+            // Tính phần trăm thay đổi (luôn là số dương - giá trị tuyệt đối)
+            changePercentage = Math.abs(((currentMonthTotal - previousMonthTotal) / previousMonthTotal) * 100.0);
+            isIncrease = (currentMonthTotal - previousMonthTotal) > 0;
         }
 
         // Tạo response

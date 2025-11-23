@@ -110,17 +110,33 @@ public class AdminUserService {
     }
 
     /**
-     * Lấy thống kê người dùng
+     * Lấy thống kê người dùng (bao gồm so sánh tháng này vs tháng trước)
      */
     public ResponseEntity<UserStatisticsResponse> getUserStatistics() {
         long totalUsers = userRepository.count();
         long totalSellers = userRepository.countByRole(3); // role = 3 là seller
         long totalBlockedUsers = userRepository.countByStatus(2); // status = 2 là bị khóa
 
+        // Lấy thống kê so sánh tháng này vs tháng trước
+        MonthlyComparisonResponse monthlyComparison = monthlyStatisticsService.getMonthlyComparison("users", "createdAt");
+        MonthlyComparisonResponse.MonthlyComparisonData compData = monthlyComparison.getData();
+        
+        // Tạo monthly comparison data
+        UserStatisticsResponse.MonthlyComparison monthlyComp = new UserStatisticsResponse.MonthlyComparison(
+            compData.getCurrentMonth().getTotal(),
+            compData.getPreviousMonth().getTotal(),
+            compData.getChange().getAmount(),
+            compData.getChange().getPercentage(),
+            compData.getChange().isIncrease(),
+            compData.getCurrentMonth().getMonth(),
+            compData.getPreviousMonth().getMonth()
+        );
+
         UserStatisticsResponse statistics = new UserStatisticsResponse(
                 totalUsers,
                 totalSellers,
-                totalBlockedUsers
+                totalBlockedUsers,
+                monthlyComp
         );
 
         return ResponseEntity.ok(statistics);

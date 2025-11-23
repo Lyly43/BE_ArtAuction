@@ -179,7 +179,7 @@ public class AdminAuctionRoomService {
     }
 
     /**
-     * Thống kê
+     * Thống kê (bao gồm so sánh tháng này vs tháng trước)
      */
     public ResponseEntity<AuctionRoomStatisticsResponse> getAuctionRoomStatistics() {
         long total = auctionRoomRepository.count();
@@ -187,8 +187,23 @@ public class AdminAuctionRoomService {
         long running = auctionRoomRepository.countByStatus(1);
         long completed = auctionRoomRepository.countByStatus(2);
 
+        // Lấy thống kê so sánh tháng này vs tháng trước
+        MonthlyComparisonResponse monthlyComparison = monthlyStatisticsService.getMonthlyComparison("auction_rooms", "createdAt");
+        MonthlyComparisonResponse.MonthlyComparisonData compData = monthlyComparison.getData();
+        
+        // Tạo monthly comparison data
+        AuctionRoomStatisticsResponse.MonthlyComparison monthlyComp = new AuctionRoomStatisticsResponse.MonthlyComparison(
+            compData.getCurrentMonth().getTotal(),
+            compData.getPreviousMonth().getTotal(),
+            compData.getChange().getAmount(),
+            compData.getChange().getPercentage(),
+            compData.getChange().isIncrease(),
+            compData.getCurrentMonth().getMonth(),
+            compData.getPreviousMonth().getMonth()
+        );
+
         AuctionRoomStatisticsResponse stats = new AuctionRoomStatisticsResponse(
-                total, running, upcoming, completed
+                total, running, upcoming, completed, monthlyComp
         );
 
         return ResponseEntity.ok(stats);

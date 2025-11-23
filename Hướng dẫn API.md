@@ -77,34 +77,33 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - `GET /api/admin/tim-kiem-user?q={term}`
 
 ### Thống kê
-- `GET /api/admin/thong-ke-user`
-- Response: `{ "totalUsers", "totalSellers", "totalBlockedUsers" }`.
-
-### Thống kê so sánh tháng này vs tháng trước
-- Method & URL: `GET /api/admin/thong-ke-user-monthly`
+- Method & URL: `GET /api/admin/thong-ke-user`
 - Response:
   ```json
   {
-    "status": 1,
-    "message": "Success",
-    "data": {
-      "currentMonth": {
-        "total": 1222,
-        "month": "11/2025"
-      },
-      "previousMonth": {
-        "total": 1210,
-        "month": "10/2025"
-      },
-      "change": {
-        "amount": 12,
-        "percentage": 0.99,
-        "isIncrease": true
-      }
+    "totalUsers": 1222,
+    "totalSellers": 500,
+    "totalBlockedUsers": 50,
+    "monthlyComparison": {
+      "currentMonth": 1222,
+      "previousMonth": 1210,
+      "changeAmount": 12,
+      "changePercentage": 0.99,
+      "isIncrease": true,
+      "currentMonthLabel": "11/2025",
+      "previousMonthLabel": "10/2025"
     }
   }
   ```
-- Lưu ý: `amount` là số thay đổi (có thể âm nếu giảm), `percentage` là phần trăm thay đổi, `isIncrease` là `true` nếu tăng, `false` nếu giảm.
+- Lưu ý:
+  - `totalUsers`: Tổng số người dùng
+  - `totalSellers`: Tổng số người bán (role = 3)
+  - `totalBlockedUsers`: Tổng số người dùng bị khóa (status = 2)
+  - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số user
+    - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
+    - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
+    - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
+    - `currentMonthLabel`, `previousMonthLabel`: Format "MM/yyyy"
 
 ### Cập nhật
 - Method & URL: `PUT /api/admin/cap-nhat-user/{userId}`
@@ -170,8 +169,33 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   - Response `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/artworks/xoa-tac-pham/{artworkId}`
 - **Thống kê:** `GET /api/admin/artworks/thong-ke-tac-pham`
-- **Thống kê so sánh tháng:** `GET /api/admin/artworks/thong-ke-tac-pham-monthly`
-  - Response tương tự format thống kê user (so sánh tháng này vs tháng trước)
+  - Response:
+    ```json
+    {
+      "totalArtworks": 500,
+      "pendingArtworks": 50,
+      "approvedArtworks": 400,
+      "rejectedArtworks": 50,
+      "monthlyComparison": {
+        "currentMonth": 500,
+        "previousMonth": 480,
+        "changeAmount": 20,
+        "changePercentage": 4.17,
+        "isIncrease": true,
+        "currentMonthLabel": "11/2025",
+        "previousMonthLabel": "10/2025"
+      }
+    }
+    ```
+  - Lưu ý:
+    - `totalArtworks`: Tổng số tác phẩm
+    - `pendingArtworks`: Số tác phẩm chưa duyệt (status = 0)
+    - `approvedArtworks`: Số tác phẩm đã duyệt (status = 1)
+    - `rejectedArtworks`: Số tác phẩm bị từ chối (status = 3)
+    - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số artwork
+      - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
+      - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
+      - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
 
 ---
 
@@ -182,9 +206,34 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - **Tìm kiếm:** `GET /api/admin/auction-rooms/tim-kiem?q={keyword}`.
 - **Cập nhật:** `PUT /api/admin/auction-rooms/cap-nhat/{roomId}` → `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/auction-rooms/xoa/{roomId}`.
-- **Thống kê:** `GET /api/admin/auction-rooms/thong-ke` → `{ totalRooms, runningRooms, upcomingRooms, completedRooms }`.
-- **Thống kê so sánh tháng:** `GET /api/admin/auction-rooms/thong-ke-monthly`
-  - Response tương tự format thống kê user (so sánh tháng này vs tháng trước)
+- **Thống kê:** `GET /api/admin/auction-rooms/thong-ke`
+  - Response:
+    ```json
+    {
+      "totalRooms": 100,
+      "runningRooms": 20,
+      "upcomingRooms": 30,
+      "completedRooms": 50,
+      "monthlyComparison": {
+        "currentMonth": 100,
+        "previousMonth": 95,
+        "changeAmount": 5,
+        "changePercentage": 5.26,
+        "isIncrease": true,
+        "currentMonthLabel": "11/2025",
+        "previousMonthLabel": "10/2025"
+      }
+    }
+    ```
+  - Lưu ý:
+    - `totalRooms`: Tổng số phòng đấu giá
+    - `runningRooms`: Số phòng đang chạy (status = 1)
+    - `upcomingRooms`: Số phòng sắp diễn ra (status = 0)
+    - `completedRooms`: Số phòng đã hoàn thành (status = 2)
+    - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số phòng
+      - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
+      - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
+      - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
 - **Tạo phòng hoàn chỉnh (4 bước trong 1 API):** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh`
   ```json
   {
@@ -239,9 +288,39 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - `GET /api/admin/invoices/lay-du-lieu`
 - `GET /api/admin/invoices/tim-kiem?q=...`
-- `GET /api/admin/invoices/thong-ke`
-- **Thống kê so sánh tháng (doanh thu):** `GET /api/admin/invoices/thong-ke-monthly`
-  - Response tương tự format thống kê user, nhưng `total` là tổng doanh thu (số tiền) thay vì số lượng
+- **Thống kê:** `GET /api/admin/invoices/thong-ke`
+  - Response:
+    ```json
+    {
+      "status": 1,
+      "message": "Thống kê hóa đơn",
+      "data": {
+        "totalInvoices": 500,
+        "paidInvoices": 400,
+        "pendingInvoices": 80,
+        "failedInvoices": 20,
+        "monthlyComparison": {
+          "currentMonth": 500,
+          "previousMonth": 450,
+          "changeAmount": 50,
+          "changePercentage": 11.11,
+          "isIncrease": true,
+          "currentMonthLabel": "11/2025",
+          "previousMonthLabel": "10/2025"
+        }
+      }
+    }
+    ```
+  - Lưu ý:
+    - `totalInvoices`: Tổng số hóa đơn
+    - `paidInvoices`: Số hóa đơn đã thanh toán (status = 2)
+    - `pendingInvoices`: Số hóa đơn đang chờ (status = 0 hoặc 1)
+    - `failedInvoices`: Số hóa đơn thất bại (status = 3)
+    - `monthlyComparison`: So sánh số lượng invoice tháng này vs tháng trước
+      - `currentMonth`/`previousMonth`: Số lượng invoice (count, không phải doanh thu)
+      - `changeAmount`: Số lượng thay đổi (có thể âm nếu giảm)
+      - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
+      - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
 - **Cập nhật hóa đơn**
   - `PUT /api/admin/invoices/cap-nhat/{invoiceId}`
   - Request mẫu:
@@ -267,9 +346,38 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - `GET /api/admin/reports/lay-du-lieu` – trả `AdminReportResponse` (bao gồm thông tin người báo cáo, đối tượng bị báo cáo, reportReason, status, thời gian).
 - `GET /api/admin/reports/tim-kiem?q=...`
-- `GET /api/admin/reports/thong-ke`
-- **Thống kê so sánh tháng:** `GET /api/admin/reports/thong-ke-monthly`
-  - Response tương tự format thống kê user (so sánh tháng này vs tháng trước)
+- **Thống kê:** `GET /api/admin/reports/thong-ke`
+  - Response:
+    ```json
+    {
+      "status": 1,
+      "message": "Thống kê báo cáo",
+      "data": {
+        "totalReports": 200,
+        "pendingReports": 50,
+        "investigatingReports": 30,
+        "resolvedReports": 120,
+        "monthlyComparison": {
+          "currentMonth": 200,
+          "previousMonth": 180,
+          "changeAmount": 20,
+          "changePercentage": 11.11,
+          "isIncrease": true,
+          "currentMonthLabel": "11/2025",
+          "previousMonthLabel": "10/2025"
+        }
+      }
+    }
+    ```
+  - Lưu ý:
+    - `totalReports`: Tổng số báo cáo
+    - `pendingReports`: Số báo cáo đang chờ xử lý (status = 0)
+    - `investigatingReports`: Số báo cáo đang điều tra (status = 1)
+    - `resolvedReports`: Số báo cáo đã giải quyết (status = 2)
+    - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số report
+      - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
+      - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
+      - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
 - `PUT /api/admin/reports/cap-nhat/{reportId}` – body `UpdateReportRequest` (reportReason, reportStatus, reportDoneTime).
 - `DELETE /api/admin/reports/xoa/{reportId}`
 - Response chuẩn `AdminReportApiResponse`.
