@@ -105,12 +105,12 @@ public class AdminReportService {
         }
         if (request.getReportStatus() != null) {
             report.setReportStatus(request.getReportStatus());
-            if (request.getReportStatus() == 2 && report.getReportDoneTime() == null) {
-                report.setReportDoneTime(LocalDateTime.now());
+            if (request.getReportStatus() == 2 && report.getResolvedAt() == null) {
+                report.setResolvedAt(LocalDateTime.now());
             }
         }
         if (request.getReportDoneTime() != null) {
-            report.setReportDoneTime(request.getReportDoneTime());
+            report.setResolvedAt(request.getReportDoneTime());
         }
 
         Reports updated = reportsRepository.save(report);
@@ -267,13 +267,26 @@ public class AdminReportService {
         }
         
         LocalDateTime reportDoneTime = null;
-        Object reportDoneTimeObj = doc.get("reportDoneTime");
-        if (reportDoneTimeObj instanceof Date) {
-            reportDoneTime = ((Date) reportDoneTimeObj).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
-        } else if (reportDoneTimeObj instanceof Document) {
-            Date date = ((Document) reportDoneTimeObj).getDate("$date");
+        // Ưu tiên đọc từ resolvedAt (field trong entity), fallback về reportDoneTime (field cũ trong MongoDB)
+        Object resolvedAtObj = doc.get("resolvedAt");
+        if (resolvedAtObj instanceof Date) {
+            reportDoneTime = ((Date) resolvedAtObj).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+        } else if (resolvedAtObj instanceof Document) {
+            Date date = ((Document) resolvedAtObj).getDate("$date");
             if (date != null) {
                 reportDoneTime = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            }
+        }
+        // Nếu không có resolvedAt, đọc từ reportDoneTime (field cũ)
+        if (reportDoneTime == null) {
+            Object reportDoneTimeObj = doc.get("reportDoneTime");
+            if (reportDoneTimeObj instanceof Date) {
+                reportDoneTime = ((Date) reportDoneTimeObj).toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+            } else if (reportDoneTimeObj instanceof Document) {
+                Date date = ((Document) reportDoneTimeObj).getDate("$date");
+                if (date != null) {
+                    reportDoneTime = date.toInstant().atZone(ZoneId.systemDefault()).toLocalDateTime();
+                }
             }
         }
         
@@ -327,7 +340,7 @@ public class AdminReportService {
                 report.getReportStatus(),
                 report.getCreatedAt(), // reportTime
                 report.getCreatedAt(),
-                report.getReportDoneTime()
+                report.getResolvedAt()
         );
     }
 }

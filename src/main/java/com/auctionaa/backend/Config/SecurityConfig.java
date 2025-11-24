@@ -1,5 +1,6 @@
 package com.auctionaa.backend.Config;
 
+import AdminBackend.Jwt.AdminJwtAuthFilter;
 import com.auctionaa.backend.Jwt.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
@@ -24,6 +25,7 @@ public class SecurityConfig {
 
     // JWT filter của bạn (nếu chưa có bean, tạo @Component cho JwtAuthFilter)
     private final JwtAuthFilter jwtAuthFilter;
+    private final AdminJwtAuthFilter adminJwtAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -46,6 +48,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        
+                        // Admin Auth (public - cho phép login)
+                        .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
 
                         // Stream (theo cấu hình bạn đang test)
                         // - startStream: bạn tự validate token trong controller => permitAll để vào
@@ -87,6 +92,8 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
 
                 // Đưa JWT filter vào trước UsernamePasswordAuthenticationFilter
+                // Admin filter trước để xử lý admin token, sau đó mới đến user filter
+                .addFilterBefore(adminJwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
