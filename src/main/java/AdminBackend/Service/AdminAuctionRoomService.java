@@ -6,15 +6,20 @@ import AdminBackend.DTO.Request.CreateAuctionRoomCompleteRequest;
 import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
 import AdminBackend.DTO.Response.AdminBasicResponse;
+import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
 import AdminBackend.DTO.Response.AuctionRoomStatisticsResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.Artwork;
+import com.auctionaa.backend.Entity.Invoice;
+import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.AuctionSessionRepository;
+import com.auctionaa.backend.Repository.InvoiceRepository;
+import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -37,6 +42,12 @@ public class AdminAuctionRoomService {
 
     @Autowired
     private ArtworkRepository artworkRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    @Autowired
+    private InvoiceRepository invoiceRepository;
 
     @Autowired
     private MonthlyStatisticsService monthlyStatisticsService;
@@ -434,6 +445,89 @@ public class AdminAuctionRoomService {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new AdminBasicResponse<>(1, "Auction room created successfully", data));
+    }
+
+    /**
+     * Lấy danh sách tất cả artworks có thể thêm vào phòng đấu giá
+     * Chỉ lấy artworks đã được duyệt (status = 1) và:
+     * - Chưa được thêm vào session (bất kỳ session nào)
+     * - Chưa được tạo hóa đơn trong invoice
+     */
+    public ResponseEntity<List<ArtworkForSelectionResponse>> getAvailableArtworks() {
+        // Lấy tất cả artworks đã được duyệt (status = 1)
+        List<Artwork> approvedArtworks = artworkRepository.findByStatus(1);
+        System.out.println("DEBUG getAvailableArtworks - Total approved artworks: " + approvedArtworks.size());
+        
+        // Lấy danh sách artworkIds đã có trong session (bất kỳ status nào)
+        List<AuctionSession> allSessions = auctionSessionRepository.findAll();
+        Set<String> artworkIdsInSessions = allSessions.stream()
+            .map(AuctionSession::getArtworkId)
+            .filter(id -> id != null && !id.isEmpty())
+            .collect(Collectors.toSet());
+        
+        System.out.println("DEBUG getAvailableArtworks - Total sessions: " + allSessions.size());
+        System.out.println("DEBUG getAvailableArtworks - Artwork IDs in sessions: " + artworkIdsInSessions.size());
+        
+        // Lấy danh sách artworkIds đã có trong invoice (đã được tạo hóa đơn)
+        List<Invoice> allInvoices = invoiceRepository.findAll();
+        Set<String> artworkIdsInInvoices = allInvoices.stream()
+            .map(Invoice::getArtworkId)
+            .filter(id -> id != null && !id.isEmpty())
+            .collect(Collectors.toSet());
+        
+        System.out.println("DEBUG getAvailableArtworks - Total invoices: " + allInvoices.size());
+        System.out.println("DEBUG getAvailableArtworks - Artwork IDs in invoices: " + artworkIdsInInvoices.size());
+        
+        // Kết hợp 2 set để loại bỏ
+        Set<String> excludedArtworkIds = new HashSet<>();
+        excludedArtworkIds.addAll(artworkIdsInSessions);
+        excludedArtworkIds.addAll(artworkIdsInInvoices);
+        
+        System.out.println("DEBUG getAvailableArtworks - Total excluded artwork IDs: " + excludedArtworkIds.size());
+        
+        // Filter: chỉ lấy artworks chưa có trong session và chưa có trong invoice
+        List<Artwork> availableArtworks = approvedArtworks.stream()
+            .filter(artwork -> !excludedArtworkIds.contains(artwork.getId()))
+            .collect(Collectors.toList());
+        
+        System.out.println("DEBUG getAvailableArtworks - Available artworks after filter: " + availableArtworks.size());
+        
+        // Load thông tin user (author) cho tất cả artworks
+        List<String> ownerIds = availableArtworks.stream()
+            .map(Artwork::getOwnerId)
+            .filter(id -> id != null && !id.isEmpty())
+            .distinct()
+            .collect(Collectors.toList());
+        
+        Map<String, User> userMap = userRepository.findAllById(ownerIds).stream()
+            .collect(Collectors.toMap(User::getId, u -> u));
+        
+        // Map sang ArtworkForSelectionResponse
+        List<ArtworkForSelectionResponse> responses = availableArtworks.stream()
+            .map(artwork -> {
+                ArtworkForSelectionResponse response = new ArtworkForSelectionResponse();
+                response.setId(artwork.getId());
+                response.setTitle(artwork.getTitle());
+                response.setPaintingGenre(artwork.getPaintingGenre());
+                response.setMaterial(artwork.getMaterial());
+                response.setSize(artwork.getSize());
+                response.setAvtArtwork(artwork.getAvtArtwork());
+                response.setStartedPrice(artwork.getStartedPrice());
+                response.setStatus(artwork.getStatus());
+                
+                // Lấy author name từ ownerId
+                User owner = userMap.get(artwork.getOwnerId());
+                if (owner != null) {
+                    response.setAuthor(owner.getUsername());
+                } else {
+                    response.setAuthor("Unknown");
+                }
+                
+                return response;
+            })
+            .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(responses);
     }
 
     private record PricePair(BigDecimal startingPrice, BigDecimal currentPrice) {}

@@ -65,6 +65,7 @@ public class AdminUserService {
         user.setGender(request.getGender());
         user.setRole(request.getRole());
         user.setStatus(request.getStatus());
+        user.setAvt(request.getAvt()); // Set avatar
         user.setCreatedAt(LocalDateTime.now());
         user.generateId();
 
@@ -204,6 +205,11 @@ public class AdminUserService {
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
             user.setPassword(passwordEncoder.encode(request.getPassword()));
         }
+        
+        // Cập nhật avatar nếu có
+        if (request.getAvt() != null) {
+            user.setAvt(request.getAvt());
+        }
 
         try {
             User updatedUser = userRepository.save(user);
@@ -267,6 +273,7 @@ public class AdminUserService {
         response.setCccd(user.getCccd());
         response.setRole(user.getRole());
         response.setStatus(user.getStatus());
+        response.setAvt(user.getAvt()); // Set avatar
         response.setCreatedAt(user.getCreatedAt());
 
         // Lấy balance từ Wallet

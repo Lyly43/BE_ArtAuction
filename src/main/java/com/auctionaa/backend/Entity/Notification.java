@@ -17,7 +17,7 @@ public class Notification extends BaseEntity {
     private String title;
     private String link;  // link tới thanh toán
     private String notificationContent;
-    private int notificationStatus;
+    private int notificationStatus; //0 thất bại 1 đã gửi
     private LocalDateTime notificationTime;
     private String refId; // ID tham chiếu đối tượng cụ thể (id phiên, id đấu giá...)
     @CreatedDate

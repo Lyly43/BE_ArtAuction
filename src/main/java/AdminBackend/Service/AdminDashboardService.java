@@ -280,9 +280,10 @@ public class AdminDashboardService {
         // Lấy tất cả sessions và sort trong memory để đảm bảo chính xác
         List<AuctionSession> allSessions = auctionSessionRepository.findAll();
         
-        // Filter và sort sessions có currentPrice > 0, lấy top 10
+        // Filter sessions: status = 0 (đã đấu giá xong) và currentPrice > 0, lấy top 10
         List<AuctionSession> sessions = allSessions.stream()
-            .filter(session -> session.getCurrentPrice() != null 
+            .filter(session -> session.getStatus() == 0 // Chỉ lấy sessions đã đấu giá xong
+                && session.getCurrentPrice() != null 
                 && session.getCurrentPrice().compareTo(BigDecimal.ZERO) > 0)
             .sorted((s1, s2) -> s2.getCurrentPrice().compareTo(s1.getCurrentPrice())) // Sort DESC
             .limit(10)
@@ -319,6 +320,14 @@ public class AdminDashboardService {
         List<Invoice> invoices = mongoTemplate.find(invoiceQuery, Invoice.class);
         java.util.Map<String, Invoice> invoiceMap = invoices.stream()
             .collect(Collectors.toMap(Invoice::getSessionId, inv -> inv, (first, second) -> first));
+        
+        // Thêm userId từ invoice vào danh sách userIds để load user info
+        List<String> invoiceUserIds = invoices.stream()
+            .map(Invoice::getUserId)
+            .filter(id -> id != null && !id.isEmpty())
+            .distinct()
+            .collect(Collectors.toList());
+        userIds.addAll(invoiceUserIds);
         
         // Load Artworks
         java.util.Map<String, Artwork> artworkMap = artworkIds.isEmpty() ? 
@@ -360,7 +369,17 @@ public class AdminDashboardService {
             Artwork artwork = artworkMap.get(session.getArtworkId());
             if (artwork != null) {
                 info.setArtworkTitle(artwork.getTitle());
-                info.setArtworkImageUrl(session.getImageUrl() != null ? session.getImageUrl() : artwork.getAvtArtwork());
+                
+                // Lấy artworkImageUrl: ưu tiên session.imageUrl -> artwork.avtArtwork -> artwork.imageUrls[0]
+                if (session.getImageUrl() != null && !session.getImageUrl().isEmpty()) {
+                    info.setArtworkImageUrl(session.getImageUrl());
+                } else if (artwork.getAvtArtwork() != null && !artwork.getAvtArtwork().isEmpty()) {
+                    info.setArtworkImageUrl(artwork.getAvtArtwork());
+                } else if (artwork.getImageUrls() != null && !artwork.getImageUrls().isEmpty()) {
+                    info.setArtworkImageUrl(artwork.getImageUrls().get(0));
+                }
+                
+                info.setPaintingGenre(artwork.getPaintingGenre()); // Lấy thể loại tranh
                 
                 // Lấy artist name
                 if (artwork.getOwnerId() != null) {
@@ -378,9 +397,6 @@ public class AdminDashboardService {
             if (info.getArtistName() == null) {
                 info.setArtistName("Unknown Artist");
             }
-            if (info.getArtworkImageUrl() == null && session.getImageUrl() != null) {
-                info.setArtworkImageUrl(session.getImageUrl());
-            }
             
             // Lấy thông tin từ AuctionRoom
             AuctionRoom room = roomMap.get(session.getAuctionRoomId());
@@ -390,18 +406,44 @@ public class AdminDashboardService {
                 info.setRoomName("Unknown Room");
             }
             
-            // Lấy thông tin từ Invoice nếu có (winner, totalAmount, orderDate)
+            // totalAmount luôn lấy từ current_price của AuctionSession
+            info.setTotalAmount(session.getCurrentPrice());
+            
+            // Lấy thông tin từ Invoice nếu có (winner, orderDate)
             Invoice invoice = invoiceMap.get(session.getId());
             if (invoice != null) {
-                info.setTotalAmount(invoice.getTotalAmount());
-                info.setWinnerName(invoice.getWinnerName());
-                info.setWinnerEmail(invoice.getWinnerEmail());
                 info.setOrderDate(invoice.getOrderDate());
-            } else {
-                // Nếu không có Invoice, dùng currentPrice làm totalAmount
-                info.setTotalAmount(session.getCurrentPrice());
                 
-                // Lấy winner từ session nếu có
+                // Lấy winnerName và winnerEmail từ invoice, nếu không có thì lấy từ invoice.userId
+                if (invoice.getWinnerName() != null && !invoice.getWinnerName().isEmpty()) {
+                    info.setWinnerName(invoice.getWinnerName());
+                } else if (invoice.getUserId() != null) {
+                    User winner = userMap.get(invoice.getUserId());
+                    if (winner != null) {
+                        info.setWinnerName(winner.getUsername());
+                    }
+                }
+                
+                if (invoice.getWinnerEmail() != null && !invoice.getWinnerEmail().isEmpty()) {
+                    info.setWinnerEmail(invoice.getWinnerEmail());
+                } else if (invoice.getUserId() != null) {
+                    User winner = userMap.get(invoice.getUserId());
+                    if (winner != null) {
+                        info.setWinnerEmail(winner.getEmail());
+                    }
+                }
+                
+                // Nếu vẫn không có, thử lấy từ session.winnerId
+                if ((info.getWinnerName() == null || info.getWinnerName().isEmpty()) 
+                    && session.getWinnerId() != null) {
+                    User winner = userMap.get(session.getWinnerId());
+                    if (winner != null) {
+                        info.setWinnerName(winner.getUsername());
+                        info.setWinnerEmail(winner.getEmail());
+                    }
+                }
+            } else {
+                // Nếu không có Invoice, lấy winner từ session nếu có
                 if (session.getWinnerId() != null) {
                     User winner = userMap.get(session.getWinnerId());
                     if (winner != null) {

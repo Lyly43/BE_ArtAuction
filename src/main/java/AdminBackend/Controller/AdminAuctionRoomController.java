@@ -64,5 +64,15 @@ public class AdminAuctionRoomController {
     public ResponseEntity<?> createAuctionRoomComplete(@RequestBody CreateAuctionRoomCompleteRequest request) {
         return adminAuctionRoomService.createAuctionRoomComplete(request);
     }
+
+    /**
+     * GET /api/admin/auction-rooms/artworks
+     * Lấy danh sách tất cả artworks có thể thêm vào phòng đấu giá
+     * Chỉ trả về artworks đã được duyệt (status = 1) và chưa có trong session đang diễn ra
+     */
+    @GetMapping("/artworks")
+    public ResponseEntity<List<AdminBackend.DTO.Response.ArtworkForSelectionResponse>> getAvailableArtworks() {
+        return adminAuctionRoomService.getAvailableArtworks();
+    }
 }
 

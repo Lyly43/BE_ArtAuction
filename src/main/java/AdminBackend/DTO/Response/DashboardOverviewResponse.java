@@ -110,6 +110,7 @@ public class DashboardOverviewResponse {
         private String artworkTitle;
         private String artworkImageUrl;
         private String artistName;
+        private String paintingGenre; // Thể loại tranh từ artwork
         private BigDecimal totalAmount;
         private String winnerName;
         private String winnerEmail;

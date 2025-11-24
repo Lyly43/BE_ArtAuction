@@ -19,5 +19,6 @@ public class UpdateUserRequest {
     private int role; // 1 = normal user, 2 = buyer, 3 = seller
     private int status; // 1 = active, 0 = offline, 2 = blocked
     private String password; // Optional - chỉ update nếu có giá trị
+    private String avt; // Avatar URL - Optional
 }
 

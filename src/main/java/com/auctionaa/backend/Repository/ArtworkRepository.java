@@ -23,6 +23,9 @@ public interface ArtworkRepository extends MongoRepository<Artwork, String> {
 
     List<Artwork> findByOwnerIdAndStatus(String ownerId, int status);
     
+    // Tìm artworks theo status
+    List<Artwork> findByStatus(int status);
+    
     // Count methods for statistics
     long countByStatus(int status);
     
