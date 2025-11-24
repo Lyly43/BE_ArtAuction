@@ -31,6 +31,12 @@ public class AdminNotificationController {
         return adminNotificationService.searchNotifications(searchTerm);
     }
 
+    @GetMapping("/loc-theo-trang-thai")
+    public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> filterByStatus(
+            @RequestParam("status") Integer status) {
+        return adminNotificationService.filterByStatus(status);
+    }
+
     @PostMapping("/tao-thong-bao")
     public ResponseEntity<AdminNotificationApiResponse<AdminNotificationResponse>> addNotification(
             @RequestBody AddNotificationRequest request) {

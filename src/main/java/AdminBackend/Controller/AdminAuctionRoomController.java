@@ -74,5 +74,14 @@ public class AdminAuctionRoomController {
     public ResponseEntity<List<AdminBackend.DTO.Response.ArtworkForSelectionResponse>> getAvailableArtworks() {
         return adminAuctionRoomService.getAvailableArtworks();
     }
+
+    /**
+     * GET /api/admin/auction-rooms/{roomId}
+     * Lấy chi tiết phòng đấu giá theo ID
+     */
+    @GetMapping("/{roomId}")
+    public ResponseEntity<?> getAuctionRoomDetail(@PathVariable String roomId) {
+        return adminAuctionRoomService.getAuctionRoomDetail(roomId);
+    }
 }
 

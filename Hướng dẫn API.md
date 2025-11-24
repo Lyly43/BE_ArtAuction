@@ -252,6 +252,59 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   }
   ```
   - Response: `{ "status": 1, "message": "Auction room created successfully", "roomId": "...", "sessionsCreated": 3 }`.
+- **Lấy chi tiết phòng:** `GET /api/admin/auction-rooms/{roomId}`
+  - Response:
+    ```json
+    {
+      "id": "ACR-123",
+      "roomName": "Luxury Night",
+      "type": "VIP",
+      "admin": {
+        "id": "Ad-1",
+        "fullName": "Nguyễn Admin",
+        "email": "admin@example.com",
+        "phoneNumber": "0909xxx"
+      },
+      "description": "Phiên VIP cuối tuần",
+      "startedAt": "2025-12-01T10:00:00",
+      "stoppedAt": "2025-12-01T12:00:00",
+      "totalMembers": 150,
+      "viewCount": 1200,
+      "depositAmount": 5000,
+      "status": 1,
+      "artworks": [
+        {
+          "sessionId": "ATSS-01",
+          "artworkId": "Aw-01",
+          "artworkName": "Sunset Symphony",
+          "author": "Artist 01",
+          "startingPrice": 1000,
+          "currentPrice": 1800,
+          "bidStep": 50,
+          "status": 1,
+          "statusLabel": "LIVE",
+          "live": true,
+          "closed": false,
+          "upcoming": false
+        },
+        {
+          "sessionId": "ATSS-02",
+          "artworkId": "Aw-02",
+          "artworkName": "Forest Dream",
+          "author": "Artist 02",
+          "startingPrice": 800,
+          "currentPrice": 950,
+          "bidStep": 25,
+          "status": 0,
+          "statusLabel": "ĐÃ CHỐT",
+          "live": false,
+          "closed": true,
+          "upcoming": false
+        }
+      ]
+    }
+    ```
+  - Trả về đầy đủ thông tin phòng, admin phụ trách, cọc, tổng thành viên, trạng thái và danh sách tất cả phiên/Artwork trong phòng (kèm trạng thái `live`/`đã chốt`/`sắp tới`, giá khởi điểm, giá hiện tại, bước giá).
 
 ---
 
@@ -259,6 +312,9 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - **Lấy dữ liệu:** `GET /api/admin/notifications/lay-du-lieu`
 - **Tìm kiếm:** `GET /api/admin/notifications/tim-kiem?q=...`
+- **Lọc theo trạng thái:** `GET /api/admin/notifications/loc-theo-trang-thai?status=0|1`
+  - `status=0`: thông báo thất bại, `status=1`: đã gửi thành công
+  - Response: mảng `AdminNotificationResponse` ứng với trạng thái yêu cầu
 - **Tạo thông báo**
   - `POST /api/admin/notifications/tao-thong-bao`
   - Request:

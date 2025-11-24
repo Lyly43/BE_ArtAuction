@@ -53,6 +53,22 @@ public class AdminNotificationService {
         return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, message, data));
     }
 
+    public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> filterByStatus(Integer notificationStatus) {
+        if (notificationStatus == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminNotificationApiResponse<>(0, "notificationStatus is required (0 = failed, 1 = sent)", null));
+        }
+
+        List<Notification> notifications = notificationRepository.findByNotificationStatus(notificationStatus);
+        List<AdminNotificationResponse> data = notifications.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        String statusLabel = notificationStatus == 1 ? "đã gửi" : notificationStatus == 0 ? "thất bại" : "khác";
+        String message = String.format("Tìm thấy %d thông báo có trạng thái %s", data.size(), statusLabel);
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, message, data));
+    }
+
     public ResponseEntity<AdminNotificationApiResponse<AdminNotificationResponse>> addNotification(AddNotificationRequest request) {
         Notification notification = new Notification();
         notification.setUserId(request.getUserId());

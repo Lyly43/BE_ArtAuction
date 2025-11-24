@@ -7,6 +7,7 @@ import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
+import AdminBackend.DTO.Response.AuctionRoomDetailResponse;
 import AdminBackend.DTO.Response.AuctionRoomStatisticsResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
@@ -15,6 +16,7 @@ import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Entity.User;
+import AdminBackend.Repository.AdminRepository;
 import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.AuctionSessionRepository;
@@ -28,7 +30,17 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,6 +63,9 @@ public class AdminAuctionRoomService {
 
     @Autowired
     private MonthlyStatisticsService monthlyStatisticsService;
+
+    @Autowired
+    private AdminRepository adminRepository;
 
     /**
      * Admin thêm phòng đấu giá mới
@@ -218,6 +233,26 @@ public class AdminAuctionRoomService {
         );
 
         return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Lấy chi tiết phòng đấu giá theo ID
+     */
+    public ResponseEntity<?> getAuctionRoomDetail(String roomId) {
+        Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(roomId);
+        if (roomOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AdminBasicResponse<>(0, "Auction room not found with ID: " + roomId, null));
+        }
+
+        AuctionRoom room = roomOpt.get();
+        boolean statusChanged = updateStatusIfNeeded(room);
+        if (statusChanged) {
+            auctionRoomRepository.save(room);
+        }
+
+        AuctionRoomDetailResponse detailResponse = buildAuctionRoomDetailResponse(room);
+        return ResponseEntity.ok(detailResponse);
     }
 
     /**
@@ -531,5 +566,124 @@ public class AdminAuctionRoomService {
     }
 
     private record PricePair(BigDecimal startingPrice, BigDecimal currentPrice) {}
+
+    private AuctionRoomDetailResponse buildAuctionRoomDetailResponse(AuctionRoom room) {
+        AuctionRoomDetailResponse detail = new AuctionRoomDetailResponse();
+        detail.setId(room.getId());
+        detail.setRoomName(room.getRoomName());
+        detail.setDescription(room.getDescription());
+        detail.setType(room.getType());
+        detail.setStartedAt(room.getStartedAt());
+        detail.setStoppedAt(room.getStoppedAt());
+        detail.setStatus(room.getStatus());
+        detail.setDepositAmount(room.getDepositAmount() != null ? room.getDepositAmount() : BigDecimal.ZERO);
+        detail.setViewCount(room.getViewCount() != null ? room.getViewCount() : 0);
+        detail.setTotalMembers(room.getMemberIds() == null ? 0 : room.getMemberIds().size());
+
+        if (StringUtils.hasText(room.getAdminId())) {
+            AuctionRoomDetailResponse.AdminInfo adminInfo = adminRepository.findById(room.getAdminId())
+                    .map(admin -> new AuctionRoomDetailResponse.AdminInfo(
+                            admin.getId(),
+                            admin.getFullName(),
+                            admin.getEmail(),
+                            admin.getPhoneNumber()
+                    ))
+                    .orElseGet(() -> new AuctionRoomDetailResponse.AdminInfo(
+                            room.getAdminId(),
+                            "Unknown admin",
+                            null,
+                            null
+                    ));
+            detail.setAdmin(adminInfo);
+        } else {
+            detail.setAdmin(null);
+        }
+
+        List<AuctionSession> sessions = auctionSessionRepository.findByAuctionRoomId(room.getId());
+        if (sessions.isEmpty()) {
+            detail.setArtworks(Collections.emptyList());
+            return detail;
+        }
+
+        sessions.sort(Comparator
+                .comparing(AuctionSession::getStartTime, Comparator.nullsLast(LocalDateTime::compareTo))
+                .thenComparing(AuctionSession::getOrderIndex, Comparator.nullsLast(Integer::compareTo))
+                .thenComparing(AuctionSession::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)));
+
+        List<String> artworkIds = sessions.stream()
+                .map(AuctionSession::getArtworkId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, Artwork> artworkMap = artworkIds.isEmpty()
+                ? Collections.emptyMap()
+                : artworkRepository.findAllById(artworkIds).stream()
+                .collect(Collectors.toMap(Artwork::getId, a -> a));
+
+        List<String> ownerIds = artworkMap.values().stream()
+                .map(Artwork::getOwnerId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+
+        Map<String, User> ownerMap = ownerIds.isEmpty()
+                ? Collections.emptyMap()
+                : userRepository.findAllById(ownerIds).stream()
+                .collect(Collectors.toMap(User::getId, u -> u));
+
+        List<AuctionRoomDetailResponse.SessionArtworkInfo> artworkInfos = sessions.stream()
+                .map(session -> {
+                    Artwork artwork = artworkMap.get(session.getArtworkId());
+                    User owner = artwork != null ? ownerMap.get(artwork.getOwnerId()) : null;
+
+                    AuctionRoomDetailResponse.SessionArtworkInfo info = new AuctionRoomDetailResponse.SessionArtworkInfo();
+                    info.setSessionId(session.getId());
+                    info.setArtworkId(session.getArtworkId());
+                    info.setArtworkName(artwork != null ? artwork.getTitle() : "Unknown artwork");
+                    info.setAuthor(owner != null ? owner.getUsername() : "Unknown author");
+                    info.setStartingPrice(safeAmount(session.getStartingPrice()));
+                    info.setCurrentPrice(safeCurrentPrice(session));
+                    info.setBidStep(safeAmount(session.getBidStep()));
+                    info.setStatus(session.getStatus());
+
+                    SessionStatusDescriptor descriptor = describeSessionStatus(session.getStatus());
+                    info.setStatusLabel(descriptor.label());
+                    info.setLive(descriptor.live());
+                    info.setClosed(descriptor.closed());
+                    info.setUpcoming(descriptor.upcoming());
+
+                    return info;
+                })
+                .collect(Collectors.toList());
+
+        detail.setArtworks(artworkInfos);
+        return detail;
+    }
+
+    private BigDecimal safeAmount(BigDecimal value) {
+        return value != null ? value : BigDecimal.ZERO;
+    }
+
+    private BigDecimal safeCurrentPrice(AuctionSession session) {
+        if (session.getCurrentPrice() != null) {
+            return session.getCurrentPrice();
+        }
+        if (session.getStartingPrice() != null) {
+            return session.getStartingPrice();
+        }
+        return BigDecimal.ZERO;
+    }
+
+    private SessionStatusDescriptor describeSessionStatus(int status) {
+        return switch (status) {
+            case 1 -> new SessionStatusDescriptor("LIVE", true, false, false);
+            case 0 -> new SessionStatusDescriptor("ĐÃ CHỐT", false, true, false);
+            case 2 -> new SessionStatusDescriptor("SẮP TỚI", false, false, true);
+            default -> new SessionStatusDescriptor("KHÁC", false, false, false);
+        };
+    }
+
+    private record SessionStatusDescriptor(String label, boolean live, boolean closed, boolean upcoming) {}
 }
 
