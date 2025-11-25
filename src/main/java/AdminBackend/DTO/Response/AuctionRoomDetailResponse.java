@@ -51,15 +51,13 @@ public class AuctionRoomDetailResponse {
         private String artworkId;
         private String artworkName;
         private String author;
+        private String avtArtwork;
         private BigDecimal startingPrice;
         private BigDecimal currentPrice;
         private BigDecimal bidStep;
         private int status;
-        private String statusLabel;
-        private boolean live;
-        private boolean closed;
-        private boolean upcoming;
     }
 }
+
 
 

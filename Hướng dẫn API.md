@@ -207,6 +207,12 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - **Cập nhật:** `PUT /api/admin/auction-rooms/cap-nhat/{roomId}` → `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/auction-rooms/xoa/{roomId}`.
 - **Thống kê:** `GET /api/admin/auction-rooms/thong-ke`
+  
+- **Danh sách artworks có thể thêm vào phòng:** `GET /api/admin/auction-rooms/artworks`
+  - Mô tả: Lấy tất cả artworks đã được duyệt (status = 1), chưa thuộc session nào và cũng chưa bị tạo hóa đơn để đảm bảo chưa có phòng đấu giá nào sử dụng.
+  - Response: Mỗi phần tử theo cấu trúc `ArtworkForSelectionResponse` gồm `id`, `title`, `description`, `author` (chủ sở hữu), `paintingGenre`, `material`, `size`, `startedPrice`, `avtArtwork`, `status`.
+  - Lưu ý: API dùng cho màn hình chọn tác phẩm khi cấu hình phòng đấu giá. Chỉ hiển thị những artwork hợp lệ để tránh trùng session.
+
   - Response:
     ```json
     {

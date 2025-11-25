@@ -95,6 +95,7 @@ public class DashboardOverviewResponse {
         private String id;
         private String username;
         private String email;
+        private String avt;
         private LocalDateTime createdAt;
         private int status; // 1 = active, 0 = offline, 2 = blocked
     }

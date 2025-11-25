@@ -543,6 +543,7 @@ public class AdminAuctionRoomService {
                 ArtworkForSelectionResponse response = new ArtworkForSelectionResponse();
                 response.setId(artwork.getId());
                 response.setTitle(artwork.getTitle());
+                response.setDescription(artwork.getDescription());
                 response.setPaintingGenre(artwork.getPaintingGenre());
                 response.setMaterial(artwork.getMaterial());
                 response.setSize(artwork.getSize());
@@ -599,17 +600,24 @@ public class AdminAuctionRoomService {
             detail.setAdmin(null);
         }
 
+        // Lấy TẤT CẢ sessions trong phòng đấu giá (không filter theo status hay điều kiện nào)
+        // Repository method findByAuctionRoomId() trả về TẤT CẢ sessions, không phân biệt status
         List<AuctionSession> sessions = auctionSessionRepository.findByAuctionRoomId(room.getId());
         if (sessions.isEmpty()) {
             detail.setArtworks(Collections.emptyList());
             return detail;
         }
+        
+        // Debug: Log số lượng sessions để đảm bảo lấy đủ
+        System.out.println("DEBUG buildAuctionRoomDetailResponse - Total sessions in room " + room.getId() + ": " + sessions.size());
 
+        // Sắp xếp sessions theo thời gian và order
         sessions.sort(Comparator
                 .comparing(AuctionSession::getStartTime, Comparator.nullsLast(LocalDateTime::compareTo))
                 .thenComparing(AuctionSession::getOrderIndex, Comparator.nullsLast(Integer::compareTo))
                 .thenComparing(AuctionSession::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)));
 
+        // Lấy danh sách artworkIds để load artwork data (distinct chỉ để tối ưu query, không ảnh hưởng số lượng sessions trả về)
         List<String> artworkIds = sessions.stream()
                 .map(AuctionSession::getArtworkId)
                 .filter(Objects::nonNull)
@@ -632,6 +640,8 @@ public class AdminAuctionRoomService {
                 : userRepository.findAllById(ownerIds).stream()
                 .collect(Collectors.toMap(User::getId, u -> u));
 
+        // Map TẤT CẢ sessions thành response (KHÔNG filter theo status, KHÔNG filter theo artwork status)
+        // Trả về TẤT CẢ sessions có trong phòng, bất kể status của session hay artwork
         List<AuctionRoomDetailResponse.SessionArtworkInfo> artworkInfos = sessions.stream()
                 .map(session -> {
                     Artwork artwork = artworkMap.get(session.getArtworkId());
@@ -642,16 +652,11 @@ public class AdminAuctionRoomService {
                     info.setArtworkId(session.getArtworkId());
                     info.setArtworkName(artwork != null ? artwork.getTitle() : "Unknown artwork");
                     info.setAuthor(owner != null ? owner.getUsername() : "Unknown author");
+                    info.setAvtArtwork(artwork != null ? artwork.getAvtArtwork() : null);
                     info.setStartingPrice(safeAmount(session.getStartingPrice()));
                     info.setCurrentPrice(safeCurrentPrice(session));
                     info.setBidStep(safeAmount(session.getBidStep()));
                     info.setStatus(session.getStatus());
-
-                    SessionStatusDescriptor descriptor = describeSessionStatus(session.getStatus());
-                    info.setStatusLabel(descriptor.label());
-                    info.setLive(descriptor.live());
-                    info.setClosed(descriptor.closed());
-                    info.setUpcoming(descriptor.upcoming());
 
                     return info;
                 })
@@ -675,15 +680,5 @@ public class AdminAuctionRoomService {
         return BigDecimal.ZERO;
     }
 
-    private SessionStatusDescriptor describeSessionStatus(int status) {
-        return switch (status) {
-            case 1 -> new SessionStatusDescriptor("LIVE", true, false, false);
-            case 0 -> new SessionStatusDescriptor("ĐÃ CHỐT", false, true, false);
-            case 2 -> new SessionStatusDescriptor("SẮP TỚI", false, false, true);
-            default -> new SessionStatusDescriptor("KHÁC", false, false, false);
-        };
-    }
-
-    private record SessionStatusDescriptor(String label, boolean live, boolean closed, boolean upcoming) {}
 }
 

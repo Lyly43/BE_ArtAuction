@@ -266,6 +266,7 @@ public class AdminDashboardService {
             info.setId(user.getId());
             info.setUsername(user.getUsername());
             info.setEmail(user.getEmail());
+            info.setAvt(user.getAvt());
             info.setCreatedAt(user.getCreatedAt());
             info.setStatus(user.getStatus());
             return info;
