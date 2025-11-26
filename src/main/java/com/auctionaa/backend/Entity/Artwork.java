@@ -50,5 +50,4 @@ public class Artwork extends BaseEntity {
     public String getPrefix() {
         return "Aw-";
     }
-
 }

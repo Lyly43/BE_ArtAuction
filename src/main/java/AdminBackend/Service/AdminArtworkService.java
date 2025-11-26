@@ -1,7 +1,10 @@
 package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddArtworkRequest;
+import AdminBackend.DTO.Request.ArtworkApprovalRequest;
+import AdminBackend.DTO.Request.ArtworkRejectionRequest;
 import AdminBackend.DTO.Request.UpdateArtworkRequest;
+import AdminBackend.DTO.Response.AdminArtworkDetailResponse;
 import AdminBackend.DTO.Response.AdminArtworkResponse;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
@@ -12,10 +15,13 @@ import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.UserRepository;
+import com.auctionaa.backend.Service.EmailService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -23,6 +29,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class AdminArtworkService {
 
     @Autowired
@@ -33,6 +40,9 @@ public class AdminArtworkService {
 
     @Autowired
     private MonthlyStatisticsService monthlyStatisticsService;
+
+    @Autowired
+    private EmailService emailService;
 
     /**
      * Admin thêm tác phẩm mới
@@ -82,6 +92,20 @@ public class AdminArtworkService {
     public ResponseEntity<List<AdminArtworkResponse>> getAllArtworks() {
         List<AdminArtworkResponse> responses = getAllArtworksData();
         return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Lấy chi tiết tác phẩm theo ID
+     */
+    public ResponseEntity<?> getArtworkDetail(String artworkId) {
+        Optional<Artwork> artworkOpt = artworkRepository.findById(artworkId);
+        if (artworkOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AdminBasicResponse<>(0, "Artwork not found with ID: " + artworkId, null));
+        }
+
+        AdminArtworkDetailResponse detail = mapToDetailResponse(artworkOpt.get());
+        return ResponseEntity.ok(detail);
     }
 
     /**
@@ -163,6 +187,81 @@ public class AdminArtworkService {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorResponse);
         }
     }
+
+    /**
+     * Admin duyệt tác phẩm: cập nhật startedPrice (nếu có) + status = 1, gửi email cho owner
+     */
+    public ResponseEntity<?> approveArtwork(String artworkId, ArtworkApprovalRequest request) {
+        Artwork artwork = artworkRepository.findById(artworkId)
+                .orElse(null);
+        if (artwork == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AdminBasicResponse<>(0, "Artwork not found with ID: " + artworkId, null));
+        }
+        if (!artwork.isAiVerified()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminBasicResponse<>(0,
+                            "Artwork cannot be approved because it has not passed AI verification", null));
+        }
+        if (artwork.getStatus() == 2) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminBasicResponse<>(0, "Artwork is currently in auction and cannot be approved again", null));
+        }
+
+        ArtworkApprovalRequest effectiveRequest = request == null ? new ArtworkApprovalRequest() : request;
+        if (effectiveRequest.getStartedPrice() != null && effectiveRequest.getStartedPrice().compareTo(java.math.BigDecimal.ZERO) <= 0) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminBasicResponse<>(0, "startedPrice must be greater than 0", null));
+        }
+
+        if (effectiveRequest.getStartedPrice() != null) {
+            artwork.setStartedPrice(effectiveRequest.getStartedPrice());
+        }
+
+        artwork.setStatus(1); // Approved
+        artwork.setUpdatedAt(LocalDateTime.now());
+
+        Artwork saved = artworkRepository.save(artwork);
+        AdminArtworkResponse response = mapToAdminArtworkResponse(saved);
+
+        sendArtworkEmail(saved, true, effectiveRequest.getAdminNote(), null);
+
+        return ResponseEntity.ok(new AdminBasicResponse<>(1, "Artwork approved successfully", response));
+    }
+
+    /**
+     * Admin từ chối tác phẩm: set status = 3 và gửi email báo cho owner
+     */
+    public ResponseEntity<?> rejectArtwork(String artworkId, ArtworkRejectionRequest request) {
+        Artwork artwork = artworkRepository.findById(artworkId)
+                .orElse(null);
+        if (artwork == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AdminBasicResponse<>(0, "Artwork not found with ID: " + artworkId, null));
+        }
+
+        ArtworkRejectionRequest effectiveRequest = request == null ? new ArtworkRejectionRequest() : request;
+        String finalReason;
+        if (!artwork.isAiVerified()) {
+            finalReason = "Tác phẩm nghệ thuật của bạn chưa được duyệt bởi hệ thống đánh giá của chúng tôi";
+        } else {
+            if (!StringUtils.hasText(effectiveRequest.getReason())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new AdminBasicResponse<>(0, "reason is required when rejecting artwork", null));
+            }
+            finalReason = effectiveRequest.getReason();
+        }
+
+        artwork.setStatus(3); // Rejected
+        artwork.setUpdatedAt(LocalDateTime.now());
+        Artwork saved = artworkRepository.save(artwork);
+        AdminArtworkResponse response = mapToAdminArtworkResponse(saved);
+
+        sendArtworkEmail(saved, false, effectiveRequest.getAdminNote(), finalReason);
+
+        return ResponseEntity.ok(new AdminBasicResponse<>(1, "Artwork rejected successfully", response));
+    }
+
 
     /**
      * Tìm kiếm tác phẩm theo title, author (username), hoặc id
@@ -268,6 +367,7 @@ public class AdminArtworkService {
         AdminArtworkResponse response = new AdminArtworkResponse();
         response.setId(artwork.getId());
         response.setTitle(artwork.getTitle());
+        response.setDescription(artwork.getDescription());
         response.setYearOfCreation(artwork.getYearOfCreation());
         response.setMaterial(artwork.getMaterial());
         response.setPaintingGenre(artwork.getPaintingGenre());
@@ -290,6 +390,39 @@ public class AdminArtworkService {
         response.setAuthor(author);
 
         return response;
+    }
+
+    private AdminArtworkDetailResponse mapToDetailResponse(Artwork artwork) {
+        AdminArtworkDetailResponse detail = new AdminArtworkDetailResponse();
+        detail.setId(artwork.getId());
+        detail.setOwnerId(artwork.getOwnerId());
+        detail.setTitle(artwork.getTitle());
+        detail.setDescription(artwork.getDescription());
+        detail.setPaintingGenre(artwork.getPaintingGenre());
+        detail.setMaterial(artwork.getMaterial());
+        detail.setSize(artwork.getSize());
+        detail.setYearOfCreation(artwork.getYearOfCreation());
+        detail.setCertificateId(artwork.getCertificateId());
+        detail.setStartedPrice(artwork.getStartedPrice());
+        detail.setAvtArtwork(artwork.getAvtArtwork());
+        detail.setImageUrls(artwork.getImageUrls());
+        detail.setStatus(artwork.getStatus());
+        detail.setAiVerified(artwork.isAiVerified());
+        detail.setCreatedAt(artwork.getCreatedAt());
+        detail.setUpdatedAt(artwork.getUpdatedAt());
+        if (StringUtils.hasText(artwork.getOwnerId())) {
+            userRepository.findById(artwork.getOwnerId()).ifPresent(owner -> {
+                AdminArtworkDetailResponse.OwnerInfo info = new AdminArtworkDetailResponse.OwnerInfo(
+                        owner.getId(),
+                        owner.getUsername(),
+                        owner.getEmail(),
+                        owner.getPhonenumber(),
+                        owner.getStatus()
+                );
+                detail.setOwner(info);
+            });
+        }
+        return detail;
     }
 
     /**
@@ -363,6 +496,7 @@ public class AdminArtworkService {
         ArtworkForSelectionResponse response = new ArtworkForSelectionResponse();
         response.setId(artwork.getId());
         response.setTitle(artwork.getTitle());
+        response.setDescription(artwork.getDescription());
         response.setPaintingGenre(artwork.getPaintingGenre());
         response.setMaterial(artwork.getMaterial());
         response.setSize(artwork.getSize());
@@ -383,6 +517,37 @@ public class AdminArtworkService {
         response.setAuthor(author);
 
         return response;
+    }
+
+    private void sendArtworkEmail(Artwork artwork, boolean approved, String adminNote, String reason) {
+        if (!StringUtils.hasText(artwork.getOwnerId())) {
+            log.warn("Artwork {} has no ownerId, skip sending email", artwork.getId());
+            return;
+        }
+
+        Optional<User> ownerOpt = userRepository.findById(artwork.getOwnerId());
+        if (ownerOpt.isEmpty()) {
+            log.warn("Owner not found for artwork {}", artwork.getId());
+            return;
+        }
+
+        User owner = ownerOpt.get();
+        if (!StringUtils.hasText(owner.getEmail())) {
+            log.warn("Owner {} has no email, skip sending notification", owner.getId());
+            return;
+        }
+
+        String userName = StringUtils.hasText(owner.getUsername()) ? owner.getUsername() : "Bạn";
+
+        try {
+            if (approved) {
+                emailService.sendArtworkApprovalEmail(owner.getEmail(), userName, artwork, adminNote);
+            } else {
+                emailService.sendArtworkRejectionEmail(owner.getEmail(), userName, artwork, reason, adminNote);
+            }
+        } catch (Exception ex) {
+            log.error("Failed to send artwork {} email to {}", approved ? "approval" : "rejection", owner.getEmail(), ex);
+        }
     }
 }
 

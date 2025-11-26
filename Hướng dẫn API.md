@@ -168,6 +168,28 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     ```
   - Response `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/artworks/xoa-tac-pham/{artworkId}`
+- **Chi tiết một tác phẩm:** `GET /api/admin/artworks/{artworkId}`
+  - Trả về đầy đủ thông tin từ document `artworks` kèm thông tin chủ sở hữu (`ownerId`, `owner.username`, `owner.email`, `owner.phonenumber`).
+  - Bao gồm các trường: `description`, `size`, `material`, `paintingGenre`, `yearOfCreation`, `certificateId`, `startedPrice`, `avtArtwork`, `imageUrls`, `status`, `aiVerified`, `createdAt`, `updatedAt`, ...
+- **Duyệt tác phẩm:** `POST /api/admin/artworks/approve/{artworkId}`
+  - Body:
+    ```json
+    {
+      "startedPrice": 50000,
+      "adminNote": "Điều chỉnh giá theo hội đồng thẩm định"
+    }
+    ```
+  - Mô tả: Admin cập nhật lại `startedPrice` (nếu có) và chuyển `status` sang `1`. Sau khi duyệt hệ thống tự động gửi email "Artwork Approved" cho author dựa trên `ownerId`.
+  - Ràng buộc: Chỉ những tác phẩm có `aiVerified = true` (đã được hệ thống AI kiểm tra) mới được phép approve. Nếu `aiVerified = false` API sẽ trả về lỗi 400 và không thay đổi trạng thái.
+- **Từ chối tác phẩm:** `POST /api/admin/artworks/reject/{artworkId}`
+  - Body:
+    ```json
+    {
+      "reason": "Ảnh chưa đạt chất lượng in ấn",
+      "adminNote": "Vui lòng bổ sung ảnh chụp rõ hơn."
+    }
+    ```
+  - Mô tả: Admin chuyển `status` về `3` (rejected) và buộc phải nhập `reason`. Hệ thống gửi email "Artwork Rejected" cho author để thông báo lý do.
 - **Thống kê:** `GET /api/admin/artworks/thong-ke-tac-pham`
   - Response:
     ```json

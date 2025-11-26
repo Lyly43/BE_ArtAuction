@@ -1,6 +1,8 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddArtworkRequest;
+import AdminBackend.DTO.Request.ArtworkApprovalRequest;
+import AdminBackend.DTO.Request.ArtworkRejectionRequest;
 import AdminBackend.DTO.Request.UpdateArtworkRequest;
 import AdminBackend.DTO.Response.AdminArtworkResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
@@ -47,6 +49,37 @@ public class AdminArtworkController {
             @PathVariable String artworkId,
             @RequestBody UpdateArtworkRequest request) {
         return adminArtworkService.updateArtwork(artworkId, request);
+    }
+
+    /**
+     * POST /api/admin/artworks/approve/{artworkId}
+     * Admin duyệt tác phẩm (set status = 1, cập nhật startedPrice)
+     */
+    @PostMapping("/approve/{artworkId}")
+    public ResponseEntity<?> approveArtwork(
+            @PathVariable String artworkId,
+            @RequestBody ArtworkApprovalRequest request) {
+        return adminArtworkService.approveArtwork(artworkId, request);
+    }
+
+    /**
+     * POST /api/admin/artworks/reject/{artworkId}
+     * Admin từ chối tác phẩm (set status = 3)
+     */
+    @PostMapping("/reject/{artworkId}")
+    public ResponseEntity<?> rejectArtwork(
+            @PathVariable String artworkId,
+            @RequestBody ArtworkRejectionRequest request) {
+        return adminArtworkService.rejectArtwork(artworkId, request);
+    }
+
+    /**
+     * GET /api/admin/artworks/{artworkId}
+     * Lấy chi tiết đầy đủ của một tác phẩm theo ID
+     */
+    @GetMapping("/{artworkId}")
+    public ResponseEntity<?> getArtworkDetail(@PathVariable String artworkId) {
+        return adminArtworkService.getArtworkDetail(artworkId);
     }
 
     /**
