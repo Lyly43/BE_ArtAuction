@@ -657,6 +657,18 @@ public class AdminAuctionRoomService {
                     info.setCurrentPrice(safeCurrentPrice(session));
                     info.setBidStep(safeAmount(session.getBidStep()));
                     info.setStatus(session.getStatus());
+                    
+                    // Thông tin chi tiết từ Artwork
+                    if (artwork != null) {
+                        info.setImageUrls(artwork.getImageUrls());
+                        info.setAiVerified(artwork.isAiVerified());
+                        info.setSize(artwork.getSize());
+                        info.setMaterial(artwork.getMaterial());
+                        info.setCertificateId(artwork.getCertificateId());
+                        info.setPaintingGenre(artwork.getPaintingGenre());
+                        info.setYearOfCreation(artwork.getYearOfCreation());
+                        info.setDescription(artwork.getDescription());
+                    }
 
                     return info;
                 })

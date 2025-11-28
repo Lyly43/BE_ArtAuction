@@ -169,8 +169,39 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   - Response `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/artworks/xoa-tac-pham/{artworkId}`
 - **Chi tiết một tác phẩm:** `GET /api/admin/artworks/{artworkId}`
-  - Trả về đầy đủ thông tin từ document `artworks` kèm thông tin chủ sở hữu (`ownerId`, `owner.username`, `owner.email`, `owner.phonenumber`).
-  - Bao gồm các trường: `description`, `size`, `material`, `paintingGenre`, `yearOfCreation`, `certificateId`, `startedPrice`, `avtArtwork`, `imageUrls`, `status`, `aiVerified`, `createdAt`, `updatedAt`, ...
+  - Response:
+    ```json
+    {
+      "id": "Aw-533966731001600",
+      "ownerId": "U-531569901185400",
+      "owner": {
+          "id": "U-531569901185400",
+          "username": "nguyenvana",
+          "email": "llttminh@gmail.com",
+          "phoneNumber": "0987654321",
+          "status": 1
+      },
+      "title": "Test ở bé biển ",
+      "description": "Bức tranh vẽ con chó mang tên Võ ĐĂng Nam ngu như pò hjhj",
+      "paintingGenre": "Tranh con cặt",
+      "material": "Tranh dầu",
+      "size": "30 * 40 cm",
+      "yearOfCreation": 2004,
+      "certificateId": null,
+      "startedPrice": 32000000,
+      "avtArtwork": "https://example.com/images/artwork-avatar.jpg",
+      "imageUrls": [
+          "https://example.com/images/artwork-1.jpg",
+          "https://example.com/images/artwork-2.jpg",
+          "https://example.com/images/artwork-3.jpg"
+      ],
+      "status": 2,
+      "aiVerified": false,
+      "createdAt": "2025-11-26T17:00:35.808",
+      "updatedAt": "2025-11-26T20:23:46.31"
+  }
+    ```
+  - Trả về đầy đủ thông tin từ document `artworks` kèm thông tin chủ sở hữu (`owner` object với `id`, `username`, `email`, `phonenumber`, `status`).
 - **Duyệt tác phẩm:** `POST /api/admin/artworks/approve/{artworkId}`
   - Body:
     ```json
@@ -306,33 +337,45 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
           "artworkId": "Aw-01",
           "artworkName": "Sunset Symphony",
           "author": "Artist 01",
+          "avtArtwork": "https://cdn.example.com/artwork1.jpg",
           "startingPrice": 1000,
           "currentPrice": 1800,
           "bidStep": 50,
           "status": 1,
-          "statusLabel": "LIVE",
-          "live": true,
-          "closed": false,
-          "upcoming": false
+          "imageUrls": ["https://cdn.example.com/img1.jpg", "https://cdn.example.com/img2.jpg"],
+          "aiVerified": true,
+          "size": "80x120 cm",
+          "material": "Oil Paint",
+          "certificateId": "CERT-001",
+          "paintingGenre": "Landscape",
+          "yearOfCreation": 2023,
+          "description": "Mô tả chi tiết về tác phẩm..."
         },
         {
           "sessionId": "ATSS-02",
           "artworkId": "Aw-02",
           "artworkName": "Forest Dream",
           "author": "Artist 02",
+          "avtArtwork": "https://cdn.example.com/artwork2.jpg",
           "startingPrice": 800,
           "currentPrice": 950,
           "bidStep": 25,
           "status": 0,
-          "statusLabel": "ĐÃ CHỐT",
-          "live": false,
-          "closed": true,
-          "upcoming": false
+          "imageUrls": ["https://cdn.example.com/img3.jpg"],
+          "aiVerified": true,
+          "size": "60x90 cm",
+          "material": "Acrylic",
+          "certificateId": "CERT-002",
+          "paintingGenre": "Abstract",
+          "yearOfCreation": 2022,
+          "description": "Mô tả chi tiết về tác phẩm..."
         }
       ]
     }
     ```
-  - Trả về đầy đủ thông tin phòng, admin phụ trách, cọc, tổng thành viên, trạng thái và danh sách tất cả phiên/Artwork trong phòng (kèm trạng thái `live`/`đã chốt`/`sắp tới`, giá khởi điểm, giá hiện tại, bước giá).
+  - Trả về đầy đủ thông tin phòng, admin phụ trách, cọc, tổng thành viên, trạng thái và danh sách tất cả phiên/Artwork trong phòng. Mỗi artwork session bao gồm:
+    - Thông tin session: `sessionId`, `status`, `startingPrice`, `currentPrice`, `bidStep`
+    - Thông tin artwork: `artworkId`, `artworkName`, `author`, `avtArtwork`, `imageUrls`, `aiVerified`, `size`, `material`, `certificateId`, `paintingGenre`, `yearOfCreation`, `description`
 
 ---
 

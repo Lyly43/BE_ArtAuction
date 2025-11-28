@@ -56,6 +56,15 @@ public class AuctionRoomDetailResponse {
         private BigDecimal currentPrice;
         private BigDecimal bidStep;
         private int status;
+        // Thông tin chi tiết từ Artwork
+        private List<String> imageUrls;
+        private boolean aiVerified;
+        private String size;
+        private String material;
+        private String certificateId;
+        private String paintingGenre;
+        private int yearOfCreation;
+        private String description;
     }
 }
 
