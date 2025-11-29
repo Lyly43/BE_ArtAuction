@@ -115,6 +115,7 @@ public class AdminUserService {
      */
     public ResponseEntity<UserStatisticsResponse> getUserStatistics() {
         long totalUsers = userRepository.count();
+        long activeUsers = userRepository.countByStatus(1); // status = 1 là đang hoạt động
         long totalSellers = userRepository.countByRole(3); // role = 3 là seller
         long totalBlockedUsers = userRepository.countByStatus(2); // status = 2 là bị khóa
 
@@ -135,6 +136,7 @@ public class AdminUserService {
 
         UserStatisticsResponse statistics = new UserStatisticsResponse(
                 totalUsers,
+                activeUsers,
                 totalSellers,
                 totalBlockedUsers,
                 monthlyComp

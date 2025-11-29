@@ -82,6 +82,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   ```json
   {
     "totalUsers": 1222,
+    "activeUsers": 1100,
     "totalSellers": 500,
     "totalBlockedUsers": 50,
     "monthlyComparison": {
@@ -97,6 +98,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   ```
 - Lưu ý:
   - `totalUsers`: Tổng số người dùng
+  - `activeUsers`: Tổng số người dùng đang hoạt động (status = 1)
   - `totalSellers`: Tổng số người bán (role = 3)
   - `totalBlockedUsers`: Tổng số người dùng bị khóa (status = 2)
   - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số user
@@ -325,12 +327,15 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
         "phoneNumber": "0909xxx"
       },
       "description": "Phiên VIP cuối tuần",
+      "imageAuctionRoom": "https://cdn.example.com/auction-room.jpg",
       "startedAt": "2025-12-01T10:00:00",
       "stoppedAt": "2025-12-01T12:00:00",
       "totalMembers": 150,
       "viewCount": 1200,
       "depositAmount": 5000,
       "status": 1,
+      "createdAt": "2025-11-20T10:00:00",
+      "updatedAt": "2025-11-25T15:30:00",
       "artworks": [
         {
           "sessionId": "ATSS-01",

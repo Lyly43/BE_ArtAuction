@@ -574,12 +574,15 @@ public class AdminAuctionRoomService {
         detail.setRoomName(room.getRoomName());
         detail.setDescription(room.getDescription());
         detail.setType(room.getType());
+        detail.setImageAuctionRoom(room.getImageAuctionRoom());
         detail.setStartedAt(room.getStartedAt());
         detail.setStoppedAt(room.getStoppedAt());
         detail.setStatus(room.getStatus());
         detail.setDepositAmount(room.getDepositAmount() != null ? room.getDepositAmount() : BigDecimal.ZERO);
         detail.setViewCount(room.getViewCount() != null ? room.getViewCount() : 0);
         detail.setTotalMembers(room.getMemberIds() == null ? 0 : room.getMemberIds().size());
+        detail.setCreatedAt(room.getCreatedAt());
+        detail.setUpdatedAt(room.getUpdatedAt());
 
         if (StringUtils.hasText(room.getAdminId())) {
             AuctionRoomDetailResponse.AdminInfo adminInfo = adminRepository.findById(room.getAdminId())

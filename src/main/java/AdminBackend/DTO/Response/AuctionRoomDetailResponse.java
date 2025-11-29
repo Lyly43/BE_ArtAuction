@@ -21,12 +21,15 @@ public class AuctionRoomDetailResponse {
     private String type;
     private AdminInfo admin;
     private String description;
+    private String imageAuctionRoom;
     private LocalDateTime startedAt;
     private LocalDateTime stoppedAt;
     private Integer totalMembers;
     private Integer viewCount;
     private BigDecimal depositAmount;
     private int status;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
     private List<SessionArtworkInfo> artworks;
 
     @Data
