@@ -1,6 +1,7 @@
 package com.auctionaa.backend.Service;
 
 import com.auctionaa.backend.Entity.Artwork;
+import com.auctionaa.backend.Entity.AuctionRoom;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -63,6 +64,75 @@ public class EmailService {
         context.setVariable("adminNote", adminNote);
         context.setVariable("detailLink", frontendUrl + "/artworks/" + artwork.getId());
         sendEmailWithTemplate(toEmail, "Tác phẩm của bạn chưa được duyệt", "emails/artwork-rejected", context);
+    }
+
+    /**
+     * Gửi email cảnh báo cho user do báo cáo
+     */
+    public void sendUserWarningEmail(String toEmail, String userName, String reportType, String reason, String adminNote, long reportCount) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("reportCount", reportCount);
+        context.setVariable("profileLink", frontendUrl + "/profile");
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Cảnh báo từ hệ thống", "emails/user-warning", context);
+    }
+
+    /**
+     * Gửi email thông báo user bị chặn
+     */
+    public void sendUserBlockedEmail(String toEmail, String userName, String reportType, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("appealLink", frontendUrl + "/support/appeal");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Tài khoản của bạn đã bị chặn", "emails/user-blocked", context);
+    }
+
+    /**
+     * Gửi email thông báo artwork bị từ chối do báo cáo
+     */
+    public void sendArtworkRejectedByReportEmail(String toEmail, String userName, Artwork artwork, String reportType, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("artworkTitle", artwork.getTitle());
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("detailLink", frontendUrl + "/artworks/" + artwork.getId());
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("appealLink", frontendUrl + "/support/appeal");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Tác phẩm của bạn đã bị từ chối", "emails/artwork-rejected-by-report", context);
+    }
+
+    /**
+     * Gửi email thông báo auction room bị đóng
+     */
+    public void sendRoomClosedEmail(String toEmail, String userName, AuctionRoom room, String reportType, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("roomName", room.getRoomName());
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("roomLink", frontendUrl + "/auction-rooms/" + room.getId());
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("appealLink", frontendUrl + "/support/appeal");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Phòng đấu giá đã bị đóng", "emails/room-closed", context);
     }
 
     private void sendEmailWithTemplate(String toEmail, String subject, String template, Context context) {

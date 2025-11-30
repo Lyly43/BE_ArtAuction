@@ -81,38 +81,10 @@ public class AdminInvoiceService {
                         return false;
                     }
                     
-                    // Filter by paymentMethod (null hoặc "Tất cả" hoặc empty = bỏ qua filter)
-                    // Frontend gửi: "banking" (Chuyển khoản ngân hàng) hoặc "visa" (Ví điện tử)
-                    if (request.getPaymentMethod() != null && 
-                        !request.getPaymentMethod().trim().isEmpty() &&
-                        !request.getPaymentMethod().trim().equalsIgnoreCase("Tất cả")) {
-                        String method = request.getPaymentMethod().trim().toLowerCase();
-                        String invoiceMethod = invoice.getPaymentMethod() != null 
-                            ? invoice.getPaymentMethod().toLowerCase() 
-                            : "";
-                        
-                        // Mapping từ frontend sang backend
-                        boolean matched = false;
-                        if (method.equals("banking")) {
-                            // "banking" -> match với các giá trị liên quan đến chuyển khoản ngân hàng
-                            matched = invoiceMethod.contains("bank") || 
-                                     invoiceMethod.contains("transfer") ||
-                                     invoiceMethod.equals("banking");
-                        } else if (method.equals("visa")) {
-                            // "visa" -> match với các giá trị ví điện tử/thẻ
-                            matched = invoiceMethod.contains("card") || 
-                                     invoiceMethod.contains("visa") || 
-                                     invoiceMethod.contains("momo") || 
-                                     invoiceMethod.contains("vnpay") ||
-                                     invoiceMethod.equals("visa");
-                        } else {
-                            // Nếu không phải "banking" hay "visa", dùng exact match
-                            matched = invoiceMethod.equals(method);
-                        }
-                        
-                        if (!matched) {
-                            return false;
-                        }
+                    // Filter by invoiceStatus (null = bỏ qua filter)
+                    // 0 = created, 1 = confirmed, 2 = completed, 3 = cancelled
+                    if (request.getInvoiceStatus() != null && invoice.getInvoiceStatus() != request.getInvoiceStatus()) {
+                        return false;
                     }
                     
                     // Filter by totalAmount range - lọc theo totalAmount của invoice
@@ -284,5 +256,6 @@ public class AdminInvoiceService {
                 invoice.getCreatedAt()
         );
     }
+
 }
 

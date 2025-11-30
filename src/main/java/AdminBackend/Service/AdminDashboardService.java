@@ -236,7 +236,6 @@ public class AdminDashboardService {
         DashboardOverviewResponse.SessionInfo info = new DashboardOverviewResponse.SessionInfo();
         info.setId(session.getId());
         info.setArtworkId(session.getArtworkId());
-        info.setImageUrl(session.getImageUrl());
         info.setStartingPrice(session.getStartingPrice());
         info.setCurrentPrice(session.getCurrentPrice());
         info.setStatus(session.getStatus());
@@ -244,10 +243,12 @@ public class AdminDashboardService {
         info.setStartTime(session.getStartTime());
         info.setEndedAt(session.getEndedAt());
 
-        // Lấy artwork title nếu có
+        // Lấy artwork title và avtArtwork nếu có
         if (session.getArtworkId() != null) {
             artworkRepository.findById(session.getArtworkId()).ifPresent(artwork -> {
                 info.setArtworkTitle(artwork.getTitle());
+                // Lấy avtArtwork từ artwork
+                info.setAvtArtwork(artwork.getAvtArtwork());
             });
         }
 

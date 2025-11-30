@@ -79,7 +79,7 @@ public class DashboardOverviewResponse {
         private String id;
         private String artworkId;
         private String artworkTitle;
-        private String imageUrl;
+        private String avtArtwork;
         private BigDecimal startingPrice;
         private BigDecimal currentPrice;
         private int status;

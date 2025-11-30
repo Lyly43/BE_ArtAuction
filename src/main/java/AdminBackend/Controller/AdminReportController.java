@@ -1,5 +1,6 @@
 package AdminBackend.Controller;
 
+import AdminBackend.DTO.Request.ProcessReportRequest;
 import AdminBackend.DTO.Request.UpdateReportRequest;
 import AdminBackend.DTO.Response.AdminReportApiResponse;
 import AdminBackend.DTO.Response.AdminReportResponse;
@@ -40,6 +41,18 @@ public class AdminReportController {
             @PathVariable String reportId,
             @RequestBody UpdateReportRequest request) {
         return adminReportService.updateReport(reportId, request);
+    }
+
+    /**
+     * POST /api/admin/reports/xu-ly/{reportId}
+     * Xử lý báo cáo với các hành động cụ thể theo loại entity
+     * Yêu cầu: Content-Type: application/json
+     */
+    @PostMapping(value = "/xu-ly/{reportId}", consumes = "application/json")
+    public ResponseEntity<AdminReportApiResponse<AdminReportResponse>> processReport(
+            @PathVariable String reportId,
+            @RequestBody ProcessReportRequest request) {
+        return adminReportService.processReport(reportId, request);
     }
 
     @DeleteMapping("/xoa/{reportId}")

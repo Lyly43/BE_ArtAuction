@@ -29,3 +29,4 @@ public class AuctionRoomFilterRequest {
     private String participantsRange;
 }
 
+

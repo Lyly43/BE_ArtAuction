@@ -285,6 +285,8 @@ public class AdminAuctionRoomService {
 
     /**
      * Delete
+     * Khi xóa phòng đấu giá, cần khôi phục status của các artwork về 1 (đã duyệt)
+     * vì khi tạo phòng, status của artwork đã được chuyển thành 2 (đang đấu giá)
      */
     public ResponseEntity<AdminBasicResponse<Void>> deleteAuctionRoom(String roomId) {
         Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(roomId);
@@ -293,7 +295,35 @@ public class AdminAuctionRoomService {
                     .body(new AdminBasicResponse<>(0, "Auction room not found with ID: " + roomId, null));
         }
 
-        auctionRoomRepository.delete(roomOpt.get());
+        AuctionRoom room = roomOpt.get();
+        
+        // Lấy tất cả sessions trong phòng đấu giá
+        List<AuctionSession> sessions = auctionSessionRepository.findByAuctionRoomId(roomId);
+        
+        // Lấy danh sách artworkIds từ các sessions (distinct để tránh trùng lặp)
+        List<String> artworkIds = sessions.stream()
+                .map(AuctionSession::getArtworkId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .collect(Collectors.toList());
+        
+        // Khôi phục status của các artwork về 1 (đã duyệt)
+        if (!artworkIds.isEmpty()) {
+            List<Artwork> artworks = artworkRepository.findAllById(artworkIds);
+            for (Artwork artwork : artworks) {
+                // Chỉ khôi phục nếu status hiện tại là 2 (đang đấu giá)
+                // để tránh ảnh hưởng đến các artwork đã có status khác
+                if (artwork.getStatus() == 2) {
+                    artwork.setStatus(1); // Khôi phục về "Đã duyệt"
+                    artwork.setUpdatedAt(LocalDateTime.now());
+                    artworkRepository.save(artwork);
+                }
+            }
+        }
+        
+        // Xóa phòng đấu giá (sessions sẽ được xóa tự động nếu có cascade delete)
+        auctionRoomRepository.delete(room);
+        
         return ResponseEntity.ok(new AdminBasicResponse<>(1, "Auction room deleted successfully", null));
     }
 

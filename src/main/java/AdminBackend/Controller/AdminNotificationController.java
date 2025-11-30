@@ -1,6 +1,7 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddNotificationRequest;
+import AdminBackend.DTO.Request.NotificationFilterRequest;
 import AdminBackend.DTO.Request.UpdateNotificationRequest;
 import AdminBackend.DTO.Response.AdminNotificationApiResponse;
 import AdminBackend.DTO.Response.AdminNotificationResponse;
@@ -35,6 +36,17 @@ public class AdminNotificationController {
     public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> filterByStatus(
             @RequestParam("status") Integer status) {
         return adminNotificationService.filterByStatus(status);
+    }
+
+    /**
+     * POST /api/admin/notifications/loc-thong-bao
+     * Lọc thông báo theo các tiêu chí: notificationStatus, dateRange (theo notificationTime)
+     * Yêu cầu: Content-Type: application/json
+     */
+    @PostMapping(value = "/loc-thong-bao", consumes = "application/json")
+    public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> filterNotifications(
+            @RequestBody NotificationFilterRequest request) {
+        return adminNotificationService.filterNotifications(request);
     }
 
     @PostMapping("/tao-thong-bao")

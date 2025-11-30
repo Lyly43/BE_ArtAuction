@@ -25,3 +25,4 @@ public class ArtworkFilterRequest {
     private Integer status;
 }
 
+

@@ -17,8 +17,9 @@ public class InvoiceFilterRequest {
     // Frontend có thể gửi paymentStatus = 2 cho "Overdue" nếu muốn filter theo Failed
     private Integer paymentStatus;
     
-    // Payment Method: null hoặc "Tất cả" = bỏ qua filter
-    private String paymentMethod;
+    // Invoice Status: null = bỏ qua filter (lấy tất cả)
+    // 0 = created, 1 = confirmed, 2 = completed, 3 = cancelled
+    private Integer invoiceStatus;
     
     // Total Amount range - có thể dùng preset hoặc custom range
     // Preset: "<1M", "1M-10M", ">10M", hoặc null

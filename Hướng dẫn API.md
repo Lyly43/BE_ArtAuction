@@ -529,6 +529,26 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - **Lọc theo trạng thái:** `GET /api/admin/notifications/loc-theo-trang-thai?status=0|1`
   - `status=0`: thông báo thất bại, `status=1`: đã gửi thành công
   - Response: mảng `AdminNotificationResponse` ứng với trạng thái yêu cầu
+- **Lọc thông báo:** `POST /api/admin/notifications/loc-thong-bao`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - Request Body:
+    ```json
+    {
+      "notificationStatus": 1,
+      "dateFrom": "2025-12-01T00:00:00",
+      "dateTo": "2025-12-31T23:59:59"
+    }
+    ```
+  - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+    - `notificationStatus`: `null` = bỏ qua filter (lấy tất cả), `0` = failed, `1` = sent
+    - `dateFrom`: `null` = bỏ qua filter, ngày bắt đầu tối thiểu (LocalDateTime) - **lọc theo `notificationTime` của thông báo**
+    - `dateTo`: `null` = bỏ qua filter, ngày kết thúc tối đa (LocalDateTime) - **lọc theo `notificationTime` của thông báo**
+  - Response: `AdminNotificationApiResponse<List<AdminNotificationResponse>>` với cấu trúc tương tự như `GET /api/admin/notifications/lay-du-lieu`
+  - Lưu ý:
+    - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+    - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `notificationStatus` và `dateFrom`, các trường khác để `null`
+    - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả notifications
+    - **Date range lọc theo `notificationTime`**: Tất cả các filter về ngày (`dateFrom`, `dateTo`) đều lọc dựa trên trường `notificationTime` của thông báo
 - **Tạo thông báo**
   - `POST /api/admin/notifications/tao-thong-bao`
   - Request:
@@ -564,7 +584,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     ```json
     {
       "paymentStatus": 1,
-      "paymentMethod": "BANK_TRANSFER",
+      "invoiceStatus": 2,
       "totalAmountRange": "1M-10M",
       "dateFrom": "2025-12-01T00:00:00",
       "dateTo": "2025-12-31T23:59:59"
@@ -572,9 +592,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     ```
   - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
     - `paymentStatus`: `null` = bỏ qua filter (lấy tất cả), `0` = Pending, `1` = Paid, `2` = Failed
-    - `paymentMethod`: `null`, chuỗi rỗng, hoặc `"Tất cả"` = bỏ qua filter, nếu có giá trị sẽ tìm match (case-insensitive). 
-      - Hỗ trợ exact match: "BANK_TRANSFER", "CREDIT_CARD", "MOMO", "VNPAY"
-      - Hỗ trợ mapping từ frontend: "banking" sẽ match với các giá trị chứa "bank" hoặc "transfer", "visa" sẽ match với các giá trị chứa "card", "visa", "momo", hoặc "vnpay"
+    - `invoiceStatus`: `null` = bỏ qua filter (lấy tất cả), `0` = created, `1` = confirmed, `2` = completed, `3` = cancelled
     - `totalAmountRange`: `null` hoặc chuỗi rỗng = bỏ qua filter, hỗ trợ các preset: `"<1M"` (< 1 triệu), `"1M-10M"` (1-10 triệu), `">10M"` (> 10 triệu). **Lưu ý: Lọc theo `totalAmount` của hóa đơn**
     - `totalAmountMin`: `null` = bỏ qua filter, giá tối thiểu (BigDecimal) - chỉ dùng khi không có `totalAmountRange`
     - `totalAmountMax`: `null` = bỏ qua filter, giá tối đa (BigDecimal) - chỉ dùng khi không có `totalAmountRange`
@@ -617,11 +635,6 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `paymentStatus` và `totalAmountRange`, các trường khác để `null`
     - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả invoices
     - **`totalAmountRange` vs `totalAmountMin/totalAmountMax`**: Nếu có `totalAmountRange` thì sẽ dùng preset, bỏ qua `totalAmountMin/totalAmountMax`. Nếu không có `totalAmountRange` thì dùng `totalAmountMin/totalAmountMax` (có thể dùng riêng lẻ hoặc kết hợp)
-    - **`paymentMethod`**: 
-      - Frontend có thể gửi: `"banking"` (Chuyển khoản ngân hàng) hoặc `"visa"` (Ví điện tử)
-      - `"banking"` sẽ match với các giá trị chứa "bank", "transfer" hoặc "banking"
-      - `"visa"` sẽ match với các giá trị chứa "card", "visa", "momo", "vnpay" hoặc "visa"
-      - Các giá trị khác sẽ dùng exact match (case-insensitive)
     - **Date range lọc theo `orderDate`**: Tất cả các filter về ngày (`dateFrom`, `dateTo`) đều lọc dựa trên trường `orderDate` của hóa đơn (không phải `paymentDate` hay `createdAt`)
     - **"Overdue" (Quá hạn)**: Có thể được xử lý ở frontend bằng cách filter `paymentStatus = 0` (Pending) và `paymentDate < now` (nếu có paymentDate)
 - **Thống kê:** `GET /api/admin/invoices/thong-ke`
@@ -715,6 +728,71 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
       - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
 - `PUT /api/admin/reports/cap-nhat/{reportId}` – body `UpdateReportRequest` (reportReason, reportStatus, reportDoneTime).
+- **Xử lý báo cáo:** `POST /api/admin/reports/xu-ly/{reportId}`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - **Mô tả**: API này cho phép admin xử lý báo cáo với các hành động cụ thể tùy theo loại entity bị báo cáo
+  - Request Body:
+    ```json
+    {
+      "action": "WARNING",
+      "adminNote": "Ghi chú của admin về việc xử lý báo cáo này"
+    }
+    ```
+  - Request Body Fields:
+    - `action` (String, bắt buộc): Hành động xử lý
+      - **Cho User Reports (entityType = 1)**:
+        - `"WARNING"`: Gửi notification và email cảnh báo cho user (không chặn). 
+          - **Lưu ý quan trọng**: Nếu user đã bị báo cáo và xử lý 3 lần trước đó (đã có 3 reports với status = Resolved), thì không thể sử dụng action `WARNING` nữa. Hệ thống sẽ trả về lỗi và bắt buộc phải sử dụng action `BLOCK`.
+        - `"BLOCK"`: Chặn user (đổi status = 2) và gửi email thông báo + notification. Email sẽ bao gồm thông tin liên hệ để user có thể khiếu nại nếu bị oan hoặc bị spam báo cáo.
+        - `"DISMISS"`: Từ chối báo cáo (report status = 3), không có hành động gì với user
+      - **Cho Artwork Reports (entityType = 2) và AI Artwork Reports (entityType = 4)**:
+        - `"REJECT"`: Từ chối artwork (đổi status = 3) và gửi email cho owner + notification. Email sẽ bao gồm thông tin liên hệ để author có thể khiếu nại nếu bị oan hoặc bị spam báo cáo.
+        - `"DISMISS"`: Từ chối báo cáo (report status = 3), không có hành động gì với artwork
+      - **Cho Auction Room Reports (entityType = 3)**:
+        - `"CLOSE"`: Đóng room (đổi status = 0) và gửi email cho admin/host + notification. Email sẽ bao gồm thông tin liên hệ để user có thể khiếu nại nếu bị oan hoặc bị spam báo cáo.
+        - `"DISMISS"`: Từ chối báo cáo (report status = 3), không có hành động gì với room
+    - `adminNote` (String, optional): Ghi chú của admin về việc xử lý
+  - Response: `AdminReportApiResponse<AdminReportResponse>` với report đã được cập nhật
+  - **Nghiệp vụ chi tiết**:
+    - **User Reports**: 
+      - Khi chọn `WARNING`: 
+        - Hệ thống đếm số lần user đã bị báo cáo và xử lý trước đó (chỉ đếm các reports có status = Resolved, không tính DISMISS)
+        - Nếu user đã bị báo cáo 3 lần trước đó, hệ thống sẽ trả về lỗi: `"User đã bị báo cáo X lần. Không thể cảnh báo thêm, bắt buộc phải chặn tài khoản (action = BLOCK)"` và bắt buộc phải sử dụng action `BLOCK`
+        - Nếu chưa đủ 3 lần, hệ thống gửi notification và email cảnh báo cho user (hiển thị số lần cảnh báo), nhưng không chặn tài khoản
+        - Email cảnh báo sẽ hiển thị số lần cảnh báo và cảnh báo rằng lần vi phạm tiếp theo sẽ dẫn đến việc tài khoản bị chặn
+      - Khi chọn `BLOCK`: 
+        - Hệ thống đổi status của user thành 2 (Bị chặn), gửi email thông báo và notification
+        - Email sẽ bao gồm thông tin liên hệ để user có thể khiếu nại nếu bị oan hoặc bị spam báo cáo:
+          - Link khiếu nại
+          - Email hỗ trợ: support@artauction.com
+          - Hotline: 1900-xxxx
+      - Khi chọn `DISMISS`: Chỉ từ chối báo cáo, không có hành động gì với user
+    - **Artwork Reports (bao gồm AI Artwork)**:
+      - Khi chọn `REJECT`: 
+        - Hệ thống đổi status của artwork thành 3 (Từ chối), gửi email cho owner (author) và notification
+        - Email sẽ bao gồm thông tin liên hệ để author có thể khiếu nại nếu bị oan hoặc bị spam báo cáo:
+          - Link khiếu nại
+          - Email hỗ trợ: support@artauction.com
+          - Hotline: 1900-xxxx
+      - Khi chọn `DISMISS`: Chỉ từ chối báo cáo, không có hành động gì với artwork
+    - **Auction Room Reports**:
+      - Khi chọn `CLOSE`: 
+        - Hệ thống đổi status của room thành 0 (Đã kết thúc), gửi email cho admin/host và notification
+        - Email sẽ bao gồm thông tin liên hệ để user có thể khiếu nại nếu bị oan hoặc bị spam báo cáo:
+          - Link khiếu nại
+          - Email hỗ trợ: support@artauction.com
+          - Hotline: 1900-xxxx
+      - Khi chọn `DISMISS`: Chỉ từ chối báo cáo, không có hành động gì với room
+  - **Lưu ý**:
+    - Report status sẽ được tự động cập nhật: `DISMISS` → status = 3 (Rejected), các action khác → status = 2 (Resolved)
+    - Tất cả các email và notification đều được gửi tự động khi thực hiện action
+    - Nếu entity không tồn tại hoặc action không hợp lệ với entityType, API sẽ trả về lỗi
+    - **Quy tắc 3 lần báo cáo cho User**: 
+      - Hệ thống tự động đếm số lần user đã bị báo cáo và xử lý (chỉ đếm các reports có status = Resolved, tức là đã được xử lý với WARNING hoặc BLOCK, không tính DISMISS)
+      - Nếu user đã bị báo cáo 3 lần và admin cố gắng sử dụng action `WARNING`, hệ thống sẽ trả về lỗi và bắt buộc phải sử dụng action `BLOCK`
+    - **Thông tin liên hệ trong email**: 
+      - Tất cả các email BLOCK và REJECT đều bao gồm thông tin liên hệ để user/author có thể khiếu nại nếu bị oan hoặc bị spam báo cáo
+      - Thông tin bao gồm: Link khiếu nại, Email hỗ trợ (support@artauction.com), Hotline (1900-xxxx)
 - `DELETE /api/admin/reports/xoa/{reportId}`
 - Response chuẩn `AdminReportApiResponse`.
 
@@ -790,7 +868,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
             "id": "AS-1",
             "artworkId": "A-1",
             "artworkTitle": "Tranh phong cảnh mùa thu",
-            "imageUrl": "...",
+            "avtArtwork": "...",
             "startingPrice": 10000.0,
             "currentPrice": 15000.0,
             "status": 1,
