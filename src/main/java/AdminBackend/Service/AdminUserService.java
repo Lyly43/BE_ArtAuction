@@ -2,6 +2,7 @@ package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddUserRequest;
 import AdminBackend.DTO.Request.UpdateUserRequest;
+import AdminBackend.DTO.Request.UserFilterRequest;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.AdminUserResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
@@ -18,7 +19,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -258,6 +261,95 @@ public class AdminUserService {
         return users.stream()
                 .map(this::mapToAdminUserResponse)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Lọc người dùng theo các tiêu chí
+     * Tất cả các trường filter đều optional (null = bỏ qua filter đó)
+     */
+    public ResponseEntity<List<AdminUserResponse>> filterUsers(UserFilterRequest request) {
+        // Nếu request null, trả về tất cả users
+        if (request == null) {
+            return getAllUsers();
+        }
+        
+        List<User> allUsers = userRepository.findAll();
+        
+        List<User> filteredUsers = allUsers.stream()
+                .filter(user -> {
+                    // Filter by status (null = bỏ qua filter)
+                    if (request.getStatus() != null && user.getStatus() != request.getStatus()) {
+                        return false;
+                    }
+                    
+                    // Filter by gender (null = bỏ qua filter)
+                    // Nếu request có gender nhưng user không có gender thì bỏ qua user đó
+                    if (request.getGender() != null) {
+                        if (user.getGender() == null || !user.getGender().equals(request.getGender())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by province (null hoặc empty = bỏ qua filter)
+                    if (request.getProvince() != null && !request.getProvince().trim().isEmpty()) {
+                        String province = request.getProvince().trim();
+                        if (user.getAddress() == null || 
+                            !user.getAddress().toLowerCase().contains(province.toLowerCase())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by date of birth range (null = bỏ qua filter)
+                    // dateOfBirthFrom: user.getDateOfBirth() >= dateOfBirthFrom
+                    if (request.getDateOfBirthFrom() != null) {
+                        if (user.getDateOfBirth() == null || 
+                            user.getDateOfBirth().isBefore(request.getDateOfBirthFrom())) {
+                            return false;
+                        }
+                    }
+                    // dateOfBirthTo: user.getDateOfBirth() <= dateOfBirthTo
+                    if (request.getDateOfBirthTo() != null) {
+                        if (user.getDateOfBirth() == null || 
+                            user.getDateOfBirth().isAfter(request.getDateOfBirthTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by account creation date (null hoặc empty = bỏ qua filter)
+                    if (request.getCreatedAtFilter() != null && !request.getCreatedAtFilter().trim().isEmpty()) {
+                        LocalDateTime now = LocalDateTime.now();
+                        LocalDateTime filterDate = null;
+                        
+                        switch (request.getCreatedAtFilter().toLowerCase().trim()) {
+                            case "last7days":
+                                // Lấy users được tạo trong 7 ngày gần nhất: createdAt >= (now - 7 days)
+                                filterDate = now.minus(7, ChronoUnit.DAYS);
+                                if (user.getCreatedAt() == null || user.getCreatedAt().isBefore(filterDate)) {
+                                    return false;
+                                }
+                                break;
+                            case "thismonth":
+                                // Lấy users được tạo trong tháng hiện tại: createdAt >= đầu tháng
+                                filterDate = now.withDayOfMonth(1).withHour(0).withMinute(0).withSecond(0).withNano(0);
+                                if (user.getCreatedAt() == null || user.getCreatedAt().isBefore(filterDate)) {
+                                    return false;
+                                }
+                                break;
+                            default:
+                                // Nếu giá trị không hợp lệ, bỏ qua filter này
+                                break;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        List<AdminUserResponse> responses = filteredUsers.stream()
+                .map(this::mapToAdminUserResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(responses);
     }
 
     /**

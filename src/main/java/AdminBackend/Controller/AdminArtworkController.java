@@ -2,6 +2,7 @@ package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddArtworkRequest;
 import AdminBackend.DTO.Request.ArtworkApprovalRequest;
+import AdminBackend.DTO.Request.ArtworkFilterRequest;
 import AdminBackend.DTO.Request.ArtworkRejectionRequest;
 import AdminBackend.DTO.Request.UpdateArtworkRequest;
 import AdminBackend.DTO.Response.AdminArtworkResponse;
@@ -112,6 +113,16 @@ public class AdminArtworkController {
     }
 
     /**
+     * POST /api/admin/artworks/loc-tac-pham
+     * Lọc tác phẩm theo các tiêu chí: paintingGenre, priceRange, status
+     * Yêu cầu: Content-Type: application/json
+     */
+    @PostMapping(value = "/loc-tac-pham", consumes = "application/json")
+    public ResponseEntity<List<AdminArtworkResponse>> filterArtworks(@RequestBody ArtworkFilterRequest request) {
+        return adminArtworkService.filterArtworks(request);
+    }
+
+    /**
      * GET /api/admin/artworks/chon-tac-pham?paintingGenre={genre}&material={material}&q={searchTerm}
      * Tìm kiếm tác phẩm để chọn cho phòng đấu giá
      * - Filter theo paintingGenre (thể loại)
@@ -126,4 +137,3 @@ public class AdminArtworkController {
         return adminArtworkService.searchArtworksForSelection(paintingGenre, material, searchTerm);
     }
 }
-

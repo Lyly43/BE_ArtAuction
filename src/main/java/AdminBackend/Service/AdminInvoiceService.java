@@ -1,5 +1,6 @@
 package AdminBackend.Service;
 
+import AdminBackend.DTO.Request.InvoiceFilterRequest;
 import AdminBackend.DTO.Request.UpdateInvoiceRequest;
 import AdminBackend.DTO.Response.AdminInvoiceApiResponse;
 import AdminBackend.DTO.Response.AdminInvoiceResponse;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
@@ -58,6 +60,124 @@ public class AdminInvoiceService {
                 : "Lấy danh sách hóa đơn thành công";
 
         return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, message, data));
+    }
+
+    /**
+     * Lọc hóa đơn theo các tiêu chí
+     * Tất cả các trường filter đều optional (null = bỏ qua filter đó)
+     */
+    public ResponseEntity<AdminInvoiceApiResponse<List<AdminInvoiceResponse>>> filterInvoices(InvoiceFilterRequest request) {
+        // Nếu request null, trả về tất cả invoices
+        if (request == null) {
+            return getAllInvoices();
+        }
+        
+        List<Invoice> allInvoices = invoiceRepository.findAll(DEFAULT_SORT);
+        
+        List<Invoice> filteredInvoices = allInvoices.stream()
+                .filter(invoice -> {
+                    // Filter by paymentStatus (null = bỏ qua filter)
+                    if (request.getPaymentStatus() != null && invoice.getPaymentStatus() != request.getPaymentStatus()) {
+                        return false;
+                    }
+                    
+                    // Filter by paymentMethod (null hoặc "Tất cả" hoặc empty = bỏ qua filter)
+                    // Frontend gửi: "banking" (Chuyển khoản ngân hàng) hoặc "visa" (Ví điện tử)
+                    if (request.getPaymentMethod() != null && 
+                        !request.getPaymentMethod().trim().isEmpty() &&
+                        !request.getPaymentMethod().trim().equalsIgnoreCase("Tất cả")) {
+                        String method = request.getPaymentMethod().trim().toLowerCase();
+                        String invoiceMethod = invoice.getPaymentMethod() != null 
+                            ? invoice.getPaymentMethod().toLowerCase() 
+                            : "";
+                        
+                        // Mapping từ frontend sang backend
+                        boolean matched = false;
+                        if (method.equals("banking")) {
+                            // "banking" -> match với các giá trị liên quan đến chuyển khoản ngân hàng
+                            matched = invoiceMethod.contains("bank") || 
+                                     invoiceMethod.contains("transfer") ||
+                                     invoiceMethod.equals("banking");
+                        } else if (method.equals("visa")) {
+                            // "visa" -> match với các giá trị ví điện tử/thẻ
+                            matched = invoiceMethod.contains("card") || 
+                                     invoiceMethod.contains("visa") || 
+                                     invoiceMethod.contains("momo") || 
+                                     invoiceMethod.contains("vnpay") ||
+                                     invoiceMethod.equals("visa");
+                        } else {
+                            // Nếu không phải "banking" hay "visa", dùng exact match
+                            matched = invoiceMethod.equals(method);
+                        }
+                        
+                        if (!matched) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by totalAmount range - lọc theo totalAmount của invoice
+                    BigDecimal totalAmount = invoice.getTotalAmount() != null ? invoice.getTotalAmount() : BigDecimal.ZERO;
+                    
+                    // Nếu có totalAmountRange preset, dùng preset
+                    if (request.getTotalAmountRange() != null && !request.getTotalAmountRange().trim().isEmpty()) {
+                        String range = request.getTotalAmountRange().trim().toLowerCase();
+                        BigDecimal oneMillion = new BigDecimal("1000000");
+                        BigDecimal tenMillion = new BigDecimal("10000000");
+                        
+                        switch (range) {
+                            case "<1m":
+                                if (totalAmount.compareTo(oneMillion) >= 0) {
+                                    return false;
+                                }
+                                break;
+                            case "1m-10m":
+                                if (totalAmount.compareTo(oneMillion) < 0 || 
+                                    totalAmount.compareTo(tenMillion) > 0) {
+                                    return false;
+                                }
+                                break;
+                            case ">10m":
+                                if (totalAmount.compareTo(tenMillion) <= 0) {
+                                    return false;
+                                }
+                                break;
+                            default:
+                                // Nếu giá trị không hợp lệ, bỏ qua filter này
+                                break;
+                        }
+                    } else {
+                        // Nếu không có preset, dùng custom range (totalAmountMin, totalAmountMax)
+                        if (request.getTotalAmountMin() != null && totalAmount.compareTo(request.getTotalAmountMin()) < 0) {
+                            return false;
+                        }
+                        if (request.getTotalAmountMax() != null && totalAmount.compareTo(request.getTotalAmountMax()) > 0) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by date range (lọc theo orderDate)
+                    if (request.getDateFrom() != null) {
+                        if (invoice.getOrderDate() == null || 
+                            invoice.getOrderDate().isBefore(request.getDateFrom())) {
+                            return false;
+                        }
+                    }
+                    if (request.getDateTo() != null) {
+                        if (invoice.getOrderDate() == null || 
+                            invoice.getOrderDate().isAfter(request.getDateTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        List<AdminInvoiceResponse> data = filteredInvoices.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(new AdminInvoiceApiResponse<>(1, "Lọc hóa đơn thành công", data));
     }
 
     public ResponseEntity<AdminInvoiceApiResponse<AdminInvoiceResponse>> updateInvoice(

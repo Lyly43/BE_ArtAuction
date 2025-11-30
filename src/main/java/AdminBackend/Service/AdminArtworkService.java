@@ -2,6 +2,7 @@ package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddArtworkRequest;
 import AdminBackend.DTO.Request.ArtworkApprovalRequest;
+import AdminBackend.DTO.Request.ArtworkFilterRequest;
 import AdminBackend.DTO.Request.ArtworkRejectionRequest;
 import AdminBackend.DTO.Request.UpdateArtworkRequest;
 import AdminBackend.DTO.Response.AdminArtworkDetailResponse;
@@ -23,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -490,6 +492,92 @@ public class AdminArtworkService {
     }
 
     /**
+     * Lọc tác phẩm theo các tiêu chí
+     * Tất cả các trường filter đều optional (null = bỏ qua filter đó)
+     */
+    public ResponseEntity<List<AdminArtworkResponse>> filterArtworks(ArtworkFilterRequest request) {
+        // Nếu request null, trả về tất cả artworks
+        if (request == null) {
+            return getAllArtworks();
+        }
+        
+        List<Artwork> allArtworks = artworkRepository.findAll();
+        
+        List<Artwork> filteredArtworks = allArtworks.stream()
+                .filter(artwork -> {
+                    // Filter by paintingGenre (null hoặc empty = bỏ qua filter)
+                    if (request.getPaintingGenre() != null && !request.getPaintingGenre().trim().isEmpty()) {
+                        String genre = request.getPaintingGenre().trim();
+                        if (artwork.getPaintingGenre() == null || 
+                            !artwork.getPaintingGenre().toLowerCase().contains(genre.toLowerCase())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by status (null = bỏ qua filter)
+                    if (request.getStatus() != null && artwork.getStatus() != request.getStatus()) {
+                        return false;
+                    }
+                    
+                    // Filter by price range - lọc theo startedPrice của tác phẩm
+                    BigDecimal startedPrice = artwork.getStartedPrice() != null ? artwork.getStartedPrice() : BigDecimal.ZERO;
+                    
+                    // Nếu có priceRange preset, dùng preset
+                    if (request.getPriceRange() != null && !request.getPriceRange().trim().isEmpty()) {
+                        String range = request.getPriceRange().trim().toLowerCase();
+                        BigDecimal fiveMillion = new BigDecimal("5000000");
+                        BigDecimal twentyMillion = new BigDecimal("20000000");
+                        BigDecimal hundredMillion = new BigDecimal("100000000");
+                        
+                        switch (range) {
+                            case "<5tr":
+                                if (startedPrice.compareTo(fiveMillion) >= 0) {
+                                    return false;
+                                }
+                                break;
+                            case "5-20tr":
+                                if (startedPrice.compareTo(fiveMillion) < 0 || 
+                                    startedPrice.compareTo(twentyMillion) > 0) {
+                                    return false;
+                                }
+                                break;
+                            case "20-100tr":
+                                if (startedPrice.compareTo(twentyMillion) < 0 || 
+                                    startedPrice.compareTo(hundredMillion) > 0) {
+                                    return false;
+                                }
+                                break;
+                            case ">100tr":
+                                if (startedPrice.compareTo(hundredMillion) <= 0) {
+                                    return false;
+                                }
+                                break;
+                            default:
+                                // Nếu giá trị không hợp lệ, bỏ qua filter này
+                                break;
+                        }
+                    } else {
+                        // Nếu không có preset, dùng custom range (priceMin, priceMax)
+                        if (request.getPriceMin() != null && startedPrice.compareTo(request.getPriceMin()) < 0) {
+                            return false;
+                        }
+                        if (request.getPriceMax() != null && startedPrice.compareTo(request.getPriceMax()) > 0) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        List<AdminArtworkResponse> responses = filteredArtworks.stream()
+                .map(this::mapToAdminArtworkResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
      * Helper method: Map Artwork entity sang ArtworkForSelectionResponse
      */
     private ArtworkForSelectionResponse mapToArtworkForSelectionResponse(Artwork artwork) {
@@ -550,4 +638,3 @@ public class AdminArtworkService {
         }
     }
 }
-

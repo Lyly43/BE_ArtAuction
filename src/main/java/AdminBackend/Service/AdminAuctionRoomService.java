@@ -2,6 +2,7 @@ package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddAuctionRoomRequest;
 import AdminBackend.DTO.Request.ArtworkPriceSetting;
+import AdminBackend.DTO.Request.AuctionRoomFilterRequest;
 import AdminBackend.DTO.Request.CreateAuctionRoomCompleteRequest;
 import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
@@ -137,6 +138,98 @@ public class AdminAuctionRoomService {
                 .map(this::mapToResponseAndUpdateStatusIfNeeded)
                 .collect(Collectors.toList());
 
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Lọc phòng đấu giá theo các tiêu chí
+     * Tất cả các trường filter đều optional (null = bỏ qua filter đó)
+     */
+    public ResponseEntity<List<AdminAuctionRoomResponse>> filterAuctionRooms(AuctionRoomFilterRequest request) {
+        // Nếu request null, trả về tất cả auction rooms
+        if (request == null) {
+            return getAllAuctionRooms();
+        }
+        
+        List<AuctionRoom> allRooms = auctionRoomRepository.findAll();
+        
+        List<AuctionRoom> filteredRooms = allRooms.stream()
+                .filter(room -> {
+                    // Filter by statuses (null hoặc empty = bỏ qua filter)
+                    if (request.getStatuses() != null && !request.getStatuses().isEmpty()) {
+                        // Cập nhật status nếu cần (dựa trên startedAt/stoppedAt)
+                        updateStatusIfNeeded(room);
+                        int roomStatus = room.getStatus();
+                        if (!request.getStatuses().contains(roomStatus)) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by startTime range (lọc theo startedAt)
+                    if (request.getStartTimeFrom() != null) {
+                        if (room.getStartedAt() == null || 
+                            room.getStartedAt().isBefore(request.getStartTimeFrom())) {
+                            return false;
+                        }
+                    }
+                    if (request.getStartTimeTo() != null) {
+                        if (room.getStartedAt() == null || 
+                            room.getStartedAt().isAfter(request.getStartTimeTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by endTime range (lọc theo stoppedAt)
+                    if (request.getEndTimeFrom() != null) {
+                        if (room.getStoppedAt() == null || 
+                            room.getStoppedAt().isBefore(request.getEndTimeFrom())) {
+                            return false;
+                        }
+                    }
+                    if (request.getEndTimeTo() != null) {
+                        if (room.getStoppedAt() == null || 
+                            room.getStoppedAt().isAfter(request.getEndTimeTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by participants range (lọc theo totalMembers = số lượng memberIds)
+                    if (request.getParticipantsRange() != null && 
+                        !request.getParticipantsRange().trim().isEmpty() &&
+                        !request.getParticipantsRange().trim().equalsIgnoreCase("all")) {
+                        int totalMembers = (room.getMemberIds() != null) ? room.getMemberIds().size() : 0;
+                        String range = request.getParticipantsRange().trim().toLowerCase();
+                        
+                        switch (range) {
+                            case "<10":
+                                if (totalMembers >= 10) {
+                                    return false;
+                                }
+                                break;
+                            case "10-50":
+                                if (totalMembers < 10 || totalMembers > 50) {
+                                    return false;
+                                }
+                                break;
+                            case ">50":
+                                if (totalMembers <= 50) {
+                                    return false;
+                                }
+                                break;
+                            default:
+                                // Nếu giá trị không hợp lệ, bỏ qua filter này
+                                break;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        List<AdminAuctionRoomResponse> responses = filteredRooms.stream()
+                .map(this::mapToResponseAndUpdateStatusIfNeeded)
+                .collect(Collectors.toList());
+        
         return ResponseEntity.ok(responses);
     }
 

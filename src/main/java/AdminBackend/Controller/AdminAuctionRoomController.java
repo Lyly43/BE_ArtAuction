@@ -1,6 +1,7 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddAuctionRoomRequest;
+import AdminBackend.DTO.Request.AuctionRoomFilterRequest;
 import AdminBackend.DTO.Request.CreateAuctionRoomCompleteRequest;
 import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
@@ -66,6 +67,16 @@ public class AdminAuctionRoomController {
     }
 
     /**
+     * POST /api/admin/auction-rooms/loc-phong-dau-gia
+     * Lọc phòng đấu giá theo các tiêu chí: status, startTime, endTime, participants
+     * Yêu cầu: Content-Type: application/json
+     */
+    @PostMapping(value = "/loc-phong-dau-gia", consumes = "application/json")
+    public ResponseEntity<List<AdminAuctionRoomResponse>> filterAuctionRooms(@RequestBody AuctionRoomFilterRequest request) {
+        return adminAuctionRoomService.filterAuctionRooms(request);
+    }
+
+    /**
      * GET /api/admin/auction-rooms/artworks
      * Lấy danh sách tất cả artworks có thể thêm vào phòng đấu giá
      * Chỉ trả về artworks đã được duyệt (status = 1) và chưa có trong session đang diễn ra
@@ -78,6 +89,7 @@ public class AdminAuctionRoomController {
     /**
      * GET /api/admin/auction-rooms/{roomId}
      * Lấy chi tiết phòng đấu giá theo ID
+     * Lưu ý: Endpoint này phải đặt sau các endpoint cụ thể khác để tránh conflict
      */
     @GetMapping("/{roomId}")
     public ResponseEntity<?> getAuctionRoomDetail(@PathVariable String roomId) {

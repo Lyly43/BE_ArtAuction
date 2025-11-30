@@ -76,6 +76,55 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 ### Tìm kiếm
 - `GET /api/admin/tim-kiem-user?q={term}`
 
+### Lọc người dùng
+- Method & URL: `POST /api/admin/loc-user`
+- Request Body:
+  ```json
+  {
+    "status": 1,
+    "gender": 0,
+    "province": "Hà Nội",
+    "dateOfBirthFrom": "1990-01-01",
+    "dateOfBirthTo": "2000-12-31",
+    "createdAtFilter": "last7days"
+  }
+  ```
+- Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+  - `status`: `null` = bỏ qua filter (lấy tất cả), `1` = Active, `2` = Locked
+  - `gender`: `null` = bỏ qua filter (lấy tất cả), `0` = Male, `1` = Female, `2` = Other
+  - `province`: `null` hoặc chuỗi rỗng = bỏ qua filter, nếu có giá trị sẽ tìm trong trường `address` (case-insensitive)
+  - `dateOfBirthFrom`: `null` = bỏ qua filter, nếu có giá trị (format: `yyyy-MM-dd`) sẽ lọc từ ngày này trở đi
+  - `dateOfBirthTo`: `null` = bỏ qua filter, nếu có giá trị (format: `yyyy-MM-dd`) sẽ lọc đến ngày này
+  - `createdAtFilter`: `null` hoặc chuỗi rỗng = bỏ qua filter, `"last7days"` = 7 ngày gần nhất, `"thismonth"` = tháng hiện tại
+- Response: Danh sách `AdminUserResponse` với các trường:
+  ```json
+  [
+    {
+      "id": "U-8",
+      "fullname": "anna_ho",
+      "email": "anna@example.com",
+      "phonenumber": "0908901234",
+      "gender": 0,
+      "dateOfBirth": "1994-08-14",
+      "address": "Quang Ninh, Vietnam",
+      "cccd": "789012345678",
+      "role": 1,
+      "status": 1,
+      "balance": 0,
+      "avt": "",
+      "createdAt": "2025-09-26T07:00:00"
+    }
+  ]
+  ```
+- Lưu ý:
+  - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+  - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `status` và `gender`, các trường khác để `null`
+  - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả users
+  - **`province`**: Tìm kiếm trong trường `address` (case-insensitive, partial match)
+  - **`dateOfBirthFrom` và `dateOfBirthTo`**: Có thể dùng riêng lẻ hoặc kết hợp để tạo range
+  - **`createdAtFilter`**: Chỉ hỗ trợ 2 giá trị: `"last7days"` (7 ngày gần nhất) và `"thismonth"` (tháng hiện tại). Các giá trị khác sẽ bị bỏ qua
+  - **`gender`**: Nếu user không có `gender` (null) và request có filter `gender`, user đó sẽ bị loại bỏ
+
 ### Thống kê
 - Method & URL: `GET /api/admin/thong-ke-user`
 - Response:
@@ -156,6 +205,48 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - **Lấy danh sách:** `GET /api/admin/artworks/lay-du-lieu-tac-pham`
 - **Tìm kiếm:** `GET /api/admin/artworks/tim-kiem-tac-pham?q={term}`
+- **Lọc tác phẩm:** `POST /api/admin/artworks/loc-tac-pham`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - Request Body:
+    ```json
+    {
+      "paintingGenre": "Landscape",
+      "priceRange": "5-20tr",
+      "status": 1
+    }
+    ```
+  - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+    - `paintingGenre`: `null` hoặc chuỗi rỗng = bỏ qua filter, nếu có giá trị sẽ tìm trong trường `paintingGenre` (case-insensitive, partial match). Ví dụ: "Abstract", "Portrait", "Landscape", "Modern", "Traditional"
+    - `priceRange`: `null` hoặc chuỗi rỗng = bỏ qua filter, hỗ trợ các preset: `"<5tr"` (< 5 triệu), `"5-20tr"` (5-20 triệu), `"20-100tr"` (20-100 triệu), `">100tr"` (> 100 triệu). **Lưu ý: Lọc theo `startedPrice` của tác phẩm**
+    - `priceMin`: `null` = bỏ qua filter, giá tối thiểu (BigDecimal) - chỉ dùng khi không có `priceRange`. **Lưu ý: Lọc theo `startedPrice` của tác phẩm**
+    - `priceMax`: `null` = bỏ qua filter, giá tối đa (BigDecimal) - chỉ dùng khi không có `priceRange`. **Lưu ý: Lọc theo `startedPrice` của tác phẩm**
+    - `status`: `null` = bỏ qua filter (lấy tất cả), `0` = Not Approved, `1` = Approved, `2` = Up for Auction, `3` = Refused
+  - Response: Danh sách `AdminArtworkResponse` với các trường:
+    ```json
+    [
+      {
+        "id": "Aw-01",
+        "title": "Sunset Over Da Nang",
+        "description": "Mô tả tác phẩm...",
+        "author": "Nguyễn Văn A",
+        "yearOfCreation": 2023,
+        "material": "Oil Paint",
+        "paintingGenre": "Landscape",
+        "size": "80x120 cm",
+        "avtArtwork": "https://cdn.example.com/artwork.jpg",
+        "startedPrice": 15000000,
+        "status": 1,
+        "createdAt": "2025-11-20T10:00:00"
+      }
+    ]
+    ```
+  - Lưu ý:
+    - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+    - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `status` và `paintingGenre`, các trường khác để `null`
+    - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả artworks
+    - **`priceRange` vs `priceMin/priceMax`**: Nếu có `priceRange` thì sẽ dùng preset, bỏ qua `priceMin/priceMax`. Nếu không có `priceRange` thì dùng `priceMin/priceMax` (có thể dùng riêng lẻ hoặc kết hợp)
+    - **Price Range lọc theo `startedPrice`**: Tất cả các filter về giá (`priceRange`, `priceMin`, `priceMax`) đều lọc dựa trên trường `startedPrice` của tác phẩm (Artwork)
+    - **`paintingGenre`**: Tìm kiếm partial match (case-insensitive) trong trường `paintingGenre` của artwork
 - **Lọc để chọn cho phòng:** `GET /api/admin/artworks/chon-tac-pham?paintingGenre=...&material=...&q=...`
 - **Cập nhật**
   - `PUT /api/admin/artworks/cap-nhat-tac-pham/{artworkId}`
@@ -259,6 +350,53 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `adminId`, `type`, `imageAuctionRoom`…).
 - **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại).
 - **Tìm kiếm:** `GET /api/admin/auction-rooms/tim-kiem?q={keyword}`.
+- **Lọc phòng đấu giá:** `POST /api/admin/auction-rooms/loc-phong-dau-gia`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - Request Body:
+    ```json
+    {
+      "statuses": [1, 2],
+      "startTimeFrom": "2025-12-01T00:00:00",
+      "startTimeTo": "2025-12-31T23:59:59",
+      "endTimeFrom": "2025-12-01T00:00:00",
+      "endTimeTo": "2025-12-31T23:59:59",
+      "participantsRange": "10-50"
+    }
+    ```
+  - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+    - `statuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, mảng các số nguyên `[0, 1, 2]` để chọn nhiều status cùng lúc. Giá trị: `0` = Sắp diễn ra (Coming Soon), `1` = Đang diễn ra (Live), `2` = Đã hoàn thành (Finished)
+    - `startTimeFrom`: `null` = bỏ qua filter, thời gian bắt đầu tối thiểu (LocalDateTime) - lọc theo `startedAt` của phòng đấu giá
+    - `startTimeTo`: `null` = bỏ qua filter, thời gian bắt đầu tối đa (LocalDateTime) - lọc theo `startedAt` của phòng đấu giá
+    - `endTimeFrom`: `null` = bỏ qua filter, thời gian kết thúc tối thiểu (LocalDateTime) - lọc theo `stoppedAt` của phòng đấu giá
+    - `endTimeTo`: `null` = bỏ qua filter, thời gian kết thúc tối đa (LocalDateTime) - lọc theo `stoppedAt` của phòng đấu giá
+    - `participantsRange`: `null`, chuỗi rỗng, hoặc `"all"` = bỏ qua filter, hỗ trợ các preset: `"<10"` (< 10 người), `"10-50"` (10-50 người), `">50"` (> 50 người). **Lưu ý: Lọc theo `totalMembers` (số lượng `memberIds`) của phòng đấu giá**
+  - Response: Danh sách `AdminAuctionRoomResponse` với các trường:
+    ```json
+    [
+      {
+        "id": "ACR-123",
+        "roomName": "Luxury Night",
+        "description": "Phiên VIP cuối tuần",
+        "type": "VIP",
+        "imageAuctionRoom": "https://cdn.example.com/auction-room.jpg",
+        "status": 1,
+        "startedAt": "2025-12-01T10:00:00",
+        "stoppedAt": "2025-12-01T12:00:00",
+        "viewCount": 1200,
+        "totalMembers": 25,
+        "startingPrice": 1000000,
+        "currentPrice": 1500000,
+        "createdAt": "2025-11-20T10:00:00"
+      }
+    ]
+    ```
+  - Lưu ý:
+    - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+    - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `statuses` và `participantsRange`, các trường khác để `null`
+    - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả auction rooms
+    - **`statuses`**: Có thể chọn nhiều status cùng lúc bằng cách gửi mảng `[0, 1, 2]` hoặc chỉ một status `[1]`
+    - **Time ranges**: Có thể dùng riêng lẻ `startTimeFrom` hoặc kết hợp `startTimeFrom` và `startTimeTo` để tạo range
+    - **`participantsRange`**: Lọc theo số lượng người tham gia (`totalMembers` = số phần tử trong `memberIds`)
 - **Cập nhật:** `PUT /api/admin/auction-rooms/cap-nhat/{roomId}` → `UpdateResponse`.
 - **Xóa:** `DELETE /api/admin/auction-rooms/xoa/{roomId}`.
 - **Thống kê:** `GET /api/admin/auction-rooms/thong-ke`
@@ -420,6 +558,72 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - `GET /api/admin/invoices/lay-du-lieu`
 - `GET /api/admin/invoices/tim-kiem?q=...`
+- **Lọc hóa đơn:** `POST /api/admin/invoices/loc-hoa-don`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - Request Body:
+    ```json
+    {
+      "paymentStatus": 1,
+      "paymentMethod": "BANK_TRANSFER",
+      "totalAmountRange": "1M-10M",
+      "dateFrom": "2025-12-01T00:00:00",
+      "dateTo": "2025-12-31T23:59:59"
+    }
+    ```
+  - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+    - `paymentStatus`: `null` = bỏ qua filter (lấy tất cả), `0` = Pending, `1` = Paid, `2` = Failed
+    - `paymentMethod`: `null`, chuỗi rỗng, hoặc `"Tất cả"` = bỏ qua filter, nếu có giá trị sẽ tìm match (case-insensitive). 
+      - Hỗ trợ exact match: "BANK_TRANSFER", "CREDIT_CARD", "MOMO", "VNPAY"
+      - Hỗ trợ mapping từ frontend: "banking" sẽ match với các giá trị chứa "bank" hoặc "transfer", "visa" sẽ match với các giá trị chứa "card", "visa", "momo", hoặc "vnpay"
+    - `totalAmountRange`: `null` hoặc chuỗi rỗng = bỏ qua filter, hỗ trợ các preset: `"<1M"` (< 1 triệu), `"1M-10M"` (1-10 triệu), `">10M"` (> 10 triệu). **Lưu ý: Lọc theo `totalAmount` của hóa đơn**
+    - `totalAmountMin`: `null` = bỏ qua filter, giá tối thiểu (BigDecimal) - chỉ dùng khi không có `totalAmountRange`
+    - `totalAmountMax`: `null` = bỏ qua filter, giá tối đa (BigDecimal) - chỉ dùng khi không có `totalAmountRange`
+    - `dateFrom`: `null` = bỏ qua filter, ngày bắt đầu tối thiểu (LocalDateTime) - **lọc theo `orderDate` của hóa đơn**
+    - `dateTo`: `null` = bỏ qua filter, ngày kết thúc tối đa (LocalDateTime) - **lọc theo `orderDate` của hóa đơn**
+  - Response: `AdminInvoiceApiResponse<List<AdminInvoiceResponse>>` với cấu trúc:
+    ```json
+    {
+      "status": 1,
+      "message": "Lọc hóa đơn thành công",
+      "data": [
+        {
+          "id": "IV-123",
+          "userId": "U-8",
+          "buyerName": "Nguyễn Văn A",
+          "buyerEmail": "user@example.com",
+          "auctionRoomId": "ACR-123",
+          "roomName": "Luxury Night",
+          "sessionId": "ATSS-01",
+          "artworkId": "Aw-01",
+          "artworkTitle": "Sunset Over Da Nang",
+          "amount": 1000000,
+          "buyerPremium": 100000,
+          "insuranceFee": 50000,
+          "salesTax": 100000,
+          "shippingFee": 50000,
+          "totalAmount": 1300000,
+          "paymentMethod": "BANK_TRANSFER",
+          "paymentStatus": 1,
+          "invoiceStatus": 2,
+          "orderDate": "2025-12-01T10:00:00",
+          "paymentDate": "2025-12-01T11:00:00",
+          "createdAt": "2025-12-01T10:00:00"
+        }
+      ]
+    }
+    ```
+  - Lưu ý:
+    - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+    - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `paymentStatus` và `totalAmountRange`, các trường khác để `null`
+    - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả invoices
+    - **`totalAmountRange` vs `totalAmountMin/totalAmountMax`**: Nếu có `totalAmountRange` thì sẽ dùng preset, bỏ qua `totalAmountMin/totalAmountMax`. Nếu không có `totalAmountRange` thì dùng `totalAmountMin/totalAmountMax` (có thể dùng riêng lẻ hoặc kết hợp)
+    - **`paymentMethod`**: 
+      - Frontend có thể gửi: `"banking"` (Chuyển khoản ngân hàng) hoặc `"visa"` (Ví điện tử)
+      - `"banking"` sẽ match với các giá trị chứa "bank", "transfer" hoặc "banking"
+      - `"visa"` sẽ match với các giá trị chứa "card", "visa", "momo", "vnpay" hoặc "visa"
+      - Các giá trị khác sẽ dùng exact match (case-insensitive)
+    - **Date range lọc theo `orderDate`**: Tất cả các filter về ngày (`dateFrom`, `dateTo`) đều lọc dựa trên trường `orderDate` của hóa đơn (không phải `paymentDate` hay `createdAt`)
+    - **"Overdue" (Quá hạn)**: Có thể được xử lý ở frontend bằng cách filter `paymentStatus = 0` (Pending) và `paymentDate < now` (nếu có paymentDate)
 - **Thống kê:** `GET /api/admin/invoices/thong-ke`
   - Response:
     ```json
