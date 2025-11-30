@@ -41,6 +41,10 @@ public class SecurityConfig {
 
                 // Phân quyền
                 .authorizeHttpRequests(auth -> auth
+                        // Swagger/OpenAPI endpoints - cho phép truy cập công khai để xem tài liệu API
+                        // Truy cập Swagger UI tại: http://localhost:8081/swagger-ui.html
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                        
                         // WebSocket/SockJS - cần permitAll để SockJS có thể kết nối
                         .requestMatchers("/ws/**", "/stomp/**", "/ws/info", "/ws/info/**", "/ws/websocket").permitAll()
 

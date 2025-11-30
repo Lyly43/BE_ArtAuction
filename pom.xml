@@ -131,6 +131,15 @@
 			<artifactId>spring-boot-starter-webflux</artifactId>
 		</dependency>
 
+		<!-- SpringDoc OpenAPI (Swagger) - Thư viện để tạo tài liệu API tự động -->
+		<!-- Sau khi thêm dependency này, bạn có thể truy cập Swagger UI tại: http://localhost:8081/swagger-ui.html -->
+		<!-- Hoặc: http://localhost:8081/swagger-ui/index.html -->
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+			<version>2.2.0</version>
+		</dependency>
+
 		<!-- Test Dependencies -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
