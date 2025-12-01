@@ -182,7 +182,148 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 4. Quản lý Tác phẩm
+## 4. Quản lý Admin
+
+### Thêm admin
+
+- **Bước 1: Upload avatar (nếu có)**
+  - Method & URL: `POST /api/admin/admins/them-admin-upload-avatar`
+  - Content-Type: `multipart/form-data`
+  - Body (form-data):
+    - `avatarFile`: File (required) - Chọn file ảnh từ máy
+  - Response:
+   
+    {
+      "status": 1,
+      "message": "Upload avatar thành công",
+      "data": {
+        "avatarUrl": "https://cloudinary.com/.../avatar",
+        "publicId": "auctionaa/admins/temp-..."
+      }
+    }
+      - Lưu ý:
+    - Endpoint này **chỉ dùng để upload ảnh** và trả về URL
+    - Frontend lấy `avatarUrl` và gán vào field `avatar` khi gọi API tạo admin
+
+- **Bước 2: Tạo admin bằng JSON**
+  - Method & URL: `POST /api/admin/admins/them-admin`
+  - Content-Type: `application/json`
+  - Request Body:
+   
+    {
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "password": "123456",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "status": 1,
+      "role": 3,
+      "avatar": "https://cloudinary.com/.../avatar"
+    }
+      - Mô tả các field:
+    - `fullName`: String (required) - Tên đầy đủ của admin
+    - `email`: String (required) - Email của admin (phải unique)
+    - `password`: String (required) - Mật khẩu của admin
+    - `phoneNumber`: String (optional) - Số điện thoại
+    - `address`: String (optional) - Địa chỉ
+    - `status`: Integer (optional, default: 1) - `0` = Bị Khóa, `1` = Hoạt động
+    - `role`: Integer (optional, default: 3) - Vai trò của admin
+    - `avatar`: String (optional) - URL avatar (lấy từ bước upload ở trên)
+  - Response:
+   
+    {
+      "status": 1,
+      "message": "Admin created successfully",
+      "data": {
+        "id": "Ad-xxx",
+        "fullName": "Nguyễn Văn A",
+        "email": "admin@example.com",
+        "phoneNumber": "0123456789",
+        "address": "123 Đường ABC",
+        "avatar": "https://cloudinary.com/.../avatar",
+        "role": 3,
+        "status": 1,
+        "createdAt": "2025-11-23T12:00:00",
+        "updatedAt": "2025-11-23T12:00:00"
+      }
+    }
+      - Lưu ý:
+    - Có thể bỏ qua `avatar` nếu không muốn upload ảnh (trường `avatar` trong response sẽ là `null`)
+    - Nếu không gửi `role` thì hệ thống tự set `role = 3`
+    - Email phải unique, nếu trùng sẽ trả về lỗi `"Email already exists"` với `status = 0`
+
+### Lấy danh sách admin
+- Method & URL: `GET /api/admin/admins/lay-du-lieu`
+- Response: Mảng `AdminAdminResponse` với các trường:
+  ```json
+  [
+    {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
+  ]
+  ```
+
+### Tìm kiếm admin
+- Method & URL: `GET /api/admin/admins/tim-kiem?q={searchTerm}`
+- Query Parameters:
+  - `q`: String (optional) - Từ khóa tìm kiếm theo ID, fullName, email, phoneNumber
+- Response: Danh sách `AdminAdminResponse` tương tự như lấy danh sách
+- Lưu ý: Nếu `q` rỗng hoặc `null`, API sẽ trả về tất cả admin
+
+### Thống kê admin
+- Method & URL: `GET /api/admin/admins/thong-ke`
+- Response:
+  ```json
+  {
+    "totalAdmins": 10,
+    "activeAdmins": 8,
+    "lockedAdmins": 2
+  }
+  ```
+- Lưu ý:
+  - `totalAdmins`: Tổng số admin
+  - `activeAdmins`: Số admin hoạt động (status = 1)
+  - `lockedAdmins`: Số admin bị khóa (status = 0)
+
+### Cập nhật admin
+- Method & URL: `PUT /api/admin/admins/cap-nhat/{adminId}`
+- Request Body (JSON):
+  ```json
+  {
+    "fullName": "Nguyễn Văn B",
+    "email": "admin2@example.com",
+    "phoneNumber": "0987654321",
+    "address": "456 Đường XYZ",
+    "password": "newpassword123",
+    "status": 1
+  }
+  ```
+- Response: `UpdateResponse<AdminAdminResponse>`
+- Lưu ý: Tất cả các trường trong request body đều optional, chỉ cập nhật các trường được gửi lên
+
+### Xóa admin
+- Method & URL: `DELETE /api/admin/admins/xoa/{adminId}`
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Admin deleted successfully",
+    "data": null
+  }
+  ```
+
+---
+
+## 5. Quản lý Tác phẩm
 
 - **Thêm tác phẩm**
   - `POST /api/admin/artworks/them-tac-pham`
@@ -345,7 +486,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 5. Quản lý Phòng đấu giá
+## 6. Quản lý Phòng đấu giá
 
 - **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `adminId`, `type`, `imageAuctionRoom`…).
 - **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại).
@@ -434,12 +575,15 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
       - `isIncrease`: `true` nếu tăng, `false` nếu giảm hoặc không đổi
 - **Tạo phòng hoàn chỉnh (4 bước trong 1 API):** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh`
+  - Content-Type: `application/json`
+  - Request Body:
   ```json
   {
     "roomName": "...",
     "description": "...",
     "material": "Oil",
     "type": "VIP",
+      "imageAuctionRoom": "https://example.com/image.jpg",
     "startedAt": "2025-12-01T10:00:00",
     "stoppedAt": "2025-12-01T12:00:00",
     "adminId": "Ad-1",
@@ -450,7 +594,32 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     ]
   }
   ```
-  - Response: `{ "status": 1, "message": "Auction room created successfully", "roomId": "...", "sessionsCreated": 3 }`.
+  - `imageAuctionRoom`: String (optional) - URL ảnh phòng đấu giá (lấy từ endpoint upload-ảnh)
+  - Response: `{ "status": 1, "message": "Auction room created successfully", "data": { "roomId": "...", "sessionsCreated": 3 } }`
+
+- **Upload ảnh phòng đấu giá:** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`
+  - Content-Type: `multipart/form-data` (Postman sẽ tự động set khi chọn form-data)
+  - **Hướng dẫn sử dụng trong Postman:**
+    1. Chọn method: `POST`
+    2. URL: `http://localhost:8081/api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`
+    3. Tab **Body** → Chọn **form-data**
+    4. Thêm field:
+       - **Key:** `imageAuctionRoomFile` | **Type:** `File` | **Value:** (click "Select Files" và chọn file ảnh từ máy tính)
+  - Response:
+    ```json
+    {
+      "status": 1,
+      "message": "Upload ảnh thành công",
+      "data": {
+        "imageUrl": "https://cloudinary.com/.../cover",
+        "publicId": "auctionaa/auction-rooms/..."
+      }
+    }
+    ```
+  - **Lưu ý:**
+    - Endpoint này chỉ upload file và trả về URL
+    - Frontend sẽ lấy `imageUrl` từ response và gửi vào field `imageAuctionRoom` của endpoint tạo phòng
+    - Workflow: Upload ảnh → Lấy URL → Gửi URL vào request tạo phòng
 - **Lấy chi tiết phòng:** `GET /api/admin/auction-rooms/{roomId}`
   - Response:
     ```json
@@ -522,7 +691,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 6. Quản lý Thông báo
+## 7. Quản lý Thông báo
 
 - **Lấy dữ liệu:** `GET /api/admin/notifications/lay-du-lieu`
 - **Tìm kiếm:** `GET /api/admin/notifications/tim-kiem?q=...`
@@ -574,7 +743,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 7. Quản lý Hóa đơn
+## 8. Quản lý Hóa đơn
 
 - `GET /api/admin/invoices/lay-du-lieu`
 - `GET /api/admin/invoices/tim-kiem?q=...`
@@ -691,7 +860,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 8. Quản lý Report
+## 9. Quản lý Report
 
 - `GET /api/admin/reports/lay-du-lieu` – trả `AdminReportResponse` (bao gồm thông tin người báo cáo, đối tượng bị báo cáo, reportReason, status, thời gian).
 - `GET /api/admin/reports/tim-kiem?q=...`
@@ -798,7 +967,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 9. Dashboard
+## 10. Dashboard
 
 ### 1. Thống kê chung
 - Method & URL: `GET /api/admin/dashboard/thong-ke`
@@ -939,7 +1108,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ---
 
-## 10. Thống kê theo khoảng thời gian (Statistics)
+## 11. Thống kê theo khoảng thời gian (Statistics)
 
 Các API này cho phép thống kê dữ liệu theo khoảng thời gian với format biểu đồ.
 
@@ -997,7 +1166,7 @@ Tất cả các API này có format request và response tương tự, chỉ kh�
 
 ---
 
-## 11. Ghi chú cho Frontend
+## 12. Ghi chú cho Frontend
 
 1. **Header mặc định**
    ```

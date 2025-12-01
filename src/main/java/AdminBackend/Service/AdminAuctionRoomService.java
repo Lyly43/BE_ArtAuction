@@ -23,11 +23,19 @@ import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.AuctionSessionRepository;
 import com.auctionaa.backend.Repository.InvoiceRepository;
 import com.auctionaa.backend.Repository.UserRepository;
+import com.auctionaa.backend.Service.CloudinaryService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.type.CollectionType;
+import com.fasterxml.jackson.databind.type.TypeFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -67,6 +75,11 @@ public class AdminAuctionRoomService {
 
     @Autowired
     private AdminRepository adminRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * Admin thêm phòng đấu giá mới
@@ -229,7 +242,7 @@ public class AdminAuctionRoomService {
         List<AdminAuctionRoomResponse> responses = filteredRooms.stream()
                 .map(this::mapToResponseAndUpdateStatusIfNeeded)
                 .collect(Collectors.toList());
-        
+
         return ResponseEntity.ok(responses);
     }
 
@@ -321,7 +334,14 @@ public class AdminAuctionRoomService {
             }
         }
         
-        // Xóa phòng đấu giá (sessions sẽ được xóa tự động nếu có cascade delete)
+        // Xóa toàn bộ sessions thuộc phòng đấu giá này
+        // (nếu không xóa thì getAvailableArtworks sẽ luôn coi các artwork này là đã nằm trong session,
+        //  dẫn đến không hiển thị lại dù status đã về 1)
+        if (!sessions.isEmpty()) {
+            auctionSessionRepository.deleteAll(sessions);
+        }
+
+        // Xóa phòng đấu giá
         auctionRoomRepository.delete(room);
         
         return ResponseEntity.ok(new AdminBasicResponse<>(1, "Auction room deleted successfully", null));
@@ -467,6 +487,7 @@ public class AdminAuctionRoomService {
     /**
      * Tạo phòng đấu giá hoàn chỉnh với tất cả thông tin
      * Bao gồm: thông tin phòng, danh sách tác phẩm với giá, và cấu hình tài chính
+     * imageAuctionRoom phải là URL string (đã được upload từ endpoint upload-ảnh)
      */
     public ResponseEntity<AdminBasicResponse<Map<String, Object>>> createAuctionRoomComplete(CreateAuctionRoomCompleteRequest request) {
         // Validate thông tin cơ bản
@@ -532,7 +553,7 @@ public class AdminAuctionRoomService {
         room.setRoomName(request.getRoomName());
         room.setDescription(request.getDescription());
         room.setType(request.getType());
-        room.setImageAuctionRoom(request.getImageAuctionRoom());
+        room.setImageAuctionRoom(request.getImageAuctionRoom()); // URL từ endpoint upload-ảnh
         room.setStartedAt(request.getStartedAt());
         room.setStoppedAt(request.getStoppedAt());
         room.setViewCount(0);
@@ -606,6 +627,33 @@ public class AdminAuctionRoomService {
     }
 
     /**
+     * Upload ảnh phòng đấu giá từ thiết bị và trả về URL
+     * URL này sẽ được dùng trong field imageAuctionRoom của endpoint tạo phòng
+     */
+    public ResponseEntity<AdminBasicResponse<Map<String, String>>> uploadAuctionRoomImage(MultipartFile imageAuctionRoomFile) {
+        if (imageAuctionRoomFile == null || imageAuctionRoomFile.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminBasicResponse<>(0, "File ảnh không được để trống", null));
+        }
+
+        try {
+            // Tạo ID tạm thời cho room (sẽ được dùng để tạo folder trên Cloudinary)
+            // Hoặc có thể dùng một ID tạm thời
+            String tempRoomId = "temp-" + System.currentTimeMillis();
+            CloudinaryService.UploadResult uploadResult = cloudinaryService.uploadAuctionRoomImage(tempRoomId, imageAuctionRoomFile);
+            
+            Map<String, String> data = new HashMap<>();
+            data.put("imageUrl", uploadResult.getUrl());
+            data.put("publicId", uploadResult.getPublicId());
+            
+            return ResponseEntity.ok(new AdminBasicResponse<>(1, "Upload ảnh thành công", data));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AdminBasicResponse<>(0, "Failed to upload image: " + e.getMessage(), null));
+        }
+    }
+
+    /**
      * Lấy danh sách tất cả artworks có thể thêm vào phòng đấu giá
      * Chỉ lấy artworks đã được duyệt (status = 1) và:
      * - Chưa được thêm vào session (bất kỳ session nào)
@@ -616,15 +664,26 @@ public class AdminAuctionRoomService {
         List<Artwork> approvedArtworks = artworkRepository.findByStatus(1);
         System.out.println("DEBUG getAvailableArtworks - Total approved artworks: " + approvedArtworks.size());
         
-        // Lấy danh sách artworkIds đã có trong session (bất kỳ status nào)
+        // Lấy danh sách room hiện còn tồn tại
+        List<AuctionRoom> allRooms = auctionRoomRepository.findAll();
+        Set<String> existingRoomIds = allRooms.stream()
+                .map(AuctionRoom::getId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        // Lấy danh sách artworkIds đã có trong session,
+        // nhưng CHỈ tính các session thuộc những phòng vẫn còn tồn tại
         List<AuctionSession> allSessions = auctionSessionRepository.findAll();
         Set<String> artworkIdsInSessions = allSessions.stream()
+                .filter(session -> session.getAuctionRoomId() != null
+                        && existingRoomIds.contains(session.getAuctionRoomId()))
             .map(AuctionSession::getArtworkId)
             .filter(id -> id != null && !id.isEmpty())
             .collect(Collectors.toSet());
         
         System.out.println("DEBUG getAvailableArtworks - Total sessions: " + allSessions.size());
-        System.out.println("DEBUG getAvailableArtworks - Artwork IDs in sessions: " + artworkIdsInSessions.size());
+        System.out.println("DEBUG getAvailableArtworks - Existing rooms: " + existingRoomIds.size());
+        System.out.println("DEBUG getAvailableArtworks - Artwork IDs in sessions (existing rooms only): " + artworkIdsInSessions.size());
         
         // Lấy danh sách artworkIds đã có trong invoice (đã được tạo hóa đơn)
         List<Invoice> allInvoices = invoiceRepository.findAll();
@@ -733,7 +792,7 @@ public class AdminAuctionRoomService {
             detail.setArtworks(Collections.emptyList());
             return detail;
         }
-        
+
         // Debug: Log số lượng sessions để đảm bảo lấy đủ
         System.out.println("DEBUG buildAuctionRoomDetailResponse - Total sessions in room " + room.getId() + ": " + sessions.size());
 
@@ -783,7 +842,7 @@ public class AdminAuctionRoomService {
                     info.setCurrentPrice(safeCurrentPrice(session));
                     info.setBidStep(safeAmount(session.getBidStep()));
                     info.setStatus(session.getStatus());
-                    
+
                     // Thông tin chi tiết từ Artwork
                     if (artwork != null) {
                         info.setImageUrls(artwork.getImageUrls());

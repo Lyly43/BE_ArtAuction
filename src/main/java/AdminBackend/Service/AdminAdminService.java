@@ -8,12 +8,15 @@ import AdminBackend.DTO.Response.AdminStatisticsResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import AdminBackend.Repository.AdminRepository;
 import com.auctionaa.backend.Entity.Admin;
+import com.auctionaa.backend.Service.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -25,30 +28,47 @@ public class AdminAdminService {
     @Autowired
     private AdminRepository adminRepository;
 
+    @Autowired
+    private CloudinaryService cloudinaryService;
+
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
-     * Admin thêm admin mới
+     * Admin thêm admin mới (JSON thuần, avatar là URL đã upload trước đó)
      */
     public ResponseEntity<AdminBasicResponse<AdminAdminResponse>> addAdmin(AddAdminRequest request) {
+        String fullName = request.getFullName();
+        String email = request.getEmail();
+        String password = request.getPassword();
+        String phoneNumber = request.getPhoneNumber();
+        String address = request.getAddress();
+        Integer status = request.getStatus() != null ? request.getStatus() : 1;
+        Integer role = request.getRole() != null ? request.getRole() : 3;
+        String avatarUrl = request.getAvatar();
+
         // Validate email unique
-        if (adminRepository.existsByEmail(request.getEmail())) {
+        if (adminRepository.existsByEmail(email)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new AdminBasicResponse<>(0, "Email already exists", null));
         }
 
         // Create new admin
         Admin admin = new Admin();
-        admin.setFullName(request.getFullName());
-        admin.setEmail(request.getEmail());
-        admin.setPassword(passwordEncoder.encode(request.getPassword()));
-        admin.setPhoneNumber(request.getPhoneNumber());
-        admin.setAddress(request.getAddress());
-        admin.setStatus(request.getStatus());
-        admin.setRole(3); // Default role for admin
+        admin.setFullName(fullName);
+        admin.setEmail(email);
+        admin.setPassword(passwordEncoder.encode(password));
+        admin.setPhoneNumber(phoneNumber);
+        admin.setAddress(address);
+        admin.setStatus(status);
+        admin.setRole(role);
         admin.setCreatedAt(LocalDateTime.now());
         admin.setUpdatedAt(LocalDateTime.now());
         admin.generateId();
+
+        // Set avatar URL nếu đã upload trước đó
+        if (avatarUrl != null && !avatarUrl.isEmpty()) {
+            admin.setAvatar(avatarUrl);
+        }
 
         Admin savedAdmin = adminRepository.save(admin);
 
@@ -56,6 +76,32 @@ public class AdminAdminService {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new AdminBasicResponse<>(1, "Admin created successfully", response));
+    }
+
+    /**
+     * Upload avatar admin từ thiết bị và trả về URL
+     * Frontend sẽ gọi endpoint này trước, lấy URL rồi set vào field avatar của AddAdminRequest
+     */
+    public ResponseEntity<AdminBasicResponse<java.util.Map<String, String>>> uploadAdminAvatar(MultipartFile avatarFile) {
+        if (avatarFile == null || avatarFile.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminBasicResponse<>(0, "File avatar không được để trống", null));
+        }
+
+        try {
+            // Dùng ID tạm thời để lưu avatar, không gắn với admin cụ thể
+            String tempAdminId = "temp-" + System.currentTimeMillis();
+            CloudinaryService.UploadResult uploadResult = cloudinaryService.uploadAdminAvatar(tempAdminId, avatarFile);
+
+            java.util.Map<String, String> data = new java.util.HashMap<>();
+            data.put("avatarUrl", uploadResult.getUrl());
+            data.put("publicId", uploadResult.getPublicId());
+
+            return ResponseEntity.ok(new AdminBasicResponse<>(1, "Upload avatar thành công", data));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AdminBasicResponse<>(0, "Failed to upload avatar: " + e.getMessage(), null));
+        }
     }
 
     /**

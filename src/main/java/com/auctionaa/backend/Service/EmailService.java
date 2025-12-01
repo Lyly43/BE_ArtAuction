@@ -115,7 +115,7 @@ public class EmailService {
         context.setVariable("contactEmail", "support@artauction.com");
         context.setVariable("contactPhone", "1900-xxxx");
         sendEmailWithTemplate(toEmail, "Tác phẩm của bạn đã bị từ chối", "emails/artwork-rejected-by-report", context);
-    }
+        }
 
     /**
      * Gửi email thông báo auction room bị đóng
@@ -133,7 +133,7 @@ public class EmailService {
         context.setVariable("contactEmail", "support@artauction.com");
         context.setVariable("contactPhone", "1900-xxxx");
         sendEmailWithTemplate(toEmail, "Phòng đấu giá đã bị đóng", "emails/room-closed", context);
-    }
+        }
 
     private void sendEmailWithTemplate(String toEmail, String subject, String template, Context context) {
         validateEmailConfig(toEmail);
@@ -169,6 +169,6 @@ public class EmailService {
             return "0";
         }
         return amount.stripTrailingZeros().toPlainString();
-    }
+        }
 }
 

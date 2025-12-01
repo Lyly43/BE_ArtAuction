@@ -8,6 +8,7 @@ import AdminBackend.Service.AdminAdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -20,10 +21,24 @@ public class AdminAdminController {
     private AdminAdminService adminAdminService;
 
     /**
-     * POST /api/admin/admins/them-admin
-     * Admin thêm admin mới
+     * POST /api/admin/admins/them-admin-upload-avatar
+     * Upload avatar admin từ thiết bị và trả về URL
+     *
+     * - avatarFile: MultipartFile (required) - Ảnh avatar từ thiết bị
      */
-    @PostMapping("/them-admin")
+    @PostMapping(value = "/them-admin-upload-avatar", consumes = "multipart/form-data")
+    public ResponseEntity<?> uploadAdminAvatar(
+            @RequestPart("avatarFile") MultipartFile avatarFile) {
+        return adminAdminService.uploadAdminAvatar(avatarFile);
+    }
+
+    /**
+     * POST /api/admin/admins/them-admin
+     * Admin thêm admin mới (JSON thuần)
+     * - avatar: URL avatar (lấy từ endpoint them-admin-upload-avatar, optional)
+     * - role: Integer (optional, default: 3)
+     */
+    @PostMapping(value = "/them-admin", consumes = "application/json")
     public ResponseEntity<?> addAdmin(@RequestBody AddAdminRequest request) {
         return adminAdminService.addAdmin(request);
     }
