@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thông báo đấu giá sắp diễn ra</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        .email-container {
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #6f42c1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+        }
+        .content {
+            padding: 30px;
+            background-color: #ffffff;
+        }
+        .content p {
+            margin: 15px 0;
+            font-size: 16px;
+        }
+        .auction-info {
+            background-color: #f9f9f9;
+            border-left: 4px solid #6f42c1;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .auction-info h3 {
+            margin-top: 0;
+            color: #6f42c1;
+        }
+        .auction-info p {
+            margin: 8px 0;
+        }
+        .artwork-item {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+        }
+        .artwork-image {
+            width: 80px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 15px;
+        }
+        .artwork-details {
+            flex: 1;
+        }
+        .artwork-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+        }
+        .artwork-author {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .artwork-price {
+            color: #6f42c1;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .custom-note {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .button-container {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .button {
+            display: inline-block;
+            padding: 14px 35px;
+            background-color: #6f42c1;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #5a32a3;
+        }
+        .footer {
+            background-color: #f9f9f9;
+            padding: 20px;
+            text-align: center;
+            border-top: 1px solid #ddd;
+            font-size: 12px;
+            color: #666;
+        }
+        .footer p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="email-container">
+    <!-- Header -->
+    <div class="header">
+        <h1>🎨 Thông báo đấu giá sắp diễn ra</h1>
+    </div>
+
+    <!-- Content -->
+    <div class="content">
+        <p>Xin chào,</p>
+
+        <p th:utext="${message}">Chúng tôi xin thông báo về một phiên đấu giá sắp diễn ra.</p>
+
+        <!-- Auction Information -->
+        <div class="auction-info" th:if="${auctionName}">
+            <h3>📋 Thông tin đấu giá</h3>
+            <p><strong>Tên phòng đấu giá:</strong> <span th:text="${auctionName}">Tên phòng</span></p>
+            <p th:if="${auctionDate}"><strong>Ngày đấu giá:</strong> <span th:text="${auctionDate}">Ngày</span></p>
+            <p th:if="${auctionTime}"><strong>Giờ đấu giá:</strong> <span th:text="${auctionTime}">Giờ</span></p>
+        </div>
+
+        <!-- Related Artworks -->
+        <div th:if="${artworks != null and !artworks.isEmpty()}">
+            <h3 style="color: #6f42c1; margin-top: 30px;">🎨 Các tác phẩm trong đấu giá</h3>
+            <div th:each="artwork : ${artworks}" class="artwork-item">
+                <img th:src="${artwork.imageUrl}" th:alt="${artwork.title}" class="artwork-image" 
+                     th:if="${artwork.imageUrl != null}">
+                <div class="artwork-details">
+                    <div class="artwork-title" th:text="${artwork.title}">Tên tác phẩm</div>
+                    <div class="artwork-author" th:if="${artwork.authorName}">
+                        Tác giả: <span th:text="${artwork.authorName}">Tác giả</span>
+                    </div>
+                    <div class="artwork-price" th:if="${artwork.startingPrice}">
+                        Giá khởi điểm: <span th:text="${#numbers.formatDecimal(artwork.startingPrice, 0, 'COMMA', 0, 'POINT')}">0</span>đ
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Custom Note -->
+        <div class="custom-note" th:if="${customNote != null and !customNote.isEmpty()}">
+            <p><strong>💬 Lời nhắn từ hệ thống:</strong></p>
+            <p th:utext="${customNote}">Tin nhắn tùy chỉnh</p>
+        </div>
+
+        <!-- Button -->
+        <div class="button-container">
+            <a th:href="${frontendUrl + '/auction'}" class="button">Xem chi tiết đấu giá</a>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        <p><strong>Trân trọng,</strong></p>
+        <p>Đội ngũ Hệ thống Đấu giá</p>
+        <p style="margin-top: 15px; color: #999;">
+            Email này được gửi tự động, vui lòng không trả lời.
+        </p>
+    </div>
+</div>
+</body>
+</html>
+
+

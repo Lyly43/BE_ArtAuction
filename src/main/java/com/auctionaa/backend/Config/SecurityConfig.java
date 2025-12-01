@@ -92,6 +92,7 @@ public class SecurityConfig {
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        .requestMatchers(HttpMethod.GET, "/api/auctionroom/*").permitAll()
                         // Còn lại: yêu cầu đã đăng nhập (JWT)
                         .anyRequest().authenticated())
 
