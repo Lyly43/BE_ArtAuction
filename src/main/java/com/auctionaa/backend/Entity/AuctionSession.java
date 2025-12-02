@@ -56,7 +56,7 @@ public class AuctionSession extends BaseEntity {
      * 0=DRAFT, 1=SCHEDULED, 2=LIVE, 3=CLOSED, 4=CANCELLED, ...
      */
     @Indexed
-    private int status;
+    private int status; //2 chưa 1 đang 0 hoàn thành
 
     /**
      * người đang dẫn hiện tại (email/userId); khi CLOSED có thể copy sang

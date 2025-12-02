@@ -79,7 +79,7 @@ public class DashboardOverviewResponse {
         private String id;
         private String artworkId;
         private String artworkTitle;
-        private String imageUrl;
+        private String avtArtwork;
         private BigDecimal startingPrice;
         private BigDecimal currentPrice;
         private int status;
@@ -95,6 +95,7 @@ public class DashboardOverviewResponse {
         private String id;
         private String username;
         private String email;
+        private String avt;
         private LocalDateTime createdAt;
         private int status; // 1 = active, 0 = offline, 2 = blocked
     }
@@ -110,6 +111,7 @@ public class DashboardOverviewResponse {
         private String artworkTitle;
         private String artworkImageUrl;
         private String artistName;
+        private String paintingGenre; // Thể loại tranh từ artwork
         private BigDecimal totalAmount;
         private String winnerName;
         private String winnerEmail;

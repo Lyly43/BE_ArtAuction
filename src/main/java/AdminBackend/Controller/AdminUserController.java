@@ -2,6 +2,7 @@ package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddUserRequest;
 import AdminBackend.DTO.Request.UpdateUserRequest;
+import AdminBackend.DTO.Request.UserFilterRequest;
 import AdminBackend.DTO.Response.AdminUserResponse;
 import AdminBackend.DTO.Response.UserStatisticsResponse;
 import AdminBackend.Service.AdminUserService;
@@ -56,6 +57,14 @@ public class AdminUserController {
         return adminUserService.getUserStatistics();
     }
 
+    /**
+     * POST /api/admin/loc-user
+     * Lọc người dùng theo các tiêu chí: status, gender, province, dateOfBirth, createdAt
+     */
+    @PostMapping("/loc-user")
+    public ResponseEntity<List<AdminUserResponse>> filterUsers(@RequestBody UserFilterRequest request) {
+        return adminUserService.filterUsers(request);
+    }
 
     /**
      * PUT /api/admin/cap-nhat-user/{userId}

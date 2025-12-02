@@ -22,6 +22,7 @@ public class AdminUserResponse {
     private int role; // 1 = normal user, 2 = buyer, 3 = seller
     private int status; // 1 = active, 0 = offline, 2 = blocked
     private BigDecimal balance; // from Wallet entity
+    private String avt; // Avatar URL
     private LocalDateTime createdAt;
 }
 

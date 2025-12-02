@@ -1,6 +1,9 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddArtworkRequest;
+import AdminBackend.DTO.Request.ArtworkApprovalRequest;
+import AdminBackend.DTO.Request.ArtworkFilterRequest;
+import AdminBackend.DTO.Request.ArtworkRejectionRequest;
 import AdminBackend.DTO.Request.UpdateArtworkRequest;
 import AdminBackend.DTO.Response.AdminArtworkResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
@@ -50,6 +53,37 @@ public class AdminArtworkController {
     }
 
     /**
+     * POST /api/admin/artworks/approve/{artworkId}
+     * Admin duyệt tác phẩm (set status = 1, cập nhật startedPrice)
+     */
+    @PostMapping("/approve/{artworkId}")
+    public ResponseEntity<?> approveArtwork(
+            @PathVariable String artworkId,
+            @RequestBody ArtworkApprovalRequest request) {
+        return adminArtworkService.approveArtwork(artworkId, request);
+    }
+
+    /**
+     * POST /api/admin/artworks/reject/{artworkId}
+     * Admin từ chối tác phẩm (set status = 3)
+     */
+    @PostMapping("/reject/{artworkId}")
+    public ResponseEntity<?> rejectArtwork(
+            @PathVariable String artworkId,
+            @RequestBody ArtworkRejectionRequest request) {
+        return adminArtworkService.rejectArtwork(artworkId, request);
+    }
+
+    /**
+     * GET /api/admin/artworks/{artworkId}
+     * Lấy chi tiết đầy đủ của một tác phẩm theo ID
+     */
+    @GetMapping("/{artworkId}")
+    public ResponseEntity<?> getArtworkDetail(@PathVariable String artworkId) {
+        return adminArtworkService.getArtworkDetail(artworkId);
+    }
+
+    /**
      * DELETE /api/admin/artworks/xoa-tac-pham/{artworkId}
      * Admin xóa tác phẩm
      */
@@ -79,6 +113,16 @@ public class AdminArtworkController {
     }
 
     /**
+     * POST /api/admin/artworks/loc-tac-pham
+     * Lọc tác phẩm theo các tiêu chí: paintingGenre, priceRange, status
+     * Yêu cầu: Content-Type: application/json
+     */
+    @PostMapping(value = "/loc-tac-pham", consumes = "application/json")
+    public ResponseEntity<List<AdminArtworkResponse>> filterArtworks(@RequestBody ArtworkFilterRequest request) {
+        return adminArtworkService.filterArtworks(request);
+    }
+
+    /**
      * GET /api/admin/artworks/chon-tac-pham?paintingGenre={genre}&material={material}&q={searchTerm}
      * Tìm kiếm tác phẩm để chọn cho phòng đấu giá
      * - Filter theo paintingGenre (thể loại)
@@ -93,4 +137,3 @@ public class AdminArtworkController {
         return adminArtworkService.searchArtworksForSelection(paintingGenre, material, searchTerm);
     }
 }
-

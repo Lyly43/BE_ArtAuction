@@ -1,6 +1,7 @@
 package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddNotificationRequest;
+import AdminBackend.DTO.Request.NotificationFilterRequest;
 import AdminBackend.DTO.Request.UpdateNotificationRequest;
 import AdminBackend.DTO.Response.AdminNotificationApiResponse;
 import AdminBackend.DTO.Response.AdminNotificationResponse;
@@ -51,6 +52,67 @@ public class AdminNotificationService {
                 : "Lấy danh sách thông báo thành công";
 
         return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, message, data));
+    }
+
+    public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> filterByStatus(Integer notificationStatus) {
+        if (notificationStatus == null) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminNotificationApiResponse<>(0, "notificationStatus is required (0 = failed, 1 = sent)", null));
+        }
+
+        List<Notification> notifications = notificationRepository.findByNotificationStatus(notificationStatus);
+        List<AdminNotificationResponse> data = notifications.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+
+        String statusLabel = notificationStatus == 1 ? "đã gửi" : notificationStatus == 0 ? "thất bại" : "khác";
+        String message = String.format("Tìm thấy %d thông báo có trạng thái %s", data.size(), statusLabel);
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, message, data));
+    }
+
+    /**
+     * Lọc thông báo theo các tiêu chí
+     * Tất cả các trường filter đều optional (null = bỏ qua filter đó)
+     */
+    public ResponseEntity<AdminNotificationApiResponse<List<AdminNotificationResponse>>> filterNotifications(NotificationFilterRequest request) {
+        // Nếu request null, trả về tất cả notifications
+        if (request == null) {
+            return getAllNotifications();
+        }
+        
+        List<Notification> allNotifications = notificationRepository.findAll();
+        
+        List<Notification> filteredNotifications = allNotifications.stream()
+                .filter(notification -> {
+                    // Filter by notificationStatus (null = bỏ qua filter)
+                    if (request.getNotificationStatus() != null && 
+                        notification.getNotificationStatus() != request.getNotificationStatus()) {
+                        return false;
+                    }
+                    
+                    // Filter by date range (lọc theo notificationTime)
+                    if (request.getDateFrom() != null) {
+                        if (notification.getNotificationTime() == null || 
+                            notification.getNotificationTime().isBefore(request.getDateFrom())) {
+                            return false;
+                        }
+                    }
+                    if (request.getDateTo() != null) {
+                        if (notification.getNotificationTime() == null || 
+                            notification.getNotificationTime().isAfter(request.getDateTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        List<AdminNotificationResponse> data = filteredNotifications.stream()
+                .map(this::mapToResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(new AdminNotificationApiResponse<>(1, "Lọc thông báo thành công", data));
     }
 
     public ResponseEntity<AdminNotificationApiResponse<AdminNotificationResponse>> addNotification(AddNotificationRequest request) {

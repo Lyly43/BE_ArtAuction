@@ -21,4 +21,6 @@ public interface NotificationRepository extends MongoRepository<Notification, St
     long countByNotificationStatus(int status);
 
     long countByNotificationStatusIn(Collection<Integer> statuses);
+
+    List<Notification> findByNotificationStatus(int status);
 }

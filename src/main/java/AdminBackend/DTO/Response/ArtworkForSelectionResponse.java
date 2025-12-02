@@ -12,6 +12,7 @@ public class ArtworkForSelectionResponse {
     private String id;
     private String title;
     private String author; // Lấy từ username của ownerId
+    private String description;
     private String paintingGenre; // Thể loại
     private String material;
     private String size;

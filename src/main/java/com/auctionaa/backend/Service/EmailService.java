@@ -1,5 +1,7 @@
 package com.auctionaa.backend.Service;
 
+import com.auctionaa.backend.Entity.Artwork;
+import com.auctionaa.backend.Entity.AuctionRoom;
 import jakarta.mail.MessagingException;
 import jakarta.mail.internet.MimeMessage;
 import lombok.RequiredArgsConstructor;
@@ -10,6 +12,8 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
+
+import java.math.BigDecimal;
 
 @Service
 @RequiredArgsConstructor
@@ -33,62 +37,138 @@ public class EmailService {
      * @param roomId ID phòng đấu giá
      */
     public void sendRegistrationSuccessEmail(String toEmail, String userName, String registrationId, String roomId) {
-        log.info("Attempting to send email to: {}, userName: {}, registrationId: {}, roomId: {}",
-                toEmail, userName, registrationId, roomId);
-        log.info("Email config - fromEmail: {}, frontendUrl: {}", fromEmail, frontendUrl);
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("paymentLink", frontendUrl + "/payment?registrationId=" + registrationId + "&roomId=" + roomId);
+        context.setVariable("roomId", roomId);
+        sendEmailWithTemplate(toEmail, "Đăng ký tham gia đấu giá thành công", "emails/registration-success", context);
+    }
 
-        // Validate email config
-        if (fromEmail == null || fromEmail.isEmpty() || fromEmail.equals("your-email@gmail.com")) {
-            log.error("Email configuration is missing or not set! Please update application.properties");
-            throw new RuntimeException("Email configuration is missing. Please set spring.mail.username in application.properties");
+    public void sendArtworkApprovalEmail(String toEmail, String userName, Artwork artwork, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("artworkTitle", artwork.getTitle());
+        context.setVariable("startedPrice", formatCurrency(artwork.getStartedPrice()));
+        context.setVariable("material", artwork.getMaterial());
+        context.setVariable("size", artwork.getSize());
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("detailLink", frontendUrl + "/artworks/" + artwork.getId());
+        sendEmailWithTemplate(toEmail, "Tác phẩm của bạn đã được duyệt", "emails/artwork-approved", context);
+    }
+
+    public void sendArtworkRejectionEmail(String toEmail, String userName, Artwork artwork, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("artworkTitle", artwork.getTitle());
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("detailLink", frontendUrl + "/artworks/" + artwork.getId());
+        sendEmailWithTemplate(toEmail, "Tác phẩm của bạn chưa được duyệt", "emails/artwork-rejected", context);
+    }
+
+    /**
+     * Gửi email cảnh báo cho user do báo cáo
+     */
+    public void sendUserWarningEmail(String toEmail, String userName, String reportType, String reason, String adminNote, long reportCount) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("reportCount", reportCount);
+        context.setVariable("profileLink", frontendUrl + "/profile");
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Cảnh báo từ hệ thống", "emails/user-warning", context);
+    }
+
+    /**
+     * Gửi email thông báo user bị chặn
+     */
+    public void sendUserBlockedEmail(String toEmail, String userName, String reportType, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("appealLink", frontendUrl + "/support/appeal");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Tài khoản của bạn đã bị chặn", "emails/user-blocked", context);
+    }
+
+    /**
+     * Gửi email thông báo artwork bị từ chối do báo cáo
+     */
+    public void sendArtworkRejectedByReportEmail(String toEmail, String userName, Artwork artwork, String reportType, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("artworkTitle", artwork.getTitle());
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("detailLink", frontendUrl + "/artworks/" + artwork.getId());
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("appealLink", frontendUrl + "/support/appeal");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Tác phẩm của bạn đã bị từ chối", "emails/artwork-rejected-by-report", context);
         }
 
-        if (toEmail == null || toEmail.isEmpty()) {
-            log.error("Recipient email is null or empty!");
-            throw new RuntimeException("Recipient email is required");
+    /**
+     * Gửi email thông báo auction room bị đóng
+     */
+    public void sendRoomClosedEmail(String toEmail, String userName, AuctionRoom room, String reportType, String reason, String adminNote) {
+        Context context = new Context();
+        context.setVariable("userName", userName);
+        context.setVariable("roomName", room.getRoomName());
+        context.setVariable("reportType", reportType);
+        context.setVariable("reason", reason);
+        context.setVariable("adminNote", adminNote);
+        context.setVariable("roomLink", frontendUrl + "/auction-rooms/" + room.getId());
+        context.setVariable("supportLink", frontendUrl + "/support");
+        context.setVariable("appealLink", frontendUrl + "/support/appeal");
+        context.setVariable("contactEmail", "support@artauction.com");
+        context.setVariable("contactPhone", "1900-xxxx");
+        sendEmailWithTemplate(toEmail, "Phòng đấu giá đã bị đóng", "emails/room-closed", context);
         }
 
+    private void sendEmailWithTemplate(String toEmail, String subject, String template, Context context) {
+        validateEmailConfig(toEmail);
         try {
-            log.info("Creating MimeMessage...");
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
             helper.setFrom(fromEmail);
             helper.setTo(toEmail);
-            helper.setSubject("Đăng ký tham gia đấu giá thành công");
-
-            // Tạo link thanh toán hợp đồng và hồ sơ
-            String paymentLink = frontendUrl + "/payment?registrationId=" + registrationId + "&roomId=" + roomId;
-            log.info("Payment link: {}", paymentLink);
-
-            // Tạo context cho Thymeleaf template
-            Context context = new Context();
-            context.setVariable("userName", userName);
-            context.setVariable("paymentLink", paymentLink);
-            context.setVariable("roomId", roomId);
-
-            // Render template Thymeleaf
-            String htmlContent = templateEngine.process("emails/registration-success", context);
-            log.info("Email template rendered successfully");
-
+            helper.setSubject(subject);
+            String htmlContent = templateEngine.process(template, context);
             helper.setText(htmlContent, true);
 
-            log.info("Sending email via JavaMailSender...");
             mailSender.send(message);
             log.info("✅ Email sent successfully to: {}", toEmail);
-
         } catch (MessagingException e) {
             log.error("❌ Failed to send email to: {}", toEmail, e);
-            log.error("Exception details: {}", e.getMessage());
-            if (e.getCause() != null) {
-                log.error("Root cause: {}", e.getCause().getMessage());
-            }
             throw new RuntimeException("Failed to send email: " + e.getMessage(), e);
-        } catch (Exception e) {
-            log.error("❌ Unexpected error while sending email to: {}", toEmail, e);
-            throw new RuntimeException("Unexpected error while sending email: " + e.getMessage(), e);
         }
     }
 
+    private void validateEmailConfig(String toEmail) {
+        if (fromEmail == null || fromEmail.isEmpty() || fromEmail.equals("your-email@gmail.com")) {
+            throw new RuntimeException("Email configuration is missing. Please set spring.mail.username in application.properties");
+        }
+        if (toEmail == null || toEmail.isEmpty()) {
+            throw new RuntimeException("Recipient email is required");
+        }
+    }
+
+    private String formatCurrency(BigDecimal amount) {
+        if (amount == null) {
+            return "0";
+        }
+        return amount.stripTrailingZeros().toPlainString();
+        }
 }
 

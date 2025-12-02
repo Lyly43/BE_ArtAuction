@@ -1,5 +1,6 @@
 package AdminBackend.Controller;
 
+import AdminBackend.DTO.Request.InvoiceFilterRequest;
 import AdminBackend.DTO.Request.UpdateInvoiceRequest;
 import AdminBackend.DTO.Response.AdminInvoiceApiResponse;
 import AdminBackend.DTO.Response.AdminInvoiceResponse;
@@ -28,6 +29,16 @@ public class AdminInvoiceController {
     public ResponseEntity<AdminInvoiceApiResponse<List<AdminInvoiceResponse>>> searchInvoices(
             @RequestParam(value = "q", required = false) String searchTerm) {
         return adminInvoiceService.searchInvoices(searchTerm);
+    }
+
+    /**
+     * POST /api/admin/invoices/loc-hoa-don
+     * Lọc hóa đơn theo các tiêu chí: paymentStatus, paymentMethod, totalAmountRange, dateRange
+     * Yêu cầu: Content-Type: application/json
+     */
+    @PostMapping(value = "/loc-hoa-don", consumes = "application/json")
+    public ResponseEntity<AdminInvoiceApiResponse<List<AdminInvoiceResponse>>> filterInvoices(@RequestBody InvoiceFilterRequest request) {
+        return adminInvoiceService.filterInvoices(request);
     }
 
     @GetMapping("/thong-ke")

@@ -1,16 +1,27 @@
 package AdminBackend.Service;
 
+import AdminBackend.DTO.Request.ProcessReportRequest;
 import AdminBackend.DTO.Request.UpdateReportRequest;
 import AdminBackend.DTO.Response.AdminReportApiResponse;
 import AdminBackend.DTO.Response.AdminReportResponse;
 import AdminBackend.DTO.Response.AdminReportStatisticsResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
+import com.auctionaa.backend.Constants.ReportConstants;
+import com.auctionaa.backend.Entity.Artwork;
+import com.auctionaa.backend.Entity.AuctionRoom;
+import com.auctionaa.backend.Entity.Notification;
 import com.auctionaa.backend.Entity.ReportObject;
 import com.auctionaa.backend.Entity.Reports;
 import com.auctionaa.backend.Entity.User;
+import com.auctionaa.backend.Repository.ArtworkRepository;
+import com.auctionaa.backend.Repository.AuctionRoomRepository;
+import com.auctionaa.backend.Repository.NotificationRepository;
 import com.auctionaa.backend.Repository.ReportObjectRepository;
 import com.auctionaa.backend.Repository.ReportsRepository;
 import com.auctionaa.backend.Repository.UserRepository;
+import com.auctionaa.backend.Service.EmailService;
+import com.auctionaa.backend.Service.NotificationService;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
@@ -28,6 +39,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class AdminReportService {
 
     @Autowired
@@ -44,6 +56,21 @@ public class AdminReportService {
 
     @Autowired
     private MonthlyStatisticsService monthlyStatisticsService;
+
+    @Autowired
+    private ArtworkRepository artworkRepository;
+
+    @Autowired
+    private AuctionRoomRepository auctionRoomRepository;
+
+    @Autowired
+    private EmailService emailService;
+
+    @Autowired
+    private NotificationService notificationService;
+
+    @Autowired
+    private NotificationRepository notificationRepository;
 
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
@@ -133,6 +160,473 @@ public class AdminReportService {
 
         reportsRepository.delete(optionalReports.get());
         return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Xóa báo cáo thành công", null));
+    }
+
+    /**
+     * Xử lý báo cáo theo action của admin
+     * 
+     * Nghiệp vụ:
+     * - User Reports (entityType = 1): 
+     *   - "WARNING": Gửi notification và email cảnh báo cho user
+     *   - "BLOCK": Chặn user (đổi status = 2) và gửi email thông báo
+     *   - "DISMISS": Từ chối báo cáo (status = 3), không có hành động gì
+     * 
+     * - Artwork Reports (entityType = 2):
+     *   - "REJECT": Từ chối artwork (status = 3) và gửi email cho owner
+     *   - "DISMISS": Từ chối báo cáo (status = 3), không có hành động gì
+     * 
+     * - Auction Room Reports (entityType = 3):
+     *   - "CLOSE": Đóng room (status = 0) và gửi email cho admin/host
+     *   - "DISMISS": Từ chối báo cáo (status = 3), không có hành động gì
+     * 
+     * - AI Artwork Reports (entityType = 4):
+     *   - "REJECT": Từ chối artwork (status = 3) và gửi email cho owner
+     *   - "DISMISS": Từ chối báo cáo (status = 3), không có hành động gì
+     */
+    public ResponseEntity<AdminReportApiResponse<AdminReportResponse>> processReport(
+            String reportId, ProcessReportRequest request) {
+        
+        Optional<Reports> optionalReport = reportsRepository.findById(reportId);
+        if (optionalReport.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AdminReportApiResponse<>(0, "Không tìm thấy báo cáo", null));
+        }
+
+        Reports report = optionalReport.get();
+        
+        // Validate action
+        if (request == null || !StringUtils.hasText(request.getAction())) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminReportApiResponse<>(0, "Action là bắt buộc (WARNING, BLOCK, REJECT, CLOSE, DISMISS)", null));
+        }
+
+        String action = request.getAction().toUpperCase().trim();
+        String adminNote = request.getAdminNote();
+
+        // Lấy entityType và reportedEntityId
+        // Sử dụng cấu trúc mới nếu có, fallback về cấu trúc cũ
+        int entityType = report.getEntityType();
+        String reportedEntityId = report.getReportedEntityId();
+        
+        // Fallback về cấu trúc cũ nếu không có entityType hoặc reportedEntityId
+        if (entityType == 0 || !StringUtils.hasText(reportedEntityId)) {
+            if (StringUtils.hasText(report.getObjectId())) {
+                // Xác định entityType từ objectId (cần check xem là user, artwork hay room)
+                String objectId = report.getObjectId();
+                if (userRepository.existsById(objectId)) {
+                    entityType = ReportConstants.ENTITY_USER;
+                    reportedEntityId = objectId;
+                } else if (artworkRepository.existsById(objectId)) {
+                    entityType = ReportConstants.ENTITY_ARTWORK;
+                    reportedEntityId = objectId;
+                } else if (auctionRoomRepository.existsById(objectId)) {
+                    entityType = ReportConstants.ENTITY_AUCTION_ROOM;
+                    reportedEntityId = objectId;
+                } else {
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(new AdminReportApiResponse<>(0, "Không thể xác định loại entity từ objectId", null));
+                }
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new AdminReportApiResponse<>(0, "Không tìm thấy thông tin entity bị báo cáo", null));
+            }
+        }
+
+        // Validate action với entityType
+        if (!isValidActionForEntityType(action, entityType)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new AdminReportApiResponse<>(0, 
+                        String.format("Action '%s' không hợp lệ cho entityType %d (%s)", 
+                            action, entityType, ReportConstants.getEntityTypeName(entityType)), null));
+        }
+
+        try {
+            // Xử lý theo entityType và action
+            switch (entityType) {
+                case ReportConstants.ENTITY_USER:
+                    processUserReport(report, reportedEntityId, action, adminNote);
+                    break;
+                case ReportConstants.ENTITY_ARTWORK:
+                case ReportConstants.ENTITY_AI_ARTWORK:
+                    processArtworkReport(report, reportedEntityId, action, adminNote);
+                    break;
+                case ReportConstants.ENTITY_AUCTION_ROOM:
+                    processAuctionRoomReport(report, reportedEntityId, action, adminNote);
+                    break;
+                default:
+                    return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body(new AdminReportApiResponse<>(0, "EntityType không hợp lệ", null));
+            }
+
+            // Cập nhật report status
+            if ("DISMISS".equals(action)) {
+                report.setStatus(ReportConstants.STATUS_REJECTED);
+            } else {
+                report.setStatus(ReportConstants.STATUS_RESOLVED);
+            }
+            report.setAdminNote(adminNote);
+            report.setResolvedAt(LocalDateTime.now());
+            report.setUpdatedAt(LocalDateTime.now());
+            reportsRepository.save(report);
+
+            // Đọc lại từ MongoDB để lấy DBRef đầy đủ
+            Document updatedDoc = mongoTemplate.getCollection("reports")
+                    .find(new Document("_id", reportId))
+                    .first();
+            AdminReportResponse response = updatedDoc != null 
+                    ? mapDocumentToResponse(updatedDoc)
+                    : mapToResponse(report);
+
+            return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Xử lý báo cáo thành công", response));
+
+        } catch (Exception e) {
+            log.error("Error processing report {}: {}", reportId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new AdminReportApiResponse<>(0, "Lỗi khi xử lý báo cáo: " + e.getMessage(), null));
+        }
+    }
+
+    /**
+     * Validate action có hợp lệ với entityType không
+     */
+    private boolean isValidActionForEntityType(String action, int entityType) {
+        return switch (entityType) {
+            case ReportConstants.ENTITY_USER -> 
+                "WARNING".equals(action) || "BLOCK".equals(action) || "DISMISS".equals(action);
+            case ReportConstants.ENTITY_ARTWORK, ReportConstants.ENTITY_AI_ARTWORK -> 
+                "REJECT".equals(action) || "DISMISS".equals(action);
+            case ReportConstants.ENTITY_AUCTION_ROOM -> 
+                "CLOSE".equals(action) || "DISMISS".equals(action);
+            default -> false;
+        };
+    }
+
+    /**
+     * Xử lý User Report
+     * Nếu user đã bị báo cáo 3 lần (đã xử lý với WARNING hoặc BLOCK), 
+     * thì không cho WARNING nữa, bắt buộc phải BLOCK
+     */
+    private void processUserReport(Reports report, String userId, String action, String adminNote) {
+        if (!StringUtils.hasText(userId)) {
+            throw new IllegalArgumentException("User ID không được để trống");
+        }
+
+        Optional<User> userOpt = userRepository.findById(userId);
+        if (userOpt.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy user với ID: " + userId);
+        }
+
+        User user = userOpt.get();
+        String reportType = report.getReportType() != null ? report.getReportType() : "Báo cáo";
+
+        // Đếm số lần user đã bị báo cáo và đã được xử lý (status = 2 Resolved hoặc 3 Rejected, nhưng không tính DISMISS)
+        long processedReportCount = countProcessedUserReports(userId);
+        
+        // Nếu đã 3 lần và action là WARNING, thì bắt buộc phải BLOCK
+        if ("WARNING".equals(action) && processedReportCount >= 3) {
+            throw new IllegalArgumentException(
+                String.format("User đã bị báo cáo %d lần. Không thể cảnh báo thêm, bắt buộc phải chặn tài khoản (action = BLOCK)", 
+                    processedReportCount));
+        }
+
+        // Lấy reason từ report (ưu tiên reason, nếu không có thì dùng reportReason)
+        String reportReason = StringUtils.hasText(report.getReason()) 
+            ? report.getReason() 
+            : (StringUtils.hasText(report.getReportReason()) ? report.getReportReason() : null);
+
+        switch (action) {
+            case "WARNING":
+                // Gửi notification và email cảnh báo
+                sendUserWarningNotification(user, reportType, reportReason, adminNote, processedReportCount + 1);
+                sendUserWarningEmail(user, reportType, reportReason, adminNote, processedReportCount + 1);
+                break;
+            case "BLOCK":
+                // Chặn user (status = 2)
+                user.setStatus(2);
+                userRepository.save(user);
+                // Gửi email thông báo bị chặn
+                sendUserBlockedEmail(user, reportType, reportReason, adminNote);
+                // Gửi notification
+                sendUserBlockedNotification(user, reportType, reportReason, adminNote);
+                break;
+            case "DISMISS":
+                // Không có hành động gì, chỉ từ chối báo cáo
+                break;
+        }
+    }
+
+    /**
+     * Đếm số lần user đã bị báo cáo và đã được xử lý (không tính DISMISS)
+     * Chỉ đếm các report có status = 2 (Resolved) hoặc 3 (Rejected) 
+     * nhưng không phải DISMISS (tức là đã có hành động thực sự)
+     */
+    private long countProcessedUserReports(String userId) {
+        // Lấy tất cả reports về user này (entityType = 1)
+        List<Reports> userReports = reportsRepository.findByEntityTypeAndReportedEntityId(
+            ReportConstants.ENTITY_USER, userId);
+        
+        // Đếm các report đã được xử lý (status = 2 Resolved hoặc 3 Rejected)
+        // Nhưng không tính các report có adminNote rỗng hoặc null (có thể là DISMISS)
+        // Hoặc đơn giản hơn: đếm tất cả report có status = 2 (Resolved) 
+        // vì DISMISS sẽ có status = 3 (Rejected)
+        return userReports.stream()
+            .filter(r -> r.getStatus() == ReportConstants.STATUS_RESOLVED) // Chỉ đếm Resolved (đã xử lý với WARNING hoặc BLOCK)
+            .count();
+    }
+
+    /**
+     * Xử lý Artwork Report (bao gồm cả AI Artwork)
+     */
+    private void processArtworkReport(Reports report, String artworkId, String action, String adminNote) {
+        if (!StringUtils.hasText(artworkId)) {
+            throw new IllegalArgumentException("Artwork ID không được để trống");
+        }
+
+        Optional<Artwork> artworkOpt = artworkRepository.findById(artworkId);
+        if (artworkOpt.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy artwork với ID: " + artworkId);
+        }
+
+        Artwork artwork = artworkOpt.get();
+        String reportType = report.getReportType() != null ? report.getReportType() : "Báo cáo";
+
+        switch (action) {
+            case "REJECT":
+                // Từ chối artwork (status = 3)
+                artwork.setStatus(3);
+                artwork.setUpdatedAt(LocalDateTime.now());
+                artworkRepository.save(artwork);
+                
+                // Lấy reason từ report
+                String reportReason = StringUtils.hasText(report.getReason()) 
+                    ? report.getReason() 
+                    : (StringUtils.hasText(report.getReportReason()) ? report.getReportReason() : null);
+                
+                // Gửi email cho owner
+                if (StringUtils.hasText(artwork.getOwnerId())) {
+                    Optional<User> ownerOpt = userRepository.findById(artwork.getOwnerId());
+                    if (ownerOpt.isPresent()) {
+                        User owner = ownerOpt.get();
+                        sendArtworkRejectedByReportEmail(owner, artwork, reportType, reportReason, adminNote);
+                        sendArtworkRejectedNotification(owner, artwork, reportType, reportReason);
+                    }
+                }
+                break;
+            case "DISMISS":
+                // Không có hành động gì, chỉ từ chối báo cáo
+                break;
+        }
+    }
+
+    /**
+     * Xử lý Auction Room Report
+     */
+    private void processAuctionRoomReport(Reports report, String roomId, String action, String adminNote) {
+        if (!StringUtils.hasText(roomId)) {
+            throw new IllegalArgumentException("Auction Room ID không được để trống");
+        }
+
+        Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(roomId);
+        if (roomOpt.isEmpty()) {
+            throw new IllegalArgumentException("Không tìm thấy auction room với ID: " + roomId);
+        }
+
+        AuctionRoom room = roomOpt.get();
+        String reportType = report.getReportType() != null ? report.getReportType() : "Báo cáo";
+
+        switch (action) {
+            case "CLOSE":
+                // Đóng room (status = 0)
+                room.setStatus(0);
+                auctionRoomRepository.save(room);
+                
+                // Lấy reason từ report
+                String reportReason = StringUtils.hasText(report.getReason()) 
+                    ? report.getReason() 
+                    : (StringUtils.hasText(report.getReportReason()) ? report.getReportReason() : null);
+                
+                // Gửi email cho admin/host
+                if (StringUtils.hasText(room.getAdminId())) {
+                    Optional<User> adminOpt = userRepository.findById(room.getAdminId());
+                    if (adminOpt.isPresent()) {
+                        User admin = adminOpt.get();
+                        sendRoomClosedEmail(admin, room, reportType, reportReason, adminNote);
+                        sendRoomClosedNotification(admin, room, reportType, reportReason);
+                    }
+                }
+                break;
+            case "DISMISS":
+                // Không có hành động gì, chỉ từ chối báo cáo
+                break;
+        }
+    }
+
+    // ========== Notification Methods ==========
+
+    private void sendUserWarningNotification(User user, String reportType, String reason, String adminNote, long reportCount) {
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(user.getId());
+            notification.setNotificationType(1); // Warning type
+            notification.setTitle("Cảnh báo từ hệ thống");
+            String warningMessage = String.format("Bạn đã nhận được cảnh báo về: %s. ", reportType);
+            if (StringUtils.hasText(reason)) {
+                warningMessage += String.format("Lý do: %s. ", reason);
+            }
+            if (reportCount >= 2) {
+                warningMessage += String.format("Đây là lần cảnh báo thứ %d. ", reportCount);
+                if (reportCount == 2) {
+                    warningMessage += "Lần vi phạm tiếp theo sẽ dẫn đến việc tài khoản bị chặn. ";
+                }
+            }
+            warningMessage += adminNote != null ? adminNote : "Vui lòng tuân thủ quy định của nền tảng.";
+            notification.setNotificationContent(warningMessage);
+            notification.setNotificationStatus(1);
+            notification.setLink("/profile");
+            
+            log.info("Creating warning notification for user: {}", user.getId());
+            Notification saved = notificationService.addNotification(notification);
+            log.info("Warning notification created successfully with ID: {}", saved.getId());
+        } catch (Exception e) {
+            log.error("Failed to send warning notification to user {}: {}", user.getId(), e.getMessage(), e);
+            // Re-throw để admin biết có lỗi xảy ra
+            throw new RuntimeException("Không thể tạo thông báo cảnh báo: " + e.getMessage(), e);
+        }
+    }
+
+    private void sendUserBlockedNotification(User user, String reportType, String reason, String adminNote) {
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(user.getId());
+            notification.setNotificationType(2); // Block type
+            notification.setTitle("Tài khoản của bạn đã bị chặn");
+            String blockedMessage = String.format("Tài khoản của bạn đã bị chặn do: %s. ", reportType);
+            if (StringUtils.hasText(reason)) {
+                blockedMessage += String.format("Lý do: %s. ", reason);
+            }
+            blockedMessage += adminNote != null ? adminNote : "Vui lòng liên hệ admin để được hỗ trợ.";
+            notification.setNotificationContent(blockedMessage);
+            notification.setNotificationStatus(1);
+            notification.setLink("/support");
+            
+            log.info("Creating blocked notification for user: {}", user.getId());
+            Notification saved = notificationService.addNotification(notification);
+            log.info("Blocked notification created successfully with ID: {}", saved.getId());
+        } catch (Exception e) {
+            log.error("Failed to send blocked notification to user {}: {}", user.getId(), e.getMessage(), e);
+            // Re-throw để admin biết có lỗi xảy ra
+            throw new RuntimeException("Không thể tạo thông báo bị chặn: " + e.getMessage(), e);
+        }
+    }
+
+    private void sendArtworkRejectedNotification(User owner, Artwork artwork, String reportType, String reason) {
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(owner.getId());
+            notification.setNotificationType(3); // Artwork rejected type
+            notification.setTitle("Tác phẩm của bạn đã bị từ chối");
+            String rejectedMessage = String.format("Tác phẩm '%s' đã bị từ chối do: %s", artwork.getTitle(), reportType);
+            if (StringUtils.hasText(reason)) {
+                rejectedMessage += String.format(". Lý do: %s", reason);
+            }
+            notification.setNotificationContent(rejectedMessage);
+            notification.setNotificationStatus(1);
+            notification.setLink("/artworks/" + artwork.getId());
+            notification.setRefId(artwork.getId());
+            
+            log.info("Creating artwork rejected notification for user: {}, artwork: {}", owner.getId(), artwork.getId());
+            Notification saved = notificationService.addNotification(notification);
+            log.info("Artwork rejected notification created successfully with ID: {}", saved.getId());
+        } catch (Exception e) {
+            log.error("Failed to send artwork rejected notification to user {}: {}", owner.getId(), e.getMessage(), e);
+            // Không throw exception ở đây vì đây là notification phụ, không ảnh hưởng đến flow chính
+        }
+    }
+
+    private void sendRoomClosedNotification(User admin, AuctionRoom room, String reportType, String reason) {
+        try {
+            Notification notification = new Notification();
+            notification.setUserId(admin.getId());
+            notification.setNotificationType(4); // Room closed type
+            notification.setTitle("Phòng đấu giá đã bị đóng");
+            String closedMessage = String.format("Phòng đấu giá '%s' đã bị đóng do: %s", room.getRoomName(), reportType);
+            if (StringUtils.hasText(reason)) {
+                closedMessage += String.format(". Lý do: %s", reason);
+            }
+            notification.setNotificationContent(closedMessage);
+            notification.setNotificationStatus(1);
+            notification.setLink("/auction-rooms/" + room.getId());
+            notification.setRefId(room.getId());
+            
+            log.info("Creating room closed notification for user: {}, room: {}", admin.getId(), room.getId());
+            Notification saved = notificationService.addNotification(notification);
+            log.info("Room closed notification created successfully with ID: {}", saved.getId());
+        } catch (Exception e) {
+            log.error("Failed to send room closed notification to user {}: {}", admin.getId(), e.getMessage(), e);
+            // Không throw exception ở đây vì đây là notification phụ, không ảnh hưởng đến flow chính
+        }
+    }
+
+    // ========== Email Methods ==========
+
+    private void sendUserWarningEmail(User user, String reportType, String reason, String adminNote, long reportCount) {
+        if (!StringUtils.hasText(user.getEmail())) {
+            log.warn("User {} has no email, skip sending warning email", user.getId());
+            return;
+        }
+
+        try {
+            emailService.sendUserWarningEmail(user.getEmail(), 
+                StringUtils.hasText(user.getUsername()) ? user.getUsername() : "Bạn",
+                reportType, reason, adminNote, reportCount);
+        } catch (Exception e) {
+            log.error("Failed to send warning email to user {}", user.getEmail(), e);
+        }
+    }
+
+    private void sendUserBlockedEmail(User user, String reportType, String reason, String adminNote) {
+        if (!StringUtils.hasText(user.getEmail())) {
+            log.warn("User {} has no email, skip sending blocked email", user.getId());
+            return;
+        }
+
+        try {
+            emailService.sendUserBlockedEmail(user.getEmail(), 
+                StringUtils.hasText(user.getUsername()) ? user.getUsername() : "Bạn",
+                reportType, reason, adminNote);
+        } catch (Exception e) {
+            log.error("Failed to send blocked email to user {}", user.getEmail(), e);
+        }
+    }
+
+    private void sendArtworkRejectedByReportEmail(User owner, Artwork artwork, String reportType, String reason, String adminNote) {
+        if (!StringUtils.hasText(owner.getEmail())) {
+            log.warn("Owner {} has no email, skip sending artwork rejected email", owner.getId());
+            return;
+        }
+
+        try {
+            emailService.sendArtworkRejectedByReportEmail(owner.getEmail(), 
+                StringUtils.hasText(owner.getUsername()) ? owner.getUsername() : "Bạn",
+                artwork, reportType, reason, adminNote);
+        } catch (Exception e) {
+            log.error("Failed to send artwork rejected email to owner {}", owner.getEmail(), e);
+        }
+    }
+
+    private void sendRoomClosedEmail(User admin, AuctionRoom room, String reportType, String reason, String adminNote) {
+        if (!StringUtils.hasText(admin.getEmail())) {
+            log.warn("Admin {} has no email, skip sending room closed email", admin.getId());
+            return;
+        }
+
+        try {
+            emailService.sendRoomClosedEmail(admin.getEmail(), 
+                StringUtils.hasText(admin.getUsername()) ? admin.getUsername() : "Bạn",
+                room, reportType, reason, adminNote);
+        } catch (Exception e) {
+            log.error("Failed to send room closed email to admin {}", admin.getEmail(), e);
+        }
     }
 
     public ResponseEntity<AdminReportApiResponse<AdminReportStatisticsResponse>> getReportStatistics() {
@@ -300,6 +794,7 @@ public class AdminReportService {
                 reporterId,
                 reporter != null ? reporter.getUsername() : null,
                 reporter != null ? reporter.getEmail() : null,
+                reporter != null ? reporter.getAvt() : null,
                 objectId,
                 objectName,
                 objectUser != null ? objectUser.getEmail() : null,
@@ -332,6 +827,7 @@ public class AdminReportService {
                 report.getUserId(),
                 reporter != null ? reporter.getUsername() : null,
                 reporter != null ? reporter.getEmail() : null,
+                reporter != null ? reporter.getAvt() : null,
                 report.getObjectId(),
                 objectUser != null ? objectUser.getUsername() : report.getObject(),
                 objectUser != null ? objectUser.getEmail() : null,

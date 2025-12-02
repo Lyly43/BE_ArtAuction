@@ -96,6 +96,24 @@ public class CloudinaryService {
         return uploadImage(file, folder, "avatar", tf);
     }
 
+    // Avatar admin: auctionaa/admins/<adminId>/avatar
+    public UploadResult uploadAdminAvatar(String adminId, MultipartFile file) throws IOException {
+        String folder = baseFolder + "/admins/" + adminId;
+        Transformation tf = new Transformation()
+                .width(400).height(400).crop("fill").gravity("face")
+                .quality("auto").fetchFormat("auto");
+        return uploadImage(file, folder, "avatar", tf);
+    }
+
+    // Ảnh phòng đấu giá: auctionaa/auction-rooms/<roomId>/cover
+    public UploadResult uploadAuctionRoomImage(String roomId, MultipartFile file) throws IOException {
+        String folder = baseFolder + "/auction-rooms/" + roomId;
+        Transformation tf = new Transformation()
+                .quality("auto")
+                .fetchFormat("auto");
+        return uploadImage(file, folder, "cover", tf);
+    }
+
     // Ảnh tác phẩm: auctionaa/artworks/<artworkId>/main | detail_i
     public UploadResult uploadArtworkMain(String artworkId, MultipartFile file) throws IOException {
         String folder = baseFolder + "/artworks/" + artworkId;

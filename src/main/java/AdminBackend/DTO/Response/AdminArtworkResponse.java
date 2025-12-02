@@ -12,6 +12,7 @@ import java.time.LocalDateTime;
 public class AdminArtworkResponse {
     private String id;
     private String title;
+    private String description;
     private String author; // Lấy từ username của ownerId
     private int yearOfCreation;
     private String material;
