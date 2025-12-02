@@ -27,8 +27,12 @@ public class AdminCommonUploadController {
      *
      * Dùng cho các trường hợp cần upload ảnh lẻ, không gắn cố định với entity nào,
      * frontend sẽ lấy URL trả về và lưu vào field tương ứng.
+     *
+     * Lưu ý:
+     * - Backend KHÔNG ép consumes, để chấp nhận cả trường hợp Content-Type bị thiếu header.
+     * - Tuy nhiên, chuẩn nhất vẫn là gửi multipart/form-data với key = imageFile
      */
-    @PostMapping(value = "/upload-image", consumes = "multipart/form-data")
+    @PostMapping(value = "/upload-image")
     public ResponseEntity<AdminBasicResponse<Map<String, String>>> uploadCommonImage(
             @RequestPart("imageFile") MultipartFile imageFile) {
         if (imageFile == null || imageFile.isEmpty()) {
