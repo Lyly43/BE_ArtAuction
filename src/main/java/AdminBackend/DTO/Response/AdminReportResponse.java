@@ -14,6 +14,7 @@ public class AdminReportResponse {
     private String reporterId;
     private String reporterName;
     private String reporterEmail;
+    private String reporterAvatar;
     private String objectId;
     private String objectName;
     private String objectEmail;

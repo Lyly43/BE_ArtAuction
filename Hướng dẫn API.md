@@ -252,6 +252,31 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     - Nếu không gửi `role` thì hệ thống tự set `role = 3`
     - Email phải unique, nếu trùng sẽ trả về lỗi `"Email already exists"` với `status = 0`
 
+### Upload ảnh chung (tạo URL ảnh dùng lại nhiều nơi)
+- Method & URL: `POST /api/admin/uploads/upload-image`
+- Content-Type: `multipart/form-data`
+- Mô tả:
+  - API này dùng để upload **một ảnh chung** bất kỳ lên Cloudinary và trả về URL.
+  - Dùng cho các trường hợp cần URL ảnh lẻ (không gắn cứng với phòng đấu giá hay admin), frontend chỉ cần gọi API này, lấy URL và gán vào field tương ứng trong các API khác.
+- Request (Form-Data):
+  - key : imageFile
+  - `file`: File (required) – Ảnh cần upload từ thiết bị
+- Response (200):
+  ```json
+  {
+    "status": 1,
+    "message": "Upload ảnh thành công",
+    "data": {
+      "imageUrl": "https://res.cloudinary.com/.../image/upload/auctionaa/misc/abc.jpg",
+      "publicId": "auctionaa/misc/common-1733142222333"
+    }
+  }
+  ```
+- Lưu ý:
+  - `imageUrl`: URL ảnh dùng để lưu vào DB hoặc gửi kèm trong các API khác.
+  - `publicId`: dùng nếu sau này cần xóa ảnh trên Cloudinary.
+  - Nếu file rỗng hoặc không phải `image/*`, API sẽ trả `status = 0` và message lỗi tương ứng.
+
 ### Lấy danh sách admin
 - Method & URL: `GET /api/admin/admins/lay-du-lieu`
 - Response: Mảng `AdminAdminResponse` với các trường:
