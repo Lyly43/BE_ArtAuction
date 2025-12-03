@@ -12,6 +12,9 @@ import java.time.LocalDate;
 public class UserFilterRequest {
     // Status filter: null = All, 1 = Active, 2 = Locked
     private Integer status;
+
+    // Role filter: null = All, 0 = user, 1 = buyer, 2 = seller
+    private Integer role;
     
     // Gender filter: null = All, 0 = Male, 1 = Female, 2 = Other
     private Integer gender;
