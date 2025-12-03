@@ -81,6 +81,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - Request Body:
   ```json
   {
+    "role": 1,
     "status": 1,
     "gender": 0,
     "province": "Hà Nội",
@@ -90,6 +91,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   }
   ```
 - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+  - `role`: `null` = bỏ qua filter (lấy tất cả), `0` = user, `1` = buyer, `2` = seller
   - `status`: `null` = bỏ qua filter (lấy tất cả), `1` = Active, `2` = Locked
   - `gender`: `null` = bỏ qua filter (lấy tất cả), `0` = Male, `1` = Female, `2` = Other
   - `province`: `null` hoặc chuỗi rỗng = bỏ qua filter, nếu có giá trị sẽ tìm trong trường `address` (case-insensitive)

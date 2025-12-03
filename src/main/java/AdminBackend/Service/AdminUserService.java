@@ -277,6 +277,11 @@ public class AdminUserService {
         
         List<User> filteredUsers = allUsers.stream()
                 .filter(user -> {
+                    // Filter by role (null = bỏ qua filter)
+                    if (request.getRole() != null && user.getRole() != request.getRole()) {
+                        return false;
+                    }
+
                     // Filter by status (null = bỏ qua filter)
                     if (request.getStatus() != null && user.getStatus() != request.getStatus()) {
                         return false;
