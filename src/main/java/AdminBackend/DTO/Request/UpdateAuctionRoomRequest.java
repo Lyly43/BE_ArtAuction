@@ -22,6 +22,13 @@ public class UpdateAuctionRoomRequest {
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime stoppedAt;
 
+    // Thời gian kết thúc dự kiến của phòng
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime estimatedEndTime;
+
     private Integer viewCount;
+
+    // Cho phép admin chủ động chuyển trạng thái phòng (ví dụ: hoãn = 3)
+    private Integer status;
 }
 

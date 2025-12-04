@@ -12,6 +12,7 @@ public class AuctionRoomStatisticsResponse {
     private long runningRooms;    // status = 1
     private long upcomingRooms;   // status = 0
     private long completedRooms;  // status = 2
+    private long cancelRooms;     // status = 3 (hoãn)
     
     // Thống kê so sánh tháng này vs tháng trước cho totalRooms
     private MonthlyComparison monthlyComparison;

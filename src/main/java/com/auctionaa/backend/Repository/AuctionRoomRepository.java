@@ -94,6 +94,9 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
 
     long countByStatus(int status);
 
+    // Lấy tất cả phòng theo status (ví dụ: 0 = Sắp diễn ra)
+    List<AuctionRoom> findByStatus(int status);
+
 //    List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
 
 }

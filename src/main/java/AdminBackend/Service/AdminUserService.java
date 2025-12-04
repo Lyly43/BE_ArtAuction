@@ -119,7 +119,7 @@ public class AdminUserService {
     public ResponseEntity<UserStatisticsResponse> getUserStatistics() {
         long totalUsers = userRepository.count();
         long activeUsers = userRepository.countByStatus(1); // status = 1 là đang hoạt động
-        long totalSellers = userRepository.countByRole(3); // role = 3 là seller
+        long totalSellers = userRepository.countByRole(2); // role = 2 là seller
         long totalBlockedUsers = userRepository.countByStatus(2); // status = 2 là bị khóa
 
         // Lấy thống kê so sánh tháng này vs tháng trước

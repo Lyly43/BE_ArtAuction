@@ -42,7 +42,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       "name": "Admin Root",
       "email": "admin@example.com",
       "avatar": "https://cdn.example.com/avatar.png",
-      "adminStatus": "ONLINE"
+      "role": 4
     }
     ```
 
@@ -150,7 +150,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - Lưu ý:
   - `totalUsers`: Tổng số người dùng
   - `activeUsers`: Tổng số người dùng đang hoạt động (status = 1)
-  - `totalSellers`: Tổng số người bán (role = 3)
+  - `totalSellers`: Tổng số người bán (role = 2)
   - `totalBlockedUsers`: Tổng số người dùng bị khóa (status = 2)
   - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số user
     - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
@@ -281,6 +281,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ### Lấy danh sách admin
 - Method & URL: `GET /api/admin/admins/lay-du-lieu`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Response: Mảng `AdminAdminResponse` với các trường:
   ```json
   [
@@ -345,6 +346,29 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     "status": 1,
     "message": "Admin deleted successfully",
     "data": null
+  }
+  ```
+
+### Lấy chi tiết 1 admin theo ID
+- Method & URL: `GET /api/admin/admins/{adminId}`
+- Quyền: **Chỉ Super Admin (role = 4)**
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
   }
   ```
 
@@ -515,8 +539,8 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ## 6. Quản lý Phòng đấu giá
 
-- **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `adminId`, `type`, `imageAuctionRoom`…).
-- **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại).
+- **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `estimatedEndTime`, `adminId`, `type`, `imageAuctionRoom`…).
+- **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại, thêm `estimatedEndTime`).
 - **Tìm kiếm:** `GET /api/admin/auction-rooms/tim-kiem?q={keyword}`.
 - **Lọc phòng đấu giá:** `POST /api/admin/auction-rooms/loc-phong-dau-gia`
   - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
@@ -532,7 +556,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     }
     ```
   - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
-    - `statuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, mảng các số nguyên `[0, 1, 2]` để chọn nhiều status cùng lúc. Giá trị: `0` = Sắp diễn ra (Coming Soon), `1` = Đang diễn ra (Live), `2` = Đã hoàn thành (Finished)
+    - `statuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, mảng các số nguyên `[0, 1, 2, 3]` để chọn nhiều status cùng lúc. Giá trị: `0` = Sắp diễn ra (Coming Soon), `1` = Đang diễn ra (Live), `2` = Đã hoàn thành (Finished), `3` = Hoãn (Postponed)
     - `startTimeFrom`: `null` = bỏ qua filter, thời gian bắt đầu tối thiểu (LocalDateTime) - lọc theo `startedAt` của phòng đấu giá
     - `startTimeTo`: `null` = bỏ qua filter, thời gian bắt đầu tối đa (LocalDateTime) - lọc theo `startedAt` của phòng đấu giá
     - `endTimeFrom`: `null` = bỏ qua filter, thời gian kết thúc tối thiểu (LocalDateTime) - lọc theo `stoppedAt` của phòng đấu giá
@@ -550,6 +574,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
         "status": 1,
         "startedAt": "2025-12-01T10:00:00",
         "stoppedAt": "2025-12-01T12:00:00",
+        "estimatedEndTime": "2025-12-01T12:30:00",
         "viewCount": 1200,
         "totalMembers": 25,
         "startingPrice": 1000000,
@@ -580,7 +605,8 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       "totalRooms": 100,
       "runningRooms": 20,
       "upcomingRooms": 30,
-      "completedRooms": 50,
+      "completedRooms": 45,
+      "cancelRooms": 5,
       "monthlyComparison": {
         "currentMonth": 100,
         "previousMonth": 95,
@@ -597,6 +623,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     - `runningRooms`: Số phòng đang chạy (status = 1)
     - `upcomingRooms`: Số phòng sắp diễn ra (status = 0)
     - `completedRooms`: Số phòng đã hoàn thành (status = 2)
+    - `cancelRooms`: Số phòng đã hoãn (status = 3)
     - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số phòng
       - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
       - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
@@ -610,9 +637,10 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     "description": "...",
     "material": "Oil",
     "type": "VIP",
-      "imageAuctionRoom": "https://example.com/image.jpg",
+    "imageAuctionRoom": "https://example.com/image.jpg",
     "startedAt": "2025-12-01T10:00:00",
     "stoppedAt": "2025-12-01T12:00:00",
+    "estimatedEndTime": "2025-12-01T12:30:00",
     "adminId": "Ad-1",
     "depositAmount": 5000,
     "paymentDeadlineDays": 3,
@@ -622,6 +650,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
   }
   ```
   - `imageAuctionRoom`: String (optional) - URL ảnh phòng đấu giá (lấy từ endpoint upload-ảnh)
+  - `estimatedEndTime`: String (optional, format `yyyy-MM-dd'T'HH:mm:ss`) - Thời gian kết thúc dự kiến của cả phòng (dùng để hiển thị & gửi email cảnh báo)
   - Response: `{ "status": 1, "message": "Auction room created successfully", "data": { "roomId": "...", "sessionsCreated": 3 } }`
 
 - **Upload ảnh phòng đấu giá:** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`

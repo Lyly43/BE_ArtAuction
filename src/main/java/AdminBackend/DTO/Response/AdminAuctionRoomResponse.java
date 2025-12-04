@@ -17,9 +17,12 @@ public class AdminAuctionRoomResponse {
     private String description;
     private String type;
     private String imageAuctionRoom;
-    private int status; // 0: Sắp diễn ra, 1: Đang diễn ra, 2: Đã hoàn thành
+    // 0: Sắp diễn ra, 1: Đang diễn ra, 2: Đã hoàn thành, 3: Hoãn
+    private int status;
     private LocalDateTime startedAt;
     private LocalDateTime stoppedAt;
+    // Thời gian kết thúc dự kiến
+    private LocalDateTime estimatedEndTime;
     private LocalDateTime createdAt;
     private BigDecimal startingPrice;
     private BigDecimal currentPrice;

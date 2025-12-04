@@ -90,6 +90,16 @@ public class AdminAdminController {
     public ResponseEntity<?> deleteAdmin(@PathVariable String adminId) {
         return adminAdminService.deleteAdmin(adminId);
     }
+
+    /**
+     * GET /api/admin/admins/{adminId}
+     * Lấy thông tin chi tiết 1 admin theo ID
+     * Chỉ super admin (role = 4) được phép gọi
+     */
+    @GetMapping("/{adminId}")
+    public ResponseEntity<?> getAdminById(@PathVariable String adminId) {
+        return adminAdminService.getAdminById(adminId);
+    }
 }
 
 

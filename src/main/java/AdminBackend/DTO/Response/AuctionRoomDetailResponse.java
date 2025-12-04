@@ -24,6 +24,8 @@ public class AuctionRoomDetailResponse {
     private String imageAuctionRoom;
     private LocalDateTime startedAt;
     private LocalDateTime stoppedAt;
+    // Thời gian kết thúc dự kiến
+    private LocalDateTime estimatedEndTime;
     private Integer totalMembers;
     private Integer viewCount;
     private BigDecimal depositAmount;

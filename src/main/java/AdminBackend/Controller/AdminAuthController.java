@@ -66,7 +66,7 @@ public class AdminAuthController {
     public ResponseEntity<AdminCheckTokenResponse> getCurrentAdmin(@RequestHeader("Authorization") String authHeader) {
         if (!adminJwtUtil.validateToken(authHeader)) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminCheckTokenResponse(0, "Invalid or expired token", null, null, null));
+                    .body(new AdminCheckTokenResponse(0, "Invalid or expired token", null, null, null, null));
         }
 
         String adminId = adminJwtUtil.extractAdminId(authHeader);
@@ -76,17 +76,23 @@ public class AdminAuthController {
 
         if (admin == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(new AdminCheckTokenResponse(0, "Admin not found", null, null, null));
+                    .body(new AdminCheckTokenResponse(0, "Admin not found", null, null, null, null));
         }
 
-        String role = adminJwtUtil.extractRole(authHeader);
+        String roleStr = adminJwtUtil.extractRole(authHeader);
+        Integer role = null;
+        try {
+            role = roleStr != null ? Integer.parseInt(roleStr) : null;
+        } catch (NumberFormatException ignored) {
+        }
 
         AdminCheckTokenResponse response = new AdminCheckTokenResponse(
                 1,
                 "Token is valid",
                 admin.getFullName(),
                 admin.getEmail(),
-                admin.getAvatar()
+                admin.getAvatar(),
+                role
         );
 
         return ResponseEntity.ok(response);

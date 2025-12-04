@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Phòng đấu giá sắp diễn ra nhưng ít người tham gia</title>
+</head>
+<body>
+<h2>Xin chào [[${adminName}]]</h2>
+
+<p>
+    Phòng đấu giá <strong>[[${roomName}]]</strong> sắp bắt đầu trong khoảng
+    <strong>[[${hoursLeft}]] giờ tới</strong>,
+    nhưng hiện tại chỉ có <strong>[[${memberCount}]]</strong> người tham gia.
+</p>
+
+<p>
+    - Thời gian bắt đầu: <strong>[[${startTime}]]</strong><br/>
+    - Thời gian kết thúc dự kiến: <strong>[[${estimatedEndTime}]]</strong><br/>
+</p>
+
+<p>
+    Bạn vui lòng kiểm tra và quyết định có nên hoãn phòng đấu giá này hay không,
+    hoặc thực hiện các hành động cần thiết để thu hút thêm người tham gia.
+</p>
+
+<p>
+    Bạn có thể xem chi tiết phòng đấu giá tại đây:
+    <a th:href="${roomLink}" href="[[${roomLink}]]">Mở phòng đấu giá</a>
+</p>
+
+<p>Trân trọng,<br/>Hệ thống ArtAuction</p>
+</body>
+</html>
+
+

@@ -10,7 +10,7 @@ import lombok.*;
 public class UserStatisticsResponse {
     private long totalUsers; // Tổng người dùng
     private long activeUsers; // Tổng người dùng đang hoạt động (status = 1)
-    private long totalSellers; // Tổng người bán (role = 3)
+    private long totalSellers; // Tổng người bán (role = 2)
     private long totalBlockedUsers; // Tổng người dùng bị khóa (status = 2)
     
     // Thống kê so sánh tháng này vs tháng trước cho totalUsers

@@ -12,6 +12,8 @@ import com.auctionaa.backend.Service.CloudinaryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -34,9 +36,34 @@ public class AdminAdminService {
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     /**
+     * Lấy admin hiện tại từ SecurityContext (dựa trên adminId trong JWT)
+     */
+    private Admin getCurrentAdmin() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getPrincipal() == null) {
+            throw new RuntimeException("Unauthenticated admin");
+        }
+        String adminId = (String) authentication.getPrincipal();
+        return adminRepository.findById(adminId)
+                .orElseThrow(() -> new RuntimeException("Admin not found for id from token: " + adminId));
+    }
+
+    /**
+     * Kiểm tra có phải super admin (role = 4) hay không
+     */
+    private boolean isSuperAdmin(Admin admin) {
+        return admin != null && admin.getRole() != null && admin.getRole() == 4;
+    }
+
+    /**
      * Admin thêm admin mới (JSON thuần, avatar là URL đã upload trước đó)
      */
     public ResponseEntity<AdminBasicResponse<AdminAdminResponse>> addAdmin(AddAdminRequest request) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AdminBasicResponse<>(0, "Only super admin (role = 4) can create admins", null));
+        }
         String fullName = request.getFullName();
         String email = request.getEmail();
         String password = request.getPassword();
@@ -83,6 +110,11 @@ public class AdminAdminService {
      * Frontend sẽ gọi endpoint này trước, lấy URL rồi set vào field avatar của AddAdminRequest
      */
     public ResponseEntity<AdminBasicResponse<java.util.Map<String, String>>> uploadAdminAvatar(MultipartFile avatarFile) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AdminBasicResponse<>(0, "Only super admin (role = 4) can upload admin avatar", null));
+        }
         if (avatarFile == null || avatarFile.isEmpty()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new AdminBasicResponse<>(0, "File avatar không được để trống", null));
@@ -108,6 +140,10 @@ public class AdminAdminService {
      * Lấy tất cả admin
      */
     public ResponseEntity<List<AdminAdminResponse>> getAllAdmins() {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         List<Admin> admins = adminRepository.findAll();
         List<AdminAdminResponse> responses = admins.stream()
                 .map(this::mapToAdminAdminResponse)
@@ -119,6 +155,10 @@ public class AdminAdminService {
      * Tìm kiếm admin theo ID, fullName, email, phoneNumber
      */
     public ResponseEntity<List<AdminAdminResponse>> searchAdmins(String searchTerm) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
             return getAllAdmins();
         }
@@ -134,6 +174,10 @@ public class AdminAdminService {
      * Thống kê admin
      */
     public ResponseEntity<AdminStatisticsResponse> getAdminStatistics() {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
         long totalAdmins = adminRepository.count();
         long activeAdmins = adminRepository.countByStatus(1);
         long lockedAdmins = adminRepository.countByStatus(0);
@@ -150,6 +194,11 @@ public class AdminAdminService {
      * Cập nhật admin
      */
     public ResponseEntity<UpdateResponse<AdminAdminResponse>> updateAdmin(String adminId, UpdateAdminRequest request) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new UpdateResponse<>(0, "Only super admin (role = 4) can update admins", null));
+        }
         Optional<Admin> adminOpt = adminRepository.findById(adminId);
 
         if (adminOpt.isEmpty()) {
@@ -194,6 +243,11 @@ public class AdminAdminService {
      * Xóa admin
      */
     public ResponseEntity<AdminBasicResponse<Void>> deleteAdmin(String adminId) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AdminBasicResponse<>(0, "Only super admin (role = 4) can delete admins", null));
+        }
         Optional<Admin> adminOpt = adminRepository.findById(adminId);
 
         if (adminOpt.isEmpty()) {
@@ -204,6 +258,27 @@ public class AdminAdminService {
         adminRepository.delete(adminOpt.get());
 
         return ResponseEntity.ok(new AdminBasicResponse<>(1, "Admin deleted successfully", null));
+    }
+
+    /**
+     * Lấy thông tin chi tiết 1 admin theo ID
+     * Chỉ super admin (role = 4) mới được phép gọi
+     */
+    public ResponseEntity<AdminBasicResponse<AdminAdminResponse>> getAdminById(String adminId) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                    .body(new AdminBasicResponse<>(0, "Only super admin (role = 4) can view admin detail", null));
+        }
+
+        Optional<Admin> adminOpt = adminRepository.findById(adminId);
+        if (adminOpt.isEmpty()) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new AdminBasicResponse<>(0, "Admin not found with ID: " + adminId, null));
+        }
+
+        AdminAdminResponse response = mapToAdminAdminResponse(adminOpt.get());
+        return ResponseEntity.ok(new AdminBasicResponse<>(1, "Success", response));
     }
 
     /**
