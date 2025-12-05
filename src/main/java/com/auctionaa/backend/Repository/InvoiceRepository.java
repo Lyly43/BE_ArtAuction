@@ -17,7 +17,8 @@ public interface InvoiceRepository extends MongoRepository<Invoice, String> {
 
     Optional<Invoice> findTopByUserIdOrderByOrderDateDesc(String userId);
 
-    List<Invoice> findByUserIdOrderByOrderDateDesc(String userId);
+    Page<Invoice> findByUserIdOrderByOrderDateDesc(String userId, Pageable pageable);
+
 
     List<Invoice> findByUserIdAndPaymentStatus(String userId, int paymentStatus);
 

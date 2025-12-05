@@ -2,6 +2,7 @@ package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
+import com.auctionaa.backend.DTO.Request.PagingRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.DTO.Response.MemberResponse;
 import com.auctionaa.backend.DTO.Response.SearchResponse;
@@ -23,18 +24,25 @@ public class AuctionRoomController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @GetMapping("/history")
-    public List<AuctionRoom> getMyAuctionRoom(@RequestHeader("Authorization") String authHeader) {
+    @PostMapping("/history")
+    public List<AuctionRoom> getMyAuctionRoom(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody PagingRequest req) {
+
         String token = authHeader.replace("Bearer ", "").trim();
         String email = jwtUtil.extractUserId(token);
-        return auctionRoomService.getByOwnerEmail(email);
+
+        return auctionRoomService.getByOwnerEmail(email, req.getPage(), req.getSize());
     }
 
-    @GetMapping("/allAuctionRoom")
-    public List<AuctionRoomLiveDTO> getAllPublicWithLivePrices() {
-        return auctionRoomService.getRoomsWithLivePrices();
-    }
 
+    @PostMapping("/allAuctionRoom")
+    public List<AuctionRoomLiveDTO> getAllPublicWithLivePrices(@RequestBody PagingRequest req) {
+        int page = req.getPage();
+        int size = req.getSize();
+
+        return auctionRoomService.getRoomsWithLivePrices(page, size);
+    }
     /**
      * Lấy tất cả phòng đấu giá trong database
      * GET /api/auctionroom/all
