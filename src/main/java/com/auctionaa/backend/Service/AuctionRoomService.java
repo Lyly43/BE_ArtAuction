@@ -41,6 +41,10 @@ public class AuctionRoomService {
     @Autowired
     private AuctionSessionRepository auctionSessionRepository;
 
+    public AuctionRoom getRoomById(String roomId){
+        return auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Room not found!"));
+    }
     public List<AuctionRoom> getByOwnerEmail(String email, int page, int size) {
         User user = userRepository.findById(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -56,6 +60,8 @@ public class AuctionRoomService {
 
         return rooms;
     }
+
+
 
 
     public List<AuctionRoom> getAllAuctionRoom() {
