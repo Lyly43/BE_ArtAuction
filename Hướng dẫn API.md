@@ -189,23 +189,9 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 ### Thêm admin
 
 - **Bước 1: Upload avatar (nếu có)**
-  - Method & URL: `POST /api/admin/admins/them-admin-upload-avatar`
-  - Content-Type: `multipart/form-data`
-  - Body (form-data):
-    - `avatarFile`: File (required) - Chọn file ảnh từ máy
-  - Response:
-   
-    {
-      "status": 1,
-      "message": "Upload avatar thành công",
-      "data": {
-        "avatarUrl": "https://cloudinary.com/.../avatar",
-        "publicId": "auctionaa/admins/temp-..."
-      }
-    }
-      - Lưu ý:
-    - Endpoint này **chỉ dùng để upload ảnh** và trả về URL
-    - Frontend lấy `avatarUrl` và gán vào field `avatar` khi gọi API tạo admin
+  - Dùng endpoint upload ảnh chung: `POST /api/admin/uploads/upload-image`
+  - Xem chi tiết ở phần "Upload ảnh chung" bên dưới
+  - Sau khi upload, lấy `imageUrl` từ response và gán vào field `avatar` khi tạo admin
 
 - **Bước 2: Tạo admin bằng JSON**
   - Method & URL: `POST /api/admin/admins/them-admin`
@@ -254,30 +240,37 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     - Nếu không gửi `role` thì hệ thống tự set `role = 3`
     - Email phải unique, nếu trùng sẽ trả về lỗi `"Email already exists"` với `status = 0`
 
-### Upload ảnh chung (tạo URL ảnh dùng lại nhiều nơi)
-- Method & URL: `POST /api/admin/uploads/upload-image`
-- Content-Type: `multipart/form-data`
-- Mô tả:
-  - API này dùng để upload **một ảnh chung** bất kỳ lên Cloudinary và trả về URL.
-  - Dùng cho các trường hợp cần URL ảnh lẻ (không gắn cứng với phòng đấu giá hay admin), frontend chỉ cần gọi API này, lấy URL và gán vào field tương ứng trong các API khác.
-- Request (Form-Data):
-  - key : imageFile
-  - `file`: File (required) – Ảnh cần upload từ thiết bị
-- Response (200):
+### Upload ảnh chung (DUY NHẤT - dùng cho tất cả các trường hợp)
+- **Method & URL:** `POST /api/admin/uploads/upload-image`
+- **Content-Type:** `multipart/form-data` (Postman sẽ tự động set khi chọn form-data)
+- **Mô tả:**
+  - **Đây là endpoint DUY NHẤT để upload ảnh** trong admin panel, dùng chung cho TẤT CẢ các trường hợp:
+    - Upload avatar admin
+    - Upload ảnh phòng đấu giá
+    - Upload ảnh bất kỳ khác
+  - Frontend chỉ cần gọi API này, lấy `imageUrl` từ response và gán vào field tương ứng trong các API khác.
+- **Hướng dẫn sử dụng trong Postman:**
+  1. Chọn method: `POST`
+  2. URL: `http://localhost:8081/api/admin/uploads/upload-image`
+  3. Tab **Body** → Chọn **form-data**
+  4. Thêm field:
+     - **Key:** `imageFile` | **Type:** `File` | **Value:** (click "Select Files" và chọn file ảnh từ máy tính)
+- **Response (200):**
   ```json
   {
     "status": 1,
     "message": "Upload ảnh thành công",
     "data": {
-      "imageUrl": "https://res.cloudinary.com/.../image/upload/auctionaa/misc/abc.jpg",
+      "imageUrl": "https://res.cloudinary.com/.../image/upload/auctionaa/misc/common-1733142222333.jpg",
       "publicId": "auctionaa/misc/common-1733142222333"
     }
   }
   ```
-- Lưu ý:
-  - `imageUrl`: URL ảnh dùng để lưu vào DB hoặc gửi kèm trong các API khác.
+- **Lưu ý:**
+  - `imageUrl`: URL ảnh dùng để lưu vào DB hoặc gửi kèm trong các API khác (ví dụ: field `avatar` khi tạo admin, field `imageAuctionRoom` khi tạo phòng đấu giá).
   - `publicId`: dùng nếu sau này cần xóa ảnh trên Cloudinary.
   - Nếu file rỗng hoặc không phải `image/*`, API sẽ trả `status = 0` và message lỗi tương ứng.
+  - **Workflow:** Upload ảnh → Lấy `imageUrl` từ response → Gửi `imageUrl` vào field tương ứng của các API khác (tạo admin, tạo phòng đấu giá, ...)
 
 ### Lấy danh sách admin
 - Method & URL: `GET /api/admin/admins/lay-du-lieu`
@@ -649,33 +642,13 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     ]
   }
   ```
-  - `imageAuctionRoom`: String (optional) - URL ảnh phòng đấu giá (lấy từ endpoint upload-ảnh)
+  - `imageAuctionRoom`: String (optional) - URL ảnh phòng đấu giá (lấy từ endpoint upload ảnh chung `/api/admin/uploads/upload-image`)
   - `estimatedEndTime`: String (optional, format `yyyy-MM-dd'T'HH:mm:ss`) - Thời gian kết thúc dự kiến của cả phòng (dùng để hiển thị & gửi email cảnh báo)
   - Response: `{ "status": 1, "message": "Auction room created successfully", "data": { "roomId": "...", "sessionsCreated": 3 } }`
-
-- **Upload ảnh phòng đấu giá:** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`
-  - Content-Type: `multipart/form-data` (Postman sẽ tự động set khi chọn form-data)
-  - **Hướng dẫn sử dụng trong Postman:**
-    1. Chọn method: `POST`
-    2. URL: `http://localhost:8081/api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`
-    3. Tab **Body** → Chọn **form-data**
-    4. Thêm field:
-       - **Key:** `imageAuctionRoomFile` | **Type:** `File` | **Value:** (click "Select Files" và chọn file ảnh từ máy tính)
-  - Response:
-    ```json
-    {
-      "status": 1,
-      "message": "Upload ảnh thành công",
-      "data": {
-        "imageUrl": "https://cloudinary.com/.../cover",
-        "publicId": "auctionaa/auction-rooms/..."
-      }
-    }
-    ```
-  - **Lưu ý:**
-    - Endpoint này chỉ upload file và trả về URL
-    - Frontend sẽ lấy `imageUrl` từ response và gửi vào field `imageAuctionRoom` của endpoint tạo phòng
-    - Workflow: Upload ảnh → Lấy URL → Gửi URL vào request tạo phòng
+  - **Lưu ý về upload ảnh:**
+    - Để upload ảnh phòng đấu giá, dùng endpoint upload ảnh chung: `POST /api/admin/uploads/upload-image`
+    - Xem chi tiết ở phần "Upload ảnh chung" trong mục "Quản lý Admin"
+    - Sau khi upload, lấy `imageUrl` từ response và gán vào field `imageAuctionRoom` khi tạo phòng
 - **Lấy chi tiết phòng:** `GET /api/admin/auction-rooms/{roomId}`
   - Response:
     ```json

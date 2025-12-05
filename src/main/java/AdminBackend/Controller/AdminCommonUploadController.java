@@ -22,26 +22,39 @@ public class AdminCommonUploadController {
     /**
      * POST /api/admin/uploads/upload-image
      * Upload ảnh chung từ thiết bị và trả về URL
-     *
-     * - file: MultipartFile (required) - Ảnh cần upload
-     *
-     * Dùng cho các trường hợp cần upload ảnh lẻ, không gắn cố định với entity nào,
-     * frontend sẽ lấy URL trả về và lưu vào field tương ứng.
-     *
-     * Lưu ý:
-     * - Backend KHÔNG ép consumes, để chấp nhận cả trường hợp Content-Type bị thiếu header.
-     * - Tuy nhiên, chuẩn nhất vẫn là gửi multipart/form-data với key = imageFile
+     * 
+     * Endpoint này dùng chung cho TẤT CẢ các trường hợp upload ảnh trong admin:
+     * - Upload avatar admin
+     * - Upload ảnh phòng đấu giá
+     * - Upload ảnh bất kỳ khác
+     * 
+     * Request:
+     * - Body: form-data
+     * - Key: `imageFile` (bắt buộc)
+     * - Value: File (chọn file ảnh từ máy tính)
+     * 
+     * Response:
+     * {
+     *   "status": 1,
+     *   "message": "Upload ảnh thành công",
+     *   "data": {
+     *     "imageUrl": "https://cloudinary.com/...",
+     *     "publicId": "auctionaa/misc/common-..."
+     *   }
+     * }
+     * 
+     * Frontend sẽ lấy `imageUrl` từ response và gửi vào field tương ứng của các API khác.
      */
-    @PostMapping(value = "/upload-image")
-    public ResponseEntity<AdminBasicResponse<Map<String, String>>> uploadCommonImage(
-            @RequestPart("imageFile") MultipartFile imageFile) {
+    @PostMapping("/upload-image")
+    public ResponseEntity<AdminBasicResponse<Map<String, String>>> uploadImage(
+            @RequestParam("imageFile") MultipartFile imageFile) {
         if (imageFile == null || imageFile.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(new AdminBasicResponse<>(0, "File ảnh không được để trống", null));
         }
 
         try {
-            // Dùng core uploadImage với folder "auctionaa/misc" (hoặc baseFolder/misc)
+            // Dùng core uploadImage với folder "auctionaa/misc"
             String folder = "auctionaa/misc";
             String publicId = "common-" + System.currentTimeMillis();
 

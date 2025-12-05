@@ -668,64 +668,277 @@ public class AdminReportService {
     private AdminReportResponse mapDocumentToResponse(Document doc) {
         String reportId = doc.getString("_id");
         
-        // Lấy user từ DBRef (DBRef trong MongoDB là Document với $ref và $id)
+        // ========== LẤY THÔNG TIN NGƯỜI BÁO CÁO (REPORTER) ==========
+        // Ưu tiên: reporterId (field mới) -> userId (field cũ) -> user (DBRef)
         User reporter = null;
         String reporterId = null;
-        Object userRef = doc.get("user");
-        if (userRef instanceof Document) {
-            Document userDbRef = (Document) userRef;
-            Object idObj = userDbRef.get("$id");
-            if (idObj != null) {
-                reporterId = idObj.toString();
-                if (reporterId != null && !reporterId.trim().isEmpty()) {
-                    reporter = userRepository.findById(reporterId).orElse(null);
-                }
-            }
-        } else if (userRef instanceof String) {
-            reporterId = (String) userRef;
+        
+        // 1. Thử đọc từ reporterId (field mới)
+        Object reporterIdObj = doc.get("reporterId");
+        if (reporterIdObj != null) {
+            reporterId = reporterIdObj.toString();
             if (reporterId != null && !reporterId.trim().isEmpty()) {
                 reporter = userRepository.findById(reporterId).orElse(null);
             }
         }
         
-        // Lấy reportobject từ DBRef
-        ReportObject reportObject = null;
-        String objectId = null;
-        String objectName = null;
-        Object reportObjectRef = doc.get("reportobject");
-        if (reportObjectRef instanceof Document) {
-            Document objectDbRef = (Document) reportObjectRef;
-            Object idObj = objectDbRef.get("$id");
-            if (idObj != null) {
-                objectId = idObj.toString();
-                if (objectId != null && !objectId.trim().isEmpty()) {
-                    reportObject = reportObjectRepository.findById(objectId).orElse(null);
+        // 2. Nếu chưa có, thử đọc từ userId (field cũ)
+        if (reporter == null) {
+            Object userIdObj = doc.get("userId");
+            if (userIdObj != null) {
+                reporterId = userIdObj.toString();
+                if (reporterId != null && !reporterId.trim().isEmpty()) {
+                    reporter = userRepository.findById(reporterId).orElse(null);
                 }
             }
-        } else if (reportObjectRef instanceof String) {
-            objectId = (String) reportObjectRef;
-            if (objectId != null && !objectId.trim().isEmpty()) {
-                reportObject = reportObjectRepository.findById(objectId).orElse(null);
+        }
+        
+        // 3. Nếu vẫn chưa có, thử đọc từ user DBRef (cấu trúc cũ)
+        if (reporter == null) {
+            Object userRef = doc.get("user");
+            if (userRef instanceof Document) {
+                Document userDbRef = (Document) userRef;
+                Object idObj = userDbRef.get("$id");
+                if (idObj != null) {
+                    reporterId = idObj.toString();
+                    if (reporterId != null && !reporterId.trim().isEmpty()) {
+                        reporter = userRepository.findById(reporterId).orElse(null);
+                    }
+                }
+            } else if (userRef instanceof String) {
+                reporterId = (String) userRef;
+                if (reporterId != null && !reporterId.trim().isEmpty()) {
+                    reporter = userRepository.findById(reporterId).orElse(null);
+                }
             }
         }
         
-        // Lấy thông tin object từ ReportObject
+        // ========== LẤY THÔNG TIN ĐỐI TƯỢNG BỊ BÁO CÁO ==========
+        // Ưu tiên: reportedEntityId (field mới) -> objectId (field cũ) -> reportObject (DBRef)
+        String objectId = null;
+        String objectName = null;
+        String objectEmail = null;
         User objectUser = null;
-        if (reportObject != null) {
-            if (reportObject.getUserId() != null && !reportObject.getUserId().trim().isEmpty()) {
-                objectUser = userRepository.findById(reportObject.getUserId()).orElse(null);
-                objectName = objectUser != null ? objectUser.getUsername() : null;
-            } else if (reportObject.getArtworkId() != null && !reportObject.getArtworkId().trim().isEmpty()) {
-                objectName = "Artwork: " + reportObject.getArtworkId();
-            } else if (reportObject.getAuctionRoomId() != null && !reportObject.getAuctionRoomId().trim().isEmpty()) {
-                objectName = "AuctionRoom: " + reportObject.getAuctionRoomId();
+        Artwork objectArtwork = null;
+        AuctionRoom objectRoom = null;
+        
+        // 1. Thử đọc từ reportedEntityId (field mới) và entityType
+        Object reportedEntityIdObj = doc.get("reportedEntityId");
+        Object entityTypeObj = doc.get("entityType");
+        int entityType = 0;
+        if (entityTypeObj instanceof Number) {
+            entityType = ((Number) entityTypeObj).intValue();
+        } else if (entityTypeObj instanceof String) {
+            try {
+                entityType = Integer.parseInt((String) entityTypeObj);
+            } catch (NumberFormatException e) {
+                entityType = 0;
             }
         }
         
-        // Lấy các trường khác
+        if (reportedEntityIdObj != null && entityType > 0) {
+            objectId = reportedEntityIdObj.toString();
+            if (objectId != null && !objectId.trim().isEmpty()) {
+                // Lấy thông tin đối tượng dựa trên entityType
+                switch (entityType) {
+                    case ReportConstants.ENTITY_USER:
+                        objectUser = userRepository.findById(objectId).orElse(null);
+                        if (objectUser != null) {
+                            objectName = objectUser.getUsername();
+                            objectEmail = objectUser.getEmail();
+                        }
+                        break;
+                    case ReportConstants.ENTITY_ARTWORK:
+                    case ReportConstants.ENTITY_AI_ARTWORK:
+                        objectArtwork = artworkRepository.findById(objectId).orElse(null);
+                        if (objectArtwork != null) {
+                            objectName = objectArtwork.getTitle();
+                            // Lấy email của owner
+                            if (objectArtwork.getOwnerId() != null) {
+                                Optional<User> ownerOpt = userRepository.findById(objectArtwork.getOwnerId());
+                                if (ownerOpt.isPresent()) {
+                                    objectEmail = ownerOpt.get().getEmail();
+                                }
+                            }
+                        }
+                        break;
+                    case ReportConstants.ENTITY_AUCTION_ROOM:
+                        objectRoom = auctionRoomRepository.findById(objectId).orElse(null);
+                        if (objectRoom != null) {
+                            objectName = objectRoom.getRoomName();
+                            // Lấy email của admin phụ trách
+                            if (objectRoom.getAdminId() != null) {
+                                Optional<User> adminOpt = userRepository.findById(objectRoom.getAdminId());
+                                if (adminOpt.isPresent()) {
+                                    objectEmail = adminOpt.get().getEmail();
+                                }
+                            }
+                        }
+                        break;
+                }
+            }
+        }
+        
+        // 2. Nếu chưa có, thử đọc từ objectId (field cũ)
+        if (objectId == null || objectName == null) {
+            Object objectIdObj = doc.get("objectId");
+            if (objectIdObj != null) {
+                objectId = objectIdObj.toString();
+                if (objectId != null && !objectId.trim().isEmpty()) {
+                    // Thử tìm như User trước
+                    objectUser = userRepository.findById(objectId).orElse(null);
+                    if (objectUser != null) {
+                        objectName = objectUser.getUsername();
+                        objectEmail = objectUser.getEmail();
+                    } else {
+                        // Thử tìm như Artwork
+                        objectArtwork = artworkRepository.findById(objectId).orElse(null);
+                        if (objectArtwork != null) {
+                            objectName = objectArtwork.getTitle();
+                            if (objectArtwork.getOwnerId() != null) {
+                                Optional<User> ownerOpt = userRepository.findById(objectArtwork.getOwnerId());
+                                if (ownerOpt.isPresent()) {
+                                    objectEmail = ownerOpt.get().getEmail();
+                                }
+                            }
+                        } else {
+                            // Thử tìm như AuctionRoom
+                            objectRoom = auctionRoomRepository.findById(objectId).orElse(null);
+                            if (objectRoom != null) {
+                                objectName = objectRoom.getRoomName();
+                                if (objectRoom.getAdminId() != null) {
+                                    Optional<User> adminOpt = userRepository.findById(objectRoom.getAdminId());
+                                    if (adminOpt.isPresent()) {
+                                        objectEmail = adminOpt.get().getEmail();
+                                    }
+                                }
+                            } else {
+                                // Fallback về object field (String)
+                                Object objectObj = doc.get("object");
+                                if (objectObj != null) {
+                                    objectName = objectObj.toString();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // 3. Nếu vẫn chưa có, thử đọc từ reportObject DBRef (cấu trúc cũ)
+        if (objectName == null) {
+            Object reportObjectRef = doc.get("reportobject");
+            if (reportObjectRef instanceof Document) {
+                Document objectDbRef = (Document) reportObjectRef;
+                Object idObj = objectDbRef.get("$id");
+                if (idObj != null) {
+                    String reportObjectId = idObj.toString();
+                    if (reportObjectId != null && !reportObjectId.trim().isEmpty()) {
+                        Optional<ReportObject> reportObjectOpt = reportObjectRepository.findById(reportObjectId);
+                        if (reportObjectOpt.isPresent()) {
+                            ReportObject reportObject = reportObjectOpt.get();
+                            if (reportObject.getUserId() != null && !reportObject.getUserId().trim().isEmpty()) {
+                                objectUser = userRepository.findById(reportObject.getUserId()).orElse(null);
+                                if (objectUser != null) {
+                                    objectName = objectUser.getUsername();
+                                    objectEmail = objectUser.getEmail();
+                                }
+                            } else if (reportObject.getArtworkId() != null && !reportObject.getArtworkId().trim().isEmpty()) {
+                                objectId = reportObject.getArtworkId();
+                                objectArtwork = artworkRepository.findById(objectId).orElse(null);
+                                if (objectArtwork != null) {
+                                    objectName = objectArtwork.getTitle();
+                                    if (objectArtwork.getOwnerId() != null) {
+                                        Optional<User> ownerOpt = userRepository.findById(objectArtwork.getOwnerId());
+                                        if (ownerOpt.isPresent()) {
+                                            objectEmail = ownerOpt.get().getEmail();
+                                        }
+                                    }
+                                } else {
+                                    objectName = "Artwork: " + reportObject.getArtworkId();
+                                }
+                            } else if (reportObject.getAuctionRoomId() != null && !reportObject.getAuctionRoomId().trim().isEmpty()) {
+                                objectId = reportObject.getAuctionRoomId();
+                                objectRoom = auctionRoomRepository.findById(objectId).orElse(null);
+                                if (objectRoom != null) {
+                                    objectName = objectRoom.getRoomName();
+                                    if (objectRoom.getAdminId() != null) {
+                                        Optional<User> adminOpt = userRepository.findById(objectRoom.getAdminId());
+                                        if (adminOpt.isPresent()) {
+                                            objectEmail = adminOpt.get().getEmail();
+                                        }
+                                    }
+                                } else {
+                                    objectName = "AuctionRoom: " + reportObject.getAuctionRoomId();
+                                }
+                            }
+                        }
+                    }
+                }
+            } else if (reportObjectRef instanceof String) {
+                String reportObjectId = (String) reportObjectRef;
+                if (reportObjectId != null && !reportObjectId.trim().isEmpty()) {
+                    Optional<ReportObject> reportObjectOpt = reportObjectRepository.findById(reportObjectId);
+                    if (reportObjectOpt.isPresent()) {
+                        ReportObject reportObject = reportObjectOpt.get();
+                        if (reportObject.getUserId() != null && !reportObject.getUserId().trim().isEmpty()) {
+                            objectUser = userRepository.findById(reportObject.getUserId()).orElse(null);
+                            if (objectUser != null) {
+                                objectName = objectUser.getUsername();
+                                objectEmail = objectUser.getEmail();
+                            }
+                        } else if (reportObject.getArtworkId() != null && !reportObject.getArtworkId().trim().isEmpty()) {
+                            objectId = reportObject.getArtworkId();
+                            objectArtwork = artworkRepository.findById(objectId).orElse(null);
+                            if (objectArtwork != null) {
+                                objectName = objectArtwork.getTitle();
+                                if (objectArtwork.getOwnerId() != null) {
+                                    Optional<User> ownerOpt = userRepository.findById(objectArtwork.getOwnerId());
+                                    if (ownerOpt.isPresent()) {
+                                        objectEmail = ownerOpt.get().getEmail();
+                                    }
+                                }
+                            } else {
+                                objectName = "Artwork: " + reportObject.getArtworkId();
+                            }
+                        } else if (reportObject.getAuctionRoomId() != null && !reportObject.getAuctionRoomId().trim().isEmpty()) {
+                            objectId = reportObject.getAuctionRoomId();
+                            objectRoom = auctionRoomRepository.findById(objectId).orElse(null);
+                            if (objectRoom != null) {
+                                objectName = objectRoom.getRoomName();
+                                if (objectRoom.getAdminId() != null) {
+                                    Optional<User> adminOpt = userRepository.findById(objectRoom.getAdminId());
+                                    if (adminOpt.isPresent()) {
+                                        objectEmail = adminOpt.get().getEmail();
+                                    }
+                                }
+                            } else {
+                                objectName = "AuctionRoom: " + reportObject.getAuctionRoomId();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        // ========== LẤY CÁC TRƯỜNG KHÁC ==========
+        // reportTarget: từ reportTarget hoặc xác định từ entityType
         String reportTarget = doc.getString("reportTarget");
-        String reportReason = doc.getString("reportReason");
-        Object statusObj = doc.get("reportStatus");
+        if (reportTarget == null && entityType > 0) {
+            reportTarget = ReportConstants.getEntityTypeName(entityType);
+        }
+        
+        // reportReason: ưu tiên reason (field mới) -> reportReason (field cũ)
+        String reportReason = doc.getString("reason");
+        if (reportReason == null || reportReason.trim().isEmpty()) {
+            reportReason = doc.getString("reportReason");
+        }
+        
+        // status: ưu tiên status (field mới) -> reportStatus (field cũ)
+        Object statusObj = doc.get("status");
+        if (statusObj == null) {
+            statusObj = doc.get("reportStatus");
+        }
         int reportStatus = 0;
         if (statusObj instanceof Number) {
             reportStatus = ((Number) statusObj).intValue();
@@ -797,7 +1010,7 @@ public class AdminReportService {
                 reporter != null ? reporter.getAvt() : null,
                 objectId,
                 objectName,
-                objectUser != null ? objectUser.getEmail() : null,
+                objectEmail, // Dùng objectEmail đã lấy được từ các nguồn khác nhau
                 reportTarget,
                 reportReason,
                 reportStatus,
@@ -811,29 +1024,135 @@ public class AdminReportService {
      * Map Reports entity sang AdminReportResponse (fallback nếu không dùng DBRef)
      */
     private AdminReportResponse mapToResponse(Reports report) {
-        // Kiểm tra null trước khi gọi findById để tránh lỗi "The given id must not be null"
+        // ========== LẤY THÔNG TIN NGƯỜI BÁO CÁO ==========
+        // Ưu tiên: reporterId (field mới) -> userId (field cũ)
         User reporter = null;
-        if (report.getUserId() != null && !report.getUserId().trim().isEmpty()) {
-            reporter = userRepository.findById(report.getUserId()).orElse(null);
+        String reporterId = null;
+        
+        if (report.getReporterId() != null && !report.getReporterId().trim().isEmpty()) {
+            reporterId = report.getReporterId();
+            reporter = userRepository.findById(reporterId).orElse(null);
+        } else if (report.getUserId() != null && !report.getUserId().trim().isEmpty()) {
+            reporterId = report.getUserId();
+            reporter = userRepository.findById(reporterId).orElse(null);
         }
         
-        User objectUser = null;
-        if (report.getObjectId() != null && !report.getObjectId().trim().isEmpty()) {
-            objectUser = userRepository.findById(report.getObjectId()).orElse(null);
+        // ========== LẤY THÔNG TIN ĐỐI TƯỢNG BỊ BÁO CÁO ==========
+        // Ưu tiên: reportedEntityId (field mới) -> objectId (field cũ)
+        String objectId = null;
+        String objectName = null;
+        String objectEmail = null;
+        
+        if (report.getReportedEntityId() != null && !report.getReportedEntityId().trim().isEmpty() && report.getEntityType() > 0) {
+            objectId = report.getReportedEntityId();
+            // Lấy thông tin đối tượng dựa trên entityType
+            switch (report.getEntityType()) {
+                case ReportConstants.ENTITY_USER:
+                    Optional<User> userOpt = userRepository.findById(objectId);
+                    if (userOpt.isPresent()) {
+                        User objectUser = userOpt.get();
+                        objectName = objectUser.getUsername();
+                        objectEmail = objectUser.getEmail();
+                    }
+                    break;
+                case ReportConstants.ENTITY_ARTWORK:
+                case ReportConstants.ENTITY_AI_ARTWORK:
+                    Optional<Artwork> artworkOpt = artworkRepository.findById(objectId);
+                    if (artworkOpt.isPresent()) {
+                        Artwork artwork = artworkOpt.get();
+                        objectName = artwork.getTitle();
+                        if (artwork.getOwnerId() != null) {
+                            Optional<User> ownerOpt = userRepository.findById(artwork.getOwnerId());
+                            if (ownerOpt.isPresent()) {
+                                objectEmail = ownerOpt.get().getEmail();
+                            }
+                        }
+                    }
+                    break;
+                case ReportConstants.ENTITY_AUCTION_ROOM:
+                    Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(objectId);
+                    if (roomOpt.isPresent()) {
+                        AuctionRoom room = roomOpt.get();
+                        objectName = room.getRoomName();
+                        if (room.getAdminId() != null) {
+                            Optional<User> adminOpt = userRepository.findById(room.getAdminId());
+                            if (adminOpt.isPresent()) {
+                                objectEmail = adminOpt.get().getEmail();
+                            }
+                        }
+                    }
+                    break;
+            }
+        } else if (report.getObjectId() != null && !report.getObjectId().trim().isEmpty()) {
+            objectId = report.getObjectId();
+            // Thử tìm như User trước
+            Optional<User> userOpt = userRepository.findById(objectId);
+            if (userOpt.isPresent()) {
+                User objectUser = userOpt.get();
+                objectName = objectUser.getUsername();
+                objectEmail = objectUser.getEmail();
+            } else {
+                // Thử tìm như Artwork
+                Optional<Artwork> artworkOpt = artworkRepository.findById(objectId);
+                if (artworkOpt.isPresent()) {
+                    Artwork artwork = artworkOpt.get();
+                    objectName = artwork.getTitle();
+                    if (artwork.getOwnerId() != null) {
+                        Optional<User> ownerOpt = userRepository.findById(artwork.getOwnerId());
+                        if (ownerOpt.isPresent()) {
+                            objectEmail = ownerOpt.get().getEmail();
+                        }
+                    }
+                } else {
+                    // Thử tìm như AuctionRoom
+                    Optional<AuctionRoom> roomOpt = auctionRoomRepository.findById(objectId);
+                    if (roomOpt.isPresent()) {
+                        AuctionRoom room = roomOpt.get();
+                        objectName = room.getRoomName();
+                        if (room.getAdminId() != null) {
+                            Optional<User> adminOpt = userRepository.findById(room.getAdminId());
+                            if (adminOpt.isPresent()) {
+                                objectEmail = adminOpt.get().getEmail();
+                            }
+                        }
+                    } else {
+                        // Fallback về object field (String)
+                        objectName = report.getObject();
+                    }
+                }
+            }
+        }
+        
+        // reportTarget: từ entityType hoặc null
+        String reportTarget = null;
+        if (report.getEntityType() > 0) {
+            reportTarget = ReportConstants.getEntityTypeName(report.getEntityType());
+        }
+        
+        // reportReason: ưu tiên reason (field mới) -> reportReason (field cũ)
+        String reportReason = report.getReason();
+        if (reportReason == null || reportReason.trim().isEmpty()) {
+            reportReason = report.getReportReason();
+        }
+        
+        // status: ưu tiên status (field mới) -> reportStatus (field cũ)
+        int reportStatus = report.getStatus();
+        if (reportStatus == 0 && report.getReportStatus() != 0) {
+            reportStatus = report.getReportStatus();
         }
 
         return new AdminReportResponse(
                 report.getId(),
-                report.getUserId(),
+                reporterId,
                 reporter != null ? reporter.getUsername() : null,
                 reporter != null ? reporter.getEmail() : null,
                 reporter != null ? reporter.getAvt() : null,
-                report.getObjectId(),
-                objectUser != null ? objectUser.getUsername() : report.getObject(),
-                objectUser != null ? objectUser.getEmail() : null,
-                null, // reportTarget
-                report.getReportReason(),
-                report.getReportStatus(),
+                objectId,
+                objectName,
+                objectEmail,
+                reportTarget,
+                reportReason,
+                reportStatus,
                 report.getCreatedAt(), // reportTime
                 report.getCreatedAt(),
                 report.getResolvedAt()

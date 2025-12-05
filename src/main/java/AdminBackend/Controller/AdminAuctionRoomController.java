@@ -69,18 +69,6 @@ public class AdminAuctionRoomController {
         return adminAuctionRoomService.createAuctionRoomComplete(request);
     }
 
-    /**
-     * POST /api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh
-     * Upload ảnh phòng đấu giá từ thiết bị và trả về URL
-     * 
-     * Lưu ý: Endpoint này chỉ upload file và trả về URL
-     * Frontend sẽ dùng URL này để gửi vào field imageAuctionRoom của endpoint tạo phòng
-     */
-    @PostMapping(value = "/tao-phong-hoan-chinh-upload-anh", consumes = "multipart/form-data")
-    public ResponseEntity<?> uploadAuctionRoomImage(
-            @RequestPart(value = "imageAuctionRoomFile") MultipartFile imageAuctionRoomFile) {
-        return adminAuctionRoomService.uploadAuctionRoomImage(imageAuctionRoomFile);
-    }
 
     /**
      * POST /api/admin/auction-rooms/loc-phong-dau-gia

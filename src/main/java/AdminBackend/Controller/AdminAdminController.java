@@ -20,17 +20,6 @@ public class AdminAdminController {
     @Autowired
     private AdminAdminService adminAdminService;
 
-    /**
-     * POST /api/admin/admins/them-admin-upload-avatar
-     * Upload avatar admin từ thiết bị và trả về URL
-     *
-     * - avatarFile: MultipartFile (required) - Ảnh avatar từ thiết bị
-     */
-    @PostMapping(value = "/them-admin-upload-avatar", consumes = "multipart/form-data")
-    public ResponseEntity<?> uploadAdminAvatar(
-            @RequestPart("avatarFile") MultipartFile avatarFile) {
-        return adminAdminService.uploadAdminAvatar(avatarFile);
-    }
 
     /**
      * POST /api/admin/admins/them-admin
