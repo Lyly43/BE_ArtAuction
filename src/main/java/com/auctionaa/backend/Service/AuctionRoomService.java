@@ -11,6 +11,9 @@ import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.AuctionSessionRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -38,13 +41,28 @@ public class AuctionRoomService {
     @Autowired
     private AuctionSessionRepository auctionSessionRepository;
 
-    public List<AuctionRoom> getByOwnerEmail(String email) {
+    public AuctionRoom getRoomById(String roomId){
+        return auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new RuntimeException("Room not found!"));
+    }
+    public List<AuctionRoom> getByOwnerEmail(String email, int page, int size) {
         User user = userRepository.findById(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        List<AuctionRoom> rooms = auctionRoomRepository.findByMemberIdsContaining(user.getId());
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<AuctionRoom> pageResult =
+                auctionRoomRepository.findByMemberIdsContaining(user.getId(), pageable);
+
+        List<AuctionRoom> rooms = pageResult.getContent();
+
         initializeDepositForRooms(rooms);
+
         return rooms;
     }
+
+
+
 
     public List<AuctionRoom> getAllAuctionRoom() {
         List<AuctionRoom> rooms = auctionRoomRepository.findAll();
@@ -87,11 +105,21 @@ public class AuctionRoomService {
         return rooms;
     }
 
-    public List<AuctionRoomLiveDTO> getRoomsWithLivePrices() {
-        List<AuctionRoomLiveDTO> rooms = auctionRoomRepository.findRoomsWithLivePrices(SESSION_STATUS_RUNNING);
+    public List<AuctionRoomLiveDTO> getRoomsWithLivePrices(int page, int size) {
+        long skip = (long) page * size;
+        long limit = size;
+
+        List<AuctionRoomLiveDTO> rooms =
+                auctionRoomRepository.findRoomsWithLivePrices(
+                        SESSION_STATUS_RUNNING,
+                        skip,
+                        limit
+                );
+
         initializeDepositForLiveRooms(rooms);
         return rooms;
     }
+
 
     /**
      * Tìm kiếm và lọc auction room của user hiện tại theo các tiêu chí:

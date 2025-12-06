@@ -2,11 +2,15 @@ package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
+import com.auctionaa.backend.DTO.Request.PagingRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.DTO.Response.MemberResponse;
+import com.auctionaa.backend.DTO.Response.RoomDetailDTO;
 import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
+import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Jwt.JwtUtil;
+import com.auctionaa.backend.Repository.AuctionSessionRepository;
 import com.auctionaa.backend.Service.AuctionRoomService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -23,18 +27,33 @@ public class AuctionRoomController {
     @Autowired
     private JwtUtil jwtUtil;
 
-    @GetMapping("/history")
-    public List<AuctionRoom> getMyAuctionRoom(@RequestHeader("Authorization") String authHeader) {
+    @Autowired
+    AuctionSessionRepository auctionSessionRepository;
+    @GetMapping("room/{id}")
+    public RoomDetailDTO getRoomAndSessionByRoomId(@PathVariable String id){
+        AuctionRoom auctionRoom = auctionRoomService.getRoomById(id);
+        List<AuctionSession> auctionSessionList = auctionSessionRepository.findByAuctionRoomId(id);
+        return new RoomDetailDTO(auctionRoom,auctionSessionList);
+    }
+    @PostMapping("/history")
+    public List<AuctionRoom> getMyAuctionRoom(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody PagingRequest req) {
+
         String token = authHeader.replace("Bearer ", "").trim();
         String email = jwtUtil.extractUserId(token);
-        return auctionRoomService.getByOwnerEmail(email);
+
+        return auctionRoomService.getByOwnerEmail(email, req.getPage(), req.getSize());
     }
 
-    @GetMapping("/allAuctionRoom")
-    public List<AuctionRoomLiveDTO> getAllPublicWithLivePrices() {
-        return auctionRoomService.getRoomsWithLivePrices();
-    }
 
+    @PostMapping("/allAuctionRoom")
+    public List<AuctionRoomLiveDTO> getAllPublicWithLivePrices(@RequestBody PagingRequest req) {
+        int page = req.getPage();
+        int size = req.getSize();
+
+        return auctionRoomService.getRoomsWithLivePrices(page, size);
+    }
     /**
      * Lấy tất cả phòng đấu giá trong database
      * GET /api/auctionroom/all

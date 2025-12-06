@@ -1,6 +1,7 @@
 package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.CreateInvoiceRequest;
+import com.auctionaa.backend.DTO.Request.PagingRequest;
 import com.auctionaa.backend.DTO.Response.InvoiceListItemDTO;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Jwt.JwtUtil;
@@ -39,12 +40,17 @@ public class InvoiceController {
     }
 
     // FE hiện tại: trả mảng đơn giản (không Page)
-    @GetMapping("/my-invoice")
-    public List<InvoiceListItemDTO> getMyInvoices(@RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
+    @PostMapping("/my-invoice")
+    public List<InvoiceListItemDTO> getMyInvoices(
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody PagingRequest req) {
+
+        String token = authHeader.replace("Bearer ", "").trim();
         String email = jwtUtil.extractUserId(token);
-        return invoiceService.getMyInvoicesArray(email);
+
+        return invoiceService.getMyInvoicesArray(email, req.getPage(), req.getSize());
     }
+
 
 
 }
