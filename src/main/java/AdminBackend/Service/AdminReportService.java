@@ -1,6 +1,7 @@
 package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.ProcessReportRequest;
+import AdminBackend.DTO.Request.ReportFilterRequest;
 import AdminBackend.DTO.Request.UpdateReportRequest;
 import AdminBackend.DTO.Response.AdminReportApiResponse;
 import AdminBackend.DTO.Response.AdminReportResponse;
@@ -114,6 +115,60 @@ public class AdminReportService {
                 ? String.format("Tìm thấy %d báo cáo cho từ khóa '%s'", data.size(), searchTerm)
                 : "Lấy danh sách báo cáo thành công";
         return ResponseEntity.ok(new AdminReportApiResponse<>(1, message, data));
+    }
+
+    /**
+     * Lọc report theo các tiêu chí: reportStatuses, objectTypes, createdAt
+     */
+    public ResponseEntity<AdminReportApiResponse<List<AdminReportResponse>>> filterReports(ReportFilterRequest request) {
+        // Nếu request null, trả về tất cả reports
+        if (request == null) {
+            return getAllReports();
+        }
+        
+        // Xây dựng query MongoDB
+        Document query = new Document();
+        
+        // Filter by reportStatuses (reportStatus field)
+        if (request.getReportStatuses() != null && !request.getReportStatuses().isEmpty()) {
+            query.append("reportStatus", new Document("$in", request.getReportStatuses()));
+        }
+        
+        // Filter by objectTypes (entityType field)
+        if (request.getObjectTypes() != null && !request.getObjectTypes().isEmpty()) {
+            query.append("entityType", new Document("$in", request.getObjectTypes()));
+        }
+        
+        // Filter by createdAt range
+        if (request.getCreatedAtFrom() != null || request.getCreatedAtTo() != null) {
+            Document dateQuery = new Document();
+            if (request.getCreatedAtFrom() != null) {
+                LocalDateTime fromDateTime = request.getCreatedAtFrom().atStartOfDay();
+                dateQuery.append("$gte", Date.from(fromDateTime.atZone(ZoneId.systemDefault()).toInstant()));
+            }
+            if (request.getCreatedAtTo() != null) {
+                LocalDateTime toDateTime = request.getCreatedAtTo().atTime(23, 59, 59);
+                dateQuery.append("$lte", Date.from(toDateTime.atZone(ZoneId.systemDefault()).toInstant()));
+            }
+            query.append("createdAt", dateQuery);
+        }
+        
+        // Nếu query rỗng, trả về tất cả
+        if (query.isEmpty()) {
+            return getAllReports();
+        }
+        
+        // Thực hiện query
+        List<Document> reportDocuments = mongoTemplate.getCollection("reports")
+                .find(query)
+                .sort(new Document("createdAt", -1))
+                .into(new java.util.ArrayList<>());
+        
+        List<AdminReportResponse> data = reportDocuments.stream()
+                .map(this::mapDocumentToResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(new AdminReportApiResponse<>(1, "Lọc báo cáo thành công", data));
     }
 
     public ResponseEntity<AdminReportApiResponse<AdminReportResponse>> updateReport(

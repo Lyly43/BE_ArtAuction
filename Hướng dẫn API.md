@@ -195,6 +195,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - **Bước 2: Tạo admin bằng JSON**
   - Method & URL: `POST /api/admin/admins/them-admin`
+  - Quyền: **Chỉ Super Admin (role = 4)**
   - Content-Type: `application/json`
   - Request Body:
    
@@ -295,13 +296,76 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ### Tìm kiếm admin
 - Method & URL: `GET /api/admin/admins/tim-kiem?q={searchTerm}`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Query Parameters:
   - `q`: String (optional) - Từ khóa tìm kiếm theo ID, fullName, email, phoneNumber
-- Response: Danh sách `AdminAdminResponse` tương tự như lấy danh sách
+- Response: Danh sách `AdminAdminResponse` với các trường:
+  ```json
+  [
+    {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
+  ]
+  ```
 - Lưu ý: Nếu `q` rỗng hoặc `null`, API sẽ trả về tất cả admin
+
+### Lọc admin
+- Method & URL: `POST /api/admin/admins/loc-admin`
+- **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+- Quyền: **Chỉ Super Admin (role = 4)**
+- Request Body:
+  ```json
+  {
+    "roles": [3, 4],
+    "status": 1,
+    "createdAtFrom": "2025-01-01",
+    "createdAtTo": "2025-12-31"
+  }
+  ```
+- Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+  - `roles`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, nếu có giá trị sẽ lọc theo các role được chọn. Có thể chọn nhiều role cùng lúc:
+    - `3` = Admin
+    - `4` = Super Admin
+    - Ví dụ: `[3, 4]` = lấy cả Admin và Super Admin, `[4]` = chỉ lấy Super Admin
+  - `status`: `null` = bỏ qua filter, `1` = Active (Hoạt động), `0` = Inactive (Bị Khóa)
+  - `createdAtFrom`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày bắt đầu (admin được tạo từ ngày này trở đi)
+  - `createdAtTo`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày kết thúc (admin được tạo đến ngày này)
+- Response: Danh sách `AdminAdminResponse` với các trường:
+  ```json
+  [
+    {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
+  ]
+  ```
+- Lưu ý:
+  - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+  - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `roles` và `status`, các trường khác để `null`
+  - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả admins
+  - **Date range lọc theo `createdAt`**: Filter `createdAtFrom` và `createdAtTo` lọc dựa trên trường `createdAt` (thời gian tạo tài khoản) của admin
+  - **`roles` hỗ trợ chọn nhiều**: Có thể chọn nhiều role cùng lúc bằng cách gửi mảng, ví dụ `[3, 4]` để lấy cả Admin và Super Admin
 
 ### Thống kê admin
 - Method & URL: `GET /api/admin/admins/thong-ke`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Response:
   ```json
   {
@@ -317,6 +381,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ### Cập nhật admin
 - Method & URL: `PUT /api/admin/admins/cap-nhat/{adminId}`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Request Body (JSON):
   ```json
   {
@@ -324,15 +389,48 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     "email": "admin2@example.com",
     "phoneNumber": "0987654321",
     "address": "456 Đường XYZ",
+    "avatar": "https://cloudinary.com/.../avatar",
+    "role": 4,
     "password": "newpassword123",
     "status": 1
   }
   ```
+- Mô tả các field:
+  - `fullName`: String (optional) - Tên đầy đủ của admin
+  - `email`: String (optional) - Email của admin (phải unique nếu thay đổi)
+  - `phoneNumber`: String (optional) - Số điện thoại
+  - `address`: String (optional) - Địa chỉ
+  - `avatar`: String (optional) - URL avatar (lấy từ endpoint upload ảnh chung `/api/admin/uploads/upload-image`)
+  - `role`: Integer (optional) - Vai trò của admin: `3` = Admin, `4` = Super Admin
+  - `password`: String (optional) - Mật khẩu mới (chỉ cập nhật nếu có giá trị)
+  - `status`: Integer (optional) - `0` = Bị Khóa, `1` = Hoạt động
 - Response: `UpdateResponse<AdminAdminResponse>`
-- Lưu ý: Tất cả các trường trong request body đều optional, chỉ cập nhật các trường được gửi lên
+  ```json
+  {
+    "status": 1,
+    "message": "Admin updated successfully",
+    "data": {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn B",
+      "email": "admin2@example.com",
+      "phoneNumber": "0987654321",
+      "address": "456 Đường XYZ",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 4,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-12-06T10:00:00"
+    }
+  }
+  ```
+- Lưu ý: 
+  - Tất cả các trường trong request body đều optional, chỉ cập nhật các trường được gửi lên
+  - Để cập nhật avatar, trước tiên gọi `POST /api/admin/uploads/upload-image` để upload ảnh, sau đó lấy `imageUrl` từ response và gán vào field `avatar` khi cập nhật admin
+  - Có thể cập nhật `role` để thay đổi vai trò của admin (chỉ Super Admin mới có quyền cập nhật admin)
 
 ### Xóa admin
 - Method & URL: `DELETE /api/admin/admins/xoa/{adminId}`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Response:
   ```json
   {
@@ -893,6 +991,38 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - `GET /api/admin/reports/lay-du-lieu` – trả `AdminReportResponse` (bao gồm thông tin người báo cáo, đối tượng bị báo cáo, reportReason, status, thời gian).
 - `GET /api/admin/reports/tim-kiem?q=...`
+- **Lọc báo cáo:** `POST /api/admin/reports/loc-bao-cao`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - Request Body:
+    ```json
+    {
+      "reportStatuses": [0, 1],
+      "objectTypes": [1, 2],
+      "createdAtFrom": "2025-01-01",
+      "createdAtTo": "2025-12-31"
+    }
+    ```
+  - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+    - `reportStatuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, nếu có giá trị sẽ lọc theo các status được chọn. Có thể chọn nhiều status cùng lúc:
+      - `0` = PENDING (Chờ xử lý)
+      - `1` = INVESTIGATING (Đang điều tra)
+      - `2` = RESOLVED (Đã giải quyết)
+      - Ví dụ: `[0, 1]` = lấy cả PENDING và INVESTIGATING, `[2]` = chỉ lấy RESOLVED
+    - `objectTypes`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, nếu có giá trị sẽ lọc theo các object type được chọn. Có thể chọn nhiều object type cùng lúc. Lấy từ `ReportConstants`:
+      - `1` = User
+      - `2` = Artwork
+      - `3` = Auction Room
+      - `4` = AI Artwork
+      - Ví dụ: `[1, 2]` = lấy cả User và Artwork reports, `[3]` = chỉ lấy Auction Room reports
+    - `createdAtFrom`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày bắt đầu (báo cáo được tạo từ ngày này trở đi)
+    - `createdAtTo`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày kết thúc (báo cáo được tạo đến ngày này)
+  - Response: Danh sách `AdminReportResponse` với cấu trúc tương tự như `GET /api/admin/reports/lay-du-lieu`
+  - Lưu ý:
+    - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+    - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `reportStatuses` và `objectTypes`, các trường khác để `null`
+    - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả reports
+    - **Date range lọc theo `createdAt`**: Filter `createdAtFrom` và `createdAtTo` lọc dựa trên trường `createdAt` (thời gian tạo báo cáo)
+    - **`reportStatuses` và `objectTypes` hỗ trợ chọn nhiều**: Có thể chọn nhiều status hoặc object type cùng lúc bằng cách gửi mảng
 - **Thống kê:** `GET /api/admin/reports/thong-ke`
   - Response:
     ```json

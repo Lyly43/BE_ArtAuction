@@ -1,6 +1,7 @@
 package AdminBackend.Service;
 
 import AdminBackend.DTO.Request.AddAdminRequest;
+import AdminBackend.DTO.Request.AdminFilterRequest;
 import AdminBackend.DTO.Request.UpdateAdminRequest;
 import AdminBackend.DTO.Response.AdminAdminResponse;
 import AdminBackend.DTO.Response.AdminBasicResponse;
@@ -19,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -171,6 +173,71 @@ public class AdminAdminService {
     }
 
     /**
+     * Lọc admin theo các tiêu chí: roles, status, createdAt
+     */
+    public ResponseEntity<List<AdminAdminResponse>> filterAdmins(AdminFilterRequest request) {
+        Admin currentAdmin = getCurrentAdmin();
+        if (!isSuperAdmin(currentAdmin)) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        
+        // Nếu request null, trả về tất cả admins
+        if (request == null) {
+            return getAllAdmins();
+        }
+        
+        List<Admin> allAdmins = adminRepository.findAll();
+        
+        List<Admin> filteredAdmins = allAdmins.stream()
+                .filter(admin -> {
+                    // Filter by roles (null hoặc empty = bỏ qua filter)
+                    if (request.getRoles() != null && !request.getRoles().isEmpty()) {
+                        if (admin.getRole() == null || !request.getRoles().contains(admin.getRole())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by status (null = bỏ qua filter)
+                    if (request.getStatus() != null && admin.getStatus() != null) {
+                        if (!admin.getStatus().equals(request.getStatus())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter by createdAt range (null = bỏ qua filter)
+                    // createdAtFrom: admin.getCreatedAt() >= createdAtFrom
+                    if (request.getCreatedAtFrom() != null) {
+                        if (admin.getCreatedAt() == null) {
+                            return false;
+                        }
+                        LocalDate adminCreatedDate = admin.getCreatedAt().toLocalDate();
+                        if (adminCreatedDate.isBefore(request.getCreatedAtFrom())) {
+                            return false;
+                        }
+                    }
+                    // createdAtTo: admin.getCreatedAt() <= createdAtTo
+                    if (request.getCreatedAtTo() != null) {
+                        if (admin.getCreatedAt() == null) {
+                            return false;
+                        }
+                        LocalDate adminCreatedDate = admin.getCreatedAt().toLocalDate();
+                        if (adminCreatedDate.isAfter(request.getCreatedAtTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .collect(Collectors.toList());
+        
+        List<AdminAdminResponse> responses = filteredAdmins.stream()
+                .map(this::mapToAdminAdminResponse)
+                .collect(Collectors.toList());
+        
+        return ResponseEntity.ok(responses);
+    }
+
+    /**
      * Thống kê admin
      */
     public ResponseEntity<AdminStatisticsResponse> getAdminStatistics() {
@@ -226,6 +293,12 @@ public class AdminAdminService {
         }
         if (request.getAddress() != null) {
             admin.setAddress(request.getAddress());
+        }
+        if (request.getAvatar() != null) {
+            admin.setAvatar(request.getAvatar());
+        }
+        if (request.getRole() != null) {
+            admin.setRole(request.getRole());
         }
         if (request.getPassword() != null && !request.getPassword().trim().isEmpty()) {
             admin.setPassword(passwordEncoder.encode(request.getPassword()));

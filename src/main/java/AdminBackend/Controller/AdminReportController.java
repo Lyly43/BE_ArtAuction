@@ -1,6 +1,7 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.ProcessReportRequest;
+import AdminBackend.DTO.Request.ReportFilterRequest;
 import AdminBackend.DTO.Request.UpdateReportRequest;
 import AdminBackend.DTO.Response.AdminReportApiResponse;
 import AdminBackend.DTO.Response.AdminReportResponse;
@@ -29,6 +30,16 @@ public class AdminReportController {
     public ResponseEntity<AdminReportApiResponse<List<AdminReportResponse>>> searchReports(
             @RequestParam(value = "q", required = false) String searchTerm) {
         return adminReportService.searchReports(searchTerm);
+    }
+
+    /**
+     * POST /api/admin/reports/loc-bao-cao
+     * Lọc báo cáo theo các tiêu chí: reportStatuses, objectTypes, createdAt
+     */
+    @PostMapping("/loc-bao-cao")
+    public ResponseEntity<AdminReportApiResponse<List<AdminReportResponse>>> filterReports(
+            @RequestBody ReportFilterRequest request) {
+        return adminReportService.filterReports(request);
     }
 
     @GetMapping("/thong-ke")

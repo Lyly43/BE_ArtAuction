@@ -1,6 +1,7 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddAdminRequest;
+import AdminBackend.DTO.Request.AdminFilterRequest;
 import AdminBackend.DTO.Request.UpdateAdminRequest;
 import AdminBackend.DTO.Response.AdminAdminResponse;
 import AdminBackend.DTO.Response.AdminStatisticsResponse;
@@ -49,6 +50,15 @@ public class AdminAdminController {
     public ResponseEntity<List<AdminAdminResponse>> searchAdmins(
             @RequestParam(value = "q", required = false) String searchTerm) {
         return adminAdminService.searchAdmins(searchTerm);
+    }
+
+    /**
+     * POST /api/admin/admins/loc-admin
+     * Lọc admin theo các tiêu chí: roles, status, createdAt
+     */
+    @PostMapping("/loc-admin")
+    public ResponseEntity<List<AdminAdminResponse>> filterAdmins(@RequestBody AdminFilterRequest request) {
+        return adminAdminService.filterAdmins(request);
     }
 
     /**
