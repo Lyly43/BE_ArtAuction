@@ -2,6 +2,7 @@ package com.auctionaa.backend.Service;
 
 import com.auctionaa.backend.DTO.Request.SellerRequestDTO;
 import com.auctionaa.backend.DTO.Response.SellerRequestResponse;
+import com.auctionaa.backend.DTO.Response.SellerRequestWithUserResponse;
 import com.auctionaa.backend.Entity.SellerRequest;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Repository.SellerRequestRepository;
@@ -22,16 +23,35 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SellerRequestService {
 
-    private final SellerRequestRepository sellerRequestRepo;
-    private final UserRepository userRepo;
+    private final SellerRequestRepository sellerRequestRepository;
+    private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
 
+    public List<SellerRequestWithUserResponse> getAllSellerRequests() {
+        List<SellerRequest> requests = sellerRequestRepository.findAll();
+
+        return requests.stream().map(req -> {
+            var user = userRepository.findById(req.getUserId()).orElse(null);
+
+            return SellerRequestWithUserResponse.builder()
+                    .requestId(req.getId())
+                    .userId(req.getUserId())
+                    .userName(user != null ? user.getUsername() : null)
+                    .verificationImageUrl(req.getVerificationImageUrl())
+                    .description(req.getDescription())
+                    .status(req.getStatus())
+                    .adminNote(req.getAdminNote())
+                    .createdAt(req.getCreatedAt())
+                    .updatedAt(req.getUpdatedAt())
+                    .build();
+        }).toList();
+    }
     /**
      * Buyer gửi request lên seller
      */
     @Transactional
     public SellerRequestResponse submitSellerRequest(String userId, SellerRequestDTO dto) {
-        User user = userRepo.findById(userId)
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         // Kiểm tra user phải là buyer (role = 1)
@@ -41,7 +61,7 @@ public class SellerRequestService {
         }
 
         // Kiểm tra đã có request đang pending chưa
-        SellerRequest existingRequest = sellerRequestRepo.findByUserId(userId)
+        SellerRequest existingRequest = sellerRequestRepository.findByUserId(userId)
                 .orElse(null);
 
         if (existingRequest != null && "PENDING".equals(existingRequest.getStatus())) {
@@ -80,7 +100,7 @@ public class SellerRequestService {
                 .build();
 
         sellerRequest.generateId();
-        sellerRequest = sellerRequestRepo.save(sellerRequest);
+        sellerRequest = sellerRequestRepository.save(sellerRequest);
 
         log.info("Seller request submitted by user {}: {}", userId, sellerRequest.getId());
 
@@ -92,7 +112,7 @@ public class SellerRequestService {
      */
     @Transactional
     public SellerRequestResponse approveSellerRequest(String requestId, String adminNote) {
-        SellerRequest request = sellerRequestRepo.findById(requestId)
+        SellerRequest request = sellerRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Seller request not found"));
 
         if (!"PENDING".equals(request.getStatus())) {
@@ -101,16 +121,16 @@ public class SellerRequestService {
         }
 
         // Update user role = 2 (seller)
-        User user = userRepo.findById(request.getUserId())
+        User user = userRepository.findById(request.getUserId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 
         user.setRole(2); // Seller
-        userRepo.save(user);
+        userRepository.save(user);
 
         // Update request status
         request.setStatus("APPROVED");
         request.setAdminNote(adminNote != null ? adminNote : "Đã được duyệt bởi admin");
-        request = sellerRequestRepo.save(request);
+        request = sellerRequestRepository.save(request);
 
         log.info("Seller request {} approved, user {} role updated to 2 (seller)", requestId, user.getId());
 
@@ -122,7 +142,7 @@ public class SellerRequestService {
      */
     @Transactional
     public SellerRequestResponse rejectSellerRequest(String requestId, String adminNote) {
-        SellerRequest request = sellerRequestRepo.findById(requestId)
+        SellerRequest request = sellerRequestRepository.findById(requestId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Seller request not found"));
 
         if (!"PENDING".equals(request.getStatus())) {
@@ -132,7 +152,7 @@ public class SellerRequestService {
 
         request.setStatus("REJECTED");
         request.setAdminNote(adminNote != null ? adminNote : "Đã bị từ chối bởi admin");
-        request = sellerRequestRepo.save(request);
+        request = sellerRequestRepository.save(request);
 
         log.info("Seller request {} rejected", requestId);
 
@@ -143,7 +163,7 @@ public class SellerRequestService {
      * Lấy danh sách request theo status (cho admin)
      */
     public List<SellerRequestResponse> getRequestsByStatus(String status) {
-        List<SellerRequest> requests = sellerRequestRepo.findByStatus(status);
+        List<SellerRequest> requests = sellerRequestRepository.findByStatus(status);
         return requests.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());
@@ -153,7 +173,7 @@ public class SellerRequestService {
      * Lấy request của user
      */
     public List<SellerRequestResponse> getUserRequests(String userId) {
-        List<SellerRequest> requests = sellerRequestRepo.findByUserIdOrderByCreatedAtDesc(userId);
+        List<SellerRequest> requests = sellerRequestRepository.findByUserIdOrderByCreatedAtDesc(userId);
         return requests.stream()
                 .map(this::mapToResponse)
                 .collect(Collectors.toList());

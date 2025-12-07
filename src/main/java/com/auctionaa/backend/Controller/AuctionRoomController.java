@@ -54,6 +54,28 @@ public class AuctionRoomController {
 
         return auctionRoomService.getRoomsWithLivePrices(page, size);
     }
+
+    /**
+     * Lấy danh sách phòng đấu giá đang diễn ra (status = 1) với phân trang
+     * POST /api/auctionroom/ongoing
+     */
+    @PostMapping("/ongoing")
+    public List<AuctionRoom> getOngoingRooms(@RequestBody PagingRequest req) {
+        int page = req.getPage();
+        int size = req.getSize();
+        return auctionRoomService.getOngoingRooms(page, size);
+    }
+
+    /**
+     * Lấy danh sách phòng đấu giá sắp diễn ra (status = 2) với phân trang
+     * POST /api/auctionroom/upcoming
+     */
+    @PostMapping("/upcoming")
+    public List<AuctionRoom> getUpcomingRooms(@RequestBody PagingRequest req) {
+        int page = req.getPage();
+        int size = req.getSize();
+        return auctionRoomService.getUpcomingRooms(page, size);
+    }
     /**
      * Lấy tất cả phòng đấu giá trong database
      * GET /api/auctionroom/all
