@@ -120,6 +120,28 @@ public class AuctionRoomService {
         return rooms;
     }
 
+    /**
+     * Lấy danh sách phòng đấu giá đang diễn ra (status = 1) với phân trang
+     */
+    public List<AuctionRoom> getOngoingRooms(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<AuctionRoom> pageResult = auctionRoomRepository.findByStatus(1, pageable);
+        List<AuctionRoom> rooms = pageResult.getContent();
+        initializeDepositForRooms(rooms);
+        return rooms;
+    }
+
+    /**
+     * Lấy danh sách phòng đấu giá sắp diễn ra (status = 2) với phân trang
+     */
+    public List<AuctionRoom> getUpcomingRooms(int page, int size) {
+        Pageable pageable = PageRequest.of(page, size);
+        Page<AuctionRoom> pageResult = auctionRoomRepository.findByStatus(2, pageable);
+        List<AuctionRoom> rooms = pageResult.getContent();
+        initializeDepositForRooms(rooms);
+        return rooms;
+    }
+
 
     /**
      * Tìm kiếm và lọc auction room của user hiện tại theo các tiêu chí:
