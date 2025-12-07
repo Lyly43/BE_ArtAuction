@@ -3,6 +3,7 @@ package AdminBackend.Controller;
 import AdminBackend.DTO.Request.AdminLoginRequest;
 import AdminBackend.DTO.Response.AdminCheckTokenResponse;
 import AdminBackend.DTO.Response.AdminLoginResponse;
+import AdminBackend.DTO.Response.AdminProfileResponse;
 import AdminBackend.Jwt.AdminJwtUtil;
 import AdminBackend.Repository.AdminRepository;
 import com.auctionaa.backend.Entity.Admin;
@@ -93,6 +94,55 @@ public class AdminAuthController {
                 admin.getEmail(),
                 admin.getAvatar(),
                 role
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+    /**
+     * GET /api/admin/auth/profile
+     * Lấy thông tin đầy đủ của admin hiện tại từ token
+     * Header: Authorization: Bearer <token>
+     * Trả về TẤT CẢ các trường của admin (trừ password)
+     */
+    @GetMapping("/profile")
+    public ResponseEntity<AdminProfileResponse> getAdminProfile(@RequestHeader("Authorization") String authHeader) {
+        // Validate token
+        if (!adminJwtUtil.validateToken(authHeader)) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AdminProfileResponse(0, "Invalid or expired token", null));
+        }
+
+        // Extract adminId from token
+        String adminId = adminJwtUtil.extractAdminId(authHeader);
+
+        // Find admin in database
+        Admin admin = adminRepository.findById(adminId)
+                .orElse(null);
+
+        if (admin == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(new AdminProfileResponse(0, "Admin not found", null));
+        }
+
+        // Build response with all admin fields (except password)
+        AdminProfileResponse.AdminData adminData = new AdminProfileResponse.AdminData(
+                admin.getId(),
+                admin.getFullName(),
+                admin.getEmail(),
+                admin.getPhoneNumber(),
+                admin.getAddress(),
+                admin.getAvatar(),
+                admin.getRole(),
+                admin.getStatus(),
+                admin.getCreatedAt(),
+                admin.getUpdatedAt()
+        );
+
+        AdminProfileResponse response = new AdminProfileResponse(
+                1,
+                "Lấy thông tin admin thành công",
+                adminData
         );
 
         return ResponseEntity.ok(response);

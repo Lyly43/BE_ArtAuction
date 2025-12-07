@@ -46,6 +46,49 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     }
     ```
 
+- **Lấy thông tin đầy đủ admin**
+  - Method & URL: `GET /api/admin/auth/profile`
+  - Header: `Authorization: Bearer {token}`
+  - **Mô tả**: API này nhận token từ header, kiểm tra token hợp lệ, xác định admin nào đang đăng nhập, và trả về **TẤT CẢ các trường** của admin đó (trừ password)
+  - Response:
+    ```json
+    {
+      "status": 1,
+      "message": "Lấy thông tin admin thành công",
+      "data": {
+        "id": "Ad-123456789",
+        "fullName": "Admin Root",
+        "email": "admin@example.com",
+        "phoneNumber": "0912345678",
+        "address": "123 Đường ABC, Quận XYZ, TP.HCM",
+        "avatar": "https://cdn.example.com/avatar.png",
+        "role": 4,
+        "status": 1,
+        "createdAt": "2025-01-01T10:00:00",
+        "updatedAt": "2025-01-15T14:30:00"
+      }
+    }
+    ```
+  - Response Fields:
+    - `status`: `1` = thành công, `0` = lỗi
+    - `message`: Thông báo kết quả
+    - `data`: Object chứa thông tin đầy đủ của admin
+      - `id`: ID của admin
+      - `fullName`: Họ và tên
+      - `email`: Email
+      - `phoneNumber`: Số điện thoại
+      - `address`: Địa chỉ
+      - `avatar`: URL ảnh đại diện
+      - `role`: `3` = Admin, `4` = Super Admin
+      - `status`: `0` = Bị Khóa, `1` = Hoạt động
+      - `createdAt`: Thời gian tạo
+      - `updatedAt`: Thời gian cập nhật lần cuối
+  - **Lưu ý**:
+    - Token phải được gửi trong header `Authorization` với format `Bearer {token}`
+    - Nếu token không hợp lệ hoặc hết hạn, API trả về `status: 0` với message lỗi
+    - Nếu không tìm thấy admin, API trả về `status: 0` với message "Admin not found"
+    - **Password không được trả về** trong response vì lý do bảo mật
+
 ---
 
 ## 3. Quản lý Người dùng
