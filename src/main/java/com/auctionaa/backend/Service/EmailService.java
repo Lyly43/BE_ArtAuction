@@ -133,7 +133,29 @@ public class EmailService {
         context.setVariable("contactEmail", "support@artauction.com");
         context.setVariable("contactPhone", "1900-xxxx");
         sendEmailWithTemplate(toEmail, "Phòng đấu giá đã bị đóng", "emails/room-closed", context);
-        }
+    }
+
+    /**
+     * Gửi email cho admin khi phòng đấu giá sắp diễn ra nhưng số lượng người tham gia quá ít
+     */
+    public void sendAuctionRoomLowMembersWarningToAdmin(String toEmail,
+                                                        String adminName,
+                                                        AuctionRoom room,
+                                                        int memberCount,
+                                                        long hoursLeft) {
+        Context context = new Context();
+        context.setVariable("adminName", adminName);
+        context.setVariable("roomName", room.getRoomName());
+        context.setVariable("memberCount", memberCount);
+        context.setVariable("hoursLeft", hoursLeft);
+        context.setVariable("startTime", room.getStartedAt());
+        context.setVariable("estimatedEndTime", room.getEstimatedEndTime());
+        context.setVariable("roomLink", frontendUrl + "/admin/auction-rooms/" + room.getId());
+        sendEmailWithTemplate(toEmail,
+                "Phòng đấu giá sắp diễn ra nhưng ít người tham gia",
+                "emails/auction-room-low-members-admin",
+                context);
+    }
 
     private void sendEmailWithTemplate(String toEmail, String subject, String template, Context context) {
         validateEmailConfig(toEmail);

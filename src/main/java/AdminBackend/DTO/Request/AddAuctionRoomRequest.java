@@ -21,5 +21,9 @@ public class AddAuctionRoomRequest {
 
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime stoppedAt;
+
+    // Thời gian kết thúc dự kiến của phòng
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime estimatedEndTime;
 }
 

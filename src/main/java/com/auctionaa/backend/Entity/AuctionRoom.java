@@ -28,7 +28,8 @@ public class AuctionRoom extends BaseEntity {
     private String imageAuctionRoom;
     private String type;
 
-    private int status; //1: Đang diễn ra, 2: Sắp diễn ra,0: Đã kết thúc
+    // 0: Sắp diễn ra, 1: Đang diễn ra, 2: Đã hoàn thành, 3: Hoãn
+    private int status;
 
 
     @DecimalMin(value = "0.0", inclusive = true)
@@ -42,9 +43,15 @@ public class AuctionRoom extends BaseEntity {
     //check các user đã trả phí hồ sơ
     private List<String> applicationFeePaidUserIds;
 
-
+    // Thời gian bắt đầu - kết thúc thực tế
     private LocalDateTime startedAt;
     private LocalDateTime stoppedAt;
+
+    // Thời gian kết thúc dự kiến của cả phòng (ước lượng tổng thời gian)
+    private LocalDateTime estimatedEndTime;
+
+    // Cờ để tránh gửi nhiều lần cảnh báo "gần bắt đầu nhưng ít người tham gia"
+    private Boolean lowMemberWarningSent;
 
     @CreatedDate
     private LocalDateTime createdAt;

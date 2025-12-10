@@ -42,9 +42,52 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       "name": "Admin Root",
       "email": "admin@example.com",
       "avatar": "https://cdn.example.com/avatar.png",
-      "adminStatus": "ONLINE"
+      "role": 4
     }
     ```
+
+- **Lấy thông tin đầy đủ admin**
+  - Method & URL: `GET /api/admin/auth/profile`
+  - Header: `Authorization: Bearer {token}`
+  - **Mô tả**: API này nhận token từ header, kiểm tra token hợp lệ, xác định admin nào đang đăng nhập, và trả về **TẤT CẢ các trường** của admin đó (trừ password)
+  - Response:
+    ```json
+    {
+      "status": 1,
+      "message": "Lấy thông tin admin thành công",
+      "data": {
+        "id": "Ad-123456789",
+        "fullName": "Admin Root",
+        "email": "admin@example.com",
+        "phoneNumber": "0912345678",
+        "address": "123 Đường ABC, Quận XYZ, TP.HCM",
+        "avatar": "https://cdn.example.com/avatar.png",
+        "role": 4,
+        "status": 1,
+        "createdAt": "2025-01-01T10:00:00",
+        "updatedAt": "2025-01-15T14:30:00"
+      }
+    }
+    ```
+  - Response Fields:
+    - `status`: `1` = thành công, `0` = lỗi
+    - `message`: Thông báo kết quả
+    - `data`: Object chứa thông tin đầy đủ của admin
+      - `id`: ID của admin
+      - `fullName`: Họ và tên
+      - `email`: Email
+      - `phoneNumber`: Số điện thoại
+      - `address`: Địa chỉ
+      - `avatar`: URL ảnh đại diện
+      - `role`: `3` = Admin, `4` = Super Admin
+      - `status`: `0` = Bị Khóa, `1` = Hoạt động
+      - `createdAt`: Thời gian tạo
+      - `updatedAt`: Thời gian cập nhật lần cuối
+  - **Lưu ý**:
+    - Token phải được gửi trong header `Authorization` với format `Bearer {token}`
+    - Nếu token không hợp lệ hoặc hết hạn, API trả về `status: 0` với message lỗi
+    - Nếu không tìm thấy admin, API trả về `status: 0` với message "Admin not found"
+    - **Password không được trả về** trong response vì lý do bảo mật
 
 ---
 
@@ -150,7 +193,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 - Lưu ý:
   - `totalUsers`: Tổng số người dùng
   - `activeUsers`: Tổng số người dùng đang hoạt động (status = 1)
-  - `totalSellers`: Tổng số người bán (role = 3)
+  - `totalSellers`: Tổng số người bán (role = 2)
   - `totalBlockedUsers`: Tổng số người dùng bị khóa (status = 2)
   - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số user
     - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
@@ -189,26 +232,13 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 ### Thêm admin
 
 - **Bước 1: Upload avatar (nếu có)**
-  - Method & URL: `POST /api/admin/admins/them-admin-upload-avatar`
-  - Content-Type: `multipart/form-data`
-  - Body (form-data):
-    - `avatarFile`: File (required) - Chọn file ảnh từ máy
-  - Response:
-   
-    {
-      "status": 1,
-      "message": "Upload avatar thành công",
-      "data": {
-        "avatarUrl": "https://cloudinary.com/.../avatar",
-        "publicId": "auctionaa/admins/temp-..."
-      }
-    }
-      - Lưu ý:
-    - Endpoint này **chỉ dùng để upload ảnh** và trả về URL
-    - Frontend lấy `avatarUrl` và gán vào field `avatar` khi gọi API tạo admin
+  - Dùng endpoint upload ảnh chung: `POST /api/admin/uploads/upload-image`
+  - Xem chi tiết ở phần "Upload ảnh chung" bên dưới
+  - Sau khi upload, lấy `imageUrl` từ response và gán vào field `avatar` khi tạo admin
 
 - **Bước 2: Tạo admin bằng JSON**
   - Method & URL: `POST /api/admin/admins/them-admin`
+  - Quyền: **Chỉ Super Admin (role = 4)**
   - Content-Type: `application/json`
   - Request Body:
    
@@ -254,33 +284,41 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     - Nếu không gửi `role` thì hệ thống tự set `role = 3`
     - Email phải unique, nếu trùng sẽ trả về lỗi `"Email already exists"` với `status = 0`
 
-### Upload ảnh chung (tạo URL ảnh dùng lại nhiều nơi)
-- Method & URL: `POST /api/admin/uploads/upload-image`
-- Content-Type: `multipart/form-data`
-- Mô tả:
-  - API này dùng để upload **một ảnh chung** bất kỳ lên Cloudinary và trả về URL.
-  - Dùng cho các trường hợp cần URL ảnh lẻ (không gắn cứng với phòng đấu giá hay admin), frontend chỉ cần gọi API này, lấy URL và gán vào field tương ứng trong các API khác.
-- Request (Form-Data):
-  - key : imageFile
-  - `file`: File (required) – Ảnh cần upload từ thiết bị
-- Response (200):
+### Upload ảnh chung (DUY NHẤT - dùng cho tất cả các trường hợp)
+- **Method & URL:** `POST /api/admin/uploads/upload-image`
+- **Content-Type:** `multipart/form-data` (Postman sẽ tự động set khi chọn form-data)
+- **Mô tả:**
+  - **Đây là endpoint DUY NHẤT để upload ảnh** trong admin panel, dùng chung cho TẤT CẢ các trường hợp:
+    - Upload avatar admin
+    - Upload ảnh phòng đấu giá
+    - Upload ảnh bất kỳ khác
+  - Frontend chỉ cần gọi API này, lấy `imageUrl` từ response và gán vào field tương ứng trong các API khác.
+- **Hướng dẫn sử dụng trong Postman:**
+  1. Chọn method: `POST`
+  2. URL: `http://localhost:8081/api/admin/uploads/upload-image`
+  3. Tab **Body** → Chọn **form-data**
+  4. Thêm field:
+     - **Key:** `imageFile` | **Type:** `File` | **Value:** (click "Select Files" và chọn file ảnh từ máy tính)
+- **Response (200):**
   ```json
   {
     "status": 1,
     "message": "Upload ảnh thành công",
     "data": {
-      "imageUrl": "https://res.cloudinary.com/.../image/upload/auctionaa/misc/abc.jpg",
+      "imageUrl": "https://res.cloudinary.com/.../image/upload/auctionaa/misc/common-1733142222333.jpg",
       "publicId": "auctionaa/misc/common-1733142222333"
     }
   }
   ```
-- Lưu ý:
-  - `imageUrl`: URL ảnh dùng để lưu vào DB hoặc gửi kèm trong các API khác.
+- **Lưu ý:**
+  - `imageUrl`: URL ảnh dùng để lưu vào DB hoặc gửi kèm trong các API khác (ví dụ: field `avatar` khi tạo admin, field `imageAuctionRoom` khi tạo phòng đấu giá).
   - `publicId`: dùng nếu sau này cần xóa ảnh trên Cloudinary.
   - Nếu file rỗng hoặc không phải `image/*`, API sẽ trả `status = 0` và message lỗi tương ứng.
+  - **Workflow:** Upload ảnh → Lấy `imageUrl` từ response → Gửi `imageUrl` vào field tương ứng của các API khác (tạo admin, tạo phòng đấu giá, ...)
 
 ### Lấy danh sách admin
 - Method & URL: `GET /api/admin/admins/lay-du-lieu`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Response: Mảng `AdminAdminResponse` với các trường:
   ```json
   [
@@ -301,13 +339,76 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ### Tìm kiếm admin
 - Method & URL: `GET /api/admin/admins/tim-kiem?q={searchTerm}`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Query Parameters:
   - `q`: String (optional) - Từ khóa tìm kiếm theo ID, fullName, email, phoneNumber
-- Response: Danh sách `AdminAdminResponse` tương tự như lấy danh sách
+- Response: Danh sách `AdminAdminResponse` với các trường:
+  ```json
+  [
+    {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
+  ]
+  ```
 - Lưu ý: Nếu `q` rỗng hoặc `null`, API sẽ trả về tất cả admin
+
+### Lọc admin
+- Method & URL: `POST /api/admin/admins/loc-admin`
+- **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+- Quyền: **Chỉ Super Admin (role = 4)**
+- Request Body:
+  ```json
+  {
+    "roles": [3, 4],
+    "status": 1,
+    "createdAtFrom": "2025-01-01",
+    "createdAtTo": "2025-12-31"
+  }
+  ```
+- Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+  - `roles`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, nếu có giá trị sẽ lọc theo các role được chọn. Có thể chọn nhiều role cùng lúc:
+    - `3` = Admin
+    - `4` = Super Admin
+    - Ví dụ: `[3, 4]` = lấy cả Admin và Super Admin, `[4]` = chỉ lấy Super Admin
+  - `status`: `null` = bỏ qua filter, `1` = Active (Hoạt động), `0` = Inactive (Bị Khóa)
+  - `createdAtFrom`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày bắt đầu (admin được tạo từ ngày này trở đi)
+  - `createdAtTo`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày kết thúc (admin được tạo đến ngày này)
+- Response: Danh sách `AdminAdminResponse` với các trường:
+  ```json
+  [
+    {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
+  ]
+  ```
+- Lưu ý:
+  - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+  - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `roles` và `status`, các trường khác để `null`
+  - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả admins
+  - **Date range lọc theo `createdAt`**: Filter `createdAtFrom` và `createdAtTo` lọc dựa trên trường `createdAt` (thời gian tạo tài khoản) của admin
+  - **`roles` hỗ trợ chọn nhiều**: Có thể chọn nhiều role cùng lúc bằng cách gửi mảng, ví dụ `[3, 4]` để lấy cả Admin và Super Admin
 
 ### Thống kê admin
 - Method & URL: `GET /api/admin/admins/thong-ke`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Response:
   ```json
   {
@@ -323,6 +424,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ### Cập nhật admin
 - Method & URL: `PUT /api/admin/admins/cap-nhat/{adminId}`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Request Body (JSON):
   ```json
   {
@@ -330,21 +432,77 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     "email": "admin2@example.com",
     "phoneNumber": "0987654321",
     "address": "456 Đường XYZ",
+    "avatar": "https://cloudinary.com/.../avatar",
+    "role": 4,
     "password": "newpassword123",
     "status": 1
   }
   ```
+- Mô tả các field:
+  - `fullName`: String (optional) - Tên đầy đủ của admin
+  - `email`: String (optional) - Email của admin (phải unique nếu thay đổi)
+  - `phoneNumber`: String (optional) - Số điện thoại
+  - `address`: String (optional) - Địa chỉ
+  - `avatar`: String (optional) - URL avatar (lấy từ endpoint upload ảnh chung `/api/admin/uploads/upload-image`)
+  - `role`: Integer (optional) - Vai trò của admin: `3` = Admin, `4` = Super Admin
+  - `password`: String (optional) - Mật khẩu mới (chỉ cập nhật nếu có giá trị)
+  - `status`: Integer (optional) - `0` = Bị Khóa, `1` = Hoạt động
 - Response: `UpdateResponse<AdminAdminResponse>`
-- Lưu ý: Tất cả các trường trong request body đều optional, chỉ cập nhật các trường được gửi lên
+  ```json
+  {
+    "status": 1,
+    "message": "Admin updated successfully",
+    "data": {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn B",
+      "email": "admin2@example.com",
+      "phoneNumber": "0987654321",
+      "address": "456 Đường XYZ",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 4,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-12-06T10:00:00"
+    }
+  }
+  ```
+- Lưu ý: 
+  - Tất cả các trường trong request body đều optional, chỉ cập nhật các trường được gửi lên
+  - Để cập nhật avatar, trước tiên gọi `POST /api/admin/uploads/upload-image` để upload ảnh, sau đó lấy `imageUrl` từ response và gán vào field `avatar` khi cập nhật admin
+  - Có thể cập nhật `role` để thay đổi vai trò của admin (chỉ Super Admin mới có quyền cập nhật admin)
 
 ### Xóa admin
 - Method & URL: `DELETE /api/admin/admins/xoa/{adminId}`
+- Quyền: **Chỉ Super Admin (role = 4)**
 - Response:
   ```json
   {
     "status": 1,
     "message": "Admin deleted successfully",
     "data": null
+  }
+  ```
+
+### Lấy chi tiết 1 admin theo ID
+- Method & URL: `GET /api/admin/admins/{adminId}`
+- Quyền: **Chỉ Super Admin (role = 4)**
+- Response:
+  ```json
+  {
+    "status": 1,
+    "message": "Success",
+    "data": {
+      "id": "Ad-xxx",
+      "fullName": "Nguyễn Văn A",
+      "email": "admin@example.com",
+      "phoneNumber": "0123456789",
+      "address": "123 Đường ABC",
+      "avatar": "https://cloudinary.com/.../avatar",
+      "role": 3,
+      "status": 1,
+      "createdAt": "2025-11-23T12:00:00",
+      "updatedAt": "2025-11-23T12:00:00"
+    }
   }
   ```
 
@@ -515,8 +673,8 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 ## 6. Quản lý Phòng đấu giá
 
-- **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `adminId`, `type`, `imageAuctionRoom`…).
-- **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại).
+- **Tạo nhanh:** `POST /api/admin/auction-rooms/them-phong` (body `AddAuctionRoomRequest` – `roomName`, `description`, `material`, `startedAt`, `stoppedAt`, `estimatedEndTime`, `adminId`, `type`, `imageAuctionRoom`…).
+- **Lấy danh sách:** `GET /api/admin/auction-rooms/lay-du-lieu` → `AdminAuctionRoomResponse` (kèm giá bắt đầu & hiện tại, thêm `estimatedEndTime`).
 - **Tìm kiếm:** `GET /api/admin/auction-rooms/tim-kiem?q={keyword}`.
 - **Lọc phòng đấu giá:** `POST /api/admin/auction-rooms/loc-phong-dau-gia`
   - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
@@ -532,7 +690,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     }
     ```
   - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
-    - `statuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, mảng các số nguyên `[0, 1, 2]` để chọn nhiều status cùng lúc. Giá trị: `0` = Sắp diễn ra (Coming Soon), `1` = Đang diễn ra (Live), `2` = Đã hoàn thành (Finished)
+    - `statuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, mảng các số nguyên `[0, 1, 2, 3]` để chọn nhiều status cùng lúc. Giá trị: `0` = Sắp diễn ra (Coming Soon), `1` = Đang diễn ra (Live), `2` = Đã hoàn thành (Finished), `3` = Hoãn (Postponed)
     - `startTimeFrom`: `null` = bỏ qua filter, thời gian bắt đầu tối thiểu (LocalDateTime) - lọc theo `startedAt` của phòng đấu giá
     - `startTimeTo`: `null` = bỏ qua filter, thời gian bắt đầu tối đa (LocalDateTime) - lọc theo `startedAt` của phòng đấu giá
     - `endTimeFrom`: `null` = bỏ qua filter, thời gian kết thúc tối thiểu (LocalDateTime) - lọc theo `stoppedAt` của phòng đấu giá
@@ -550,6 +708,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
         "status": 1,
         "startedAt": "2025-12-01T10:00:00",
         "stoppedAt": "2025-12-01T12:00:00",
+        "estimatedEndTime": "2025-12-01T12:30:00",
         "viewCount": 1200,
         "totalMembers": 25,
         "startingPrice": 1000000,
@@ -580,7 +739,8 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
       "totalRooms": 100,
       "runningRooms": 20,
       "upcomingRooms": 30,
-      "completedRooms": 50,
+      "completedRooms": 45,
+      "cancelRooms": 5,
       "monthlyComparison": {
         "currentMonth": 100,
         "previousMonth": 95,
@@ -597,6 +757,7 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     - `runningRooms`: Số phòng đang chạy (status = 1)
     - `upcomingRooms`: Số phòng sắp diễn ra (status = 0)
     - `completedRooms`: Số phòng đã hoàn thành (status = 2)
+    - `cancelRooms`: Số phòng đã hoãn (status = 3)
     - `monthlyComparison`: So sánh tháng này vs tháng trước cho tổng số phòng
       - `changeAmount`: Số thay đổi (có thể âm nếu giảm)
       - `changePercentage`: Phần trăm thay đổi (có thể âm nếu giảm)
@@ -610,9 +771,10 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     "description": "...",
     "material": "Oil",
     "type": "VIP",
-      "imageAuctionRoom": "https://example.com/image.jpg",
+    "imageAuctionRoom": "https://example.com/image.jpg",
     "startedAt": "2025-12-01T10:00:00",
     "stoppedAt": "2025-12-01T12:00:00",
+    "estimatedEndTime": "2025-12-01T12:30:00",
     "adminId": "Ad-1",
     "depositAmount": 5000,
     "paymentDeadlineDays": 3,
@@ -621,32 +783,13 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
     ]
   }
   ```
-  - `imageAuctionRoom`: String (optional) - URL ảnh phòng đấu giá (lấy từ endpoint upload-ảnh)
+  - `imageAuctionRoom`: String (optional) - URL ảnh phòng đấu giá (lấy từ endpoint upload ảnh chung `/api/admin/uploads/upload-image`)
+  - `estimatedEndTime`: String (optional, format `yyyy-MM-dd'T'HH:mm:ss`) - Thời gian kết thúc dự kiến của cả phòng (dùng để hiển thị & gửi email cảnh báo)
   - Response: `{ "status": 1, "message": "Auction room created successfully", "data": { "roomId": "...", "sessionsCreated": 3 } }`
-
-- **Upload ảnh phòng đấu giá:** `POST /api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`
-  - Content-Type: `multipart/form-data` (Postman sẽ tự động set khi chọn form-data)
-  - **Hướng dẫn sử dụng trong Postman:**
-    1. Chọn method: `POST`
-    2. URL: `http://localhost:8081/api/admin/auction-rooms/tao-phong-hoan-chinh-upload-anh`
-    3. Tab **Body** → Chọn **form-data**
-    4. Thêm field:
-       - **Key:** `imageAuctionRoomFile` | **Type:** `File` | **Value:** (click "Select Files" và chọn file ảnh từ máy tính)
-  - Response:
-    ```json
-    {
-      "status": 1,
-      "message": "Upload ảnh thành công",
-      "data": {
-        "imageUrl": "https://cloudinary.com/.../cover",
-        "publicId": "auctionaa/auction-rooms/..."
-      }
-    }
-    ```
-  - **Lưu ý:**
-    - Endpoint này chỉ upload file và trả về URL
-    - Frontend sẽ lấy `imageUrl` từ response và gửi vào field `imageAuctionRoom` của endpoint tạo phòng
-    - Workflow: Upload ảnh → Lấy URL → Gửi URL vào request tạo phòng
+  - **Lưu ý về upload ảnh:**
+    - Để upload ảnh phòng đấu giá, dùng endpoint upload ảnh chung: `POST /api/admin/uploads/upload-image`
+    - Xem chi tiết ở phần "Upload ảnh chung" trong mục "Quản lý Admin"
+    - Sau khi upload, lấy `imageUrl` từ response và gán vào field `imageAuctionRoom` khi tạo phòng
 - **Lấy chi tiết phòng:** `GET /api/admin/auction-rooms/{roomId}`
   - Response:
     ```json
@@ -891,6 +1034,38 @@ Tài liệu này tổng hợp toàn bộ API phục vụ trang quản trị. Cá
 
 - `GET /api/admin/reports/lay-du-lieu` – trả `AdminReportResponse` (bao gồm thông tin người báo cáo, đối tượng bị báo cáo, reportReason, status, thời gian).
 - `GET /api/admin/reports/tim-kiem?q=...`
+- **Lọc báo cáo:** `POST /api/admin/reports/loc-bao-cao`
+  - **Lưu ý quan trọng**: Request phải có header `Content-Type: application/json`
+  - Request Body:
+    ```json
+    {
+      "reportStatuses": [0, 1],
+      "objectTypes": [1, 2],
+      "createdAtFrom": "2025-01-01",
+      "createdAtTo": "2025-12-31"
+    }
+    ```
+  - Request Body Fields (tất cả đều optional - có thể để `null` hoặc không gửi):
+    - `reportStatuses`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, nếu có giá trị sẽ lọc theo các status được chọn. Có thể chọn nhiều status cùng lúc:
+      - `0` = PENDING (Chờ xử lý)
+      - `1` = INVESTIGATING (Đang điều tra)
+      - `2` = RESOLVED (Đã giải quyết)
+      - Ví dụ: `[0, 1]` = lấy cả PENDING và INVESTIGATING, `[2]` = chỉ lấy RESOLVED
+    - `objectTypes`: `null` hoặc mảng rỗng `[]` = bỏ qua filter, nếu có giá trị sẽ lọc theo các object type được chọn. Có thể chọn nhiều object type cùng lúc. Lấy từ `ReportConstants`:
+      - `1` = User
+      - `2` = Artwork
+      - `3` = Auction Room
+      - `4` = AI Artwork
+      - Ví dụ: `[1, 2]` = lấy cả User và Artwork reports, `[3]` = chỉ lấy Auction Room reports
+    - `createdAtFrom`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày bắt đầu (báo cáo được tạo từ ngày này trở đi)
+    - `createdAtTo`: `null` = bỏ qua filter, format `yyyy-MM-dd` - Ngày kết thúc (báo cáo được tạo đến ngày này)
+  - Response: Danh sách `AdminReportResponse` với cấu trúc tương tự như `GET /api/admin/reports/lay-du-lieu`
+  - Lưu ý:
+    - **Tất cả các trường filter đều optional**: Có thể để `null` hoặc không gửi trong request body, khi đó filter đó sẽ bỏ qua (lấy tất cả)
+    - **Có thể kết hợp nhiều filter cùng lúc**: Ví dụ chỉ filter theo `reportStatuses` và `objectTypes`, các trường khác để `null`
+    - **Request body có thể là `{}` (empty object)**: Khi đó sẽ trả về tất cả reports
+    - **Date range lọc theo `createdAt`**: Filter `createdAtFrom` và `createdAtTo` lọc dựa trên trường `createdAt` (thời gian tạo báo cáo)
+    - **`reportStatuses` và `objectTypes` hỗ trợ chọn nhiều**: Có thể chọn nhiều status hoặc object type cùng lúc bằng cách gửi mảng
 - **Thống kê:** `GET /api/admin/reports/thong-ke`
   - Response:
     ```json

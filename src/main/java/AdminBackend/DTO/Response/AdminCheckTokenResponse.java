@@ -13,5 +13,6 @@ public class AdminCheckTokenResponse {
     private String name;
     private String email;
     private String avatar;
+    private Integer role;
 }
 

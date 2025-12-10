@@ -23,6 +23,10 @@ public class CreateAuctionRoomCompleteRequest {
     
     @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
     private LocalDateTime stoppedAt; // Optional
+
+    // Thời gian kết thúc dự kiến của cả phòng (optional)
+    @JsonFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss")
+    private LocalDateTime estimatedEndTime;
     
     private String adminId; // ID của admin phụ trách
     private String type; // Loại phòng đấu giá

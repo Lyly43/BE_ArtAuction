@@ -108,6 +108,7 @@ public class AdminAuctionRoomService {
         room.setImageAuctionRoom(request.getImageAuctionRoom());
         room.setStartedAt(request.getStartedAt());
         room.setStoppedAt(request.getStoppedAt());
+        room.setEstimatedEndTime(request.getEstimatedEndTime());
         room.setViewCount(0);
         room.setStatus(determineStatus(request.getStartedAt(), request.getStoppedAt()));
         room.setMemberIds(new ArrayList<>());
@@ -285,8 +286,15 @@ public class AdminAuctionRoomService {
         if (request.getStoppedAt() != null) {
             room.setStoppedAt(request.getStoppedAt());
         }
-
-        room.setStatus(determineStatus(room.getStartedAt(), room.getStoppedAt()));
+        if (request.getEstimatedEndTime() != null) {
+            room.setEstimatedEndTime(request.getEstimatedEndTime());
+        }
+        // Nếu admin truyền status (ví dụ hoãn = 3) thì ưu tiên dùng, ngược lại dùng logic tự động
+        if (request.getStatus() != null) {
+            room.setStatus(request.getStatus());
+        } else {
+            room.setStatus(determineStatus(room.getStartedAt(), room.getStoppedAt()));
+        }
         room.setUpdatedAt(LocalDateTime.now());
 
         AuctionRoom saved = auctionRoomRepository.save(room);
@@ -355,6 +363,7 @@ public class AdminAuctionRoomService {
         long upcoming = auctionRoomRepository.countByStatus(0);
         long running = auctionRoomRepository.countByStatus(1);
         long completed = auctionRoomRepository.countByStatus(2);
+        long cancelled = auctionRoomRepository.countByStatus(3); // hoãn
 
         // Lấy thống kê so sánh tháng này vs tháng trước
         MonthlyComparisonResponse monthlyComparison = monthlyStatisticsService.getMonthlyComparison("auction_rooms", "createdAt");
@@ -372,7 +381,7 @@ public class AdminAuctionRoomService {
         );
 
         AuctionRoomStatisticsResponse stats = new AuctionRoomStatisticsResponse(
-                total, running, upcoming, completed, monthlyComp
+                total, running, upcoming, completed, cancelled, monthlyComp
         );
 
         return ResponseEntity.ok(stats);
@@ -430,6 +439,10 @@ public class AdminAuctionRoomService {
 
     private boolean updateStatusIfNeeded(AuctionRoom room) {
         int currentStatus = room.getStatus();
+        // Nếu phòng đang ở trạng thái hoãn (3) thì không tự động cập nhật lại
+        if (currentStatus == 3) {
+            return false;
+        }
         int newStatus = determineStatus(room.getStartedAt(), room.getStoppedAt());
         if (currentStatus != newStatus) {
             room.setStatus(newStatus);
@@ -453,6 +466,7 @@ public class AdminAuctionRoomService {
         response.setStatus(room.getStatus());
         response.setStartedAt(room.getStartedAt());
         response.setStoppedAt(room.getStoppedAt());
+        response.setEstimatedEndTime(room.getEstimatedEndTime());
         response.setCreatedAt(room.getCreatedAt());
 
         PricePair pricePair = fetchPriceForRoom(room.getId());
@@ -556,6 +570,7 @@ public class AdminAuctionRoomService {
         room.setImageAuctionRoom(request.getImageAuctionRoom()); // URL từ endpoint upload-ảnh
         room.setStartedAt(request.getStartedAt());
         room.setStoppedAt(request.getStoppedAt());
+        room.setEstimatedEndTime(request.getEstimatedEndTime());
         room.setViewCount(0);
         room.setStatus(determineStatus(request.getStartedAt(), request.getStoppedAt()));
         room.setMemberIds(new ArrayList<>());
@@ -759,6 +774,7 @@ public class AdminAuctionRoomService {
         detail.setImageAuctionRoom(room.getImageAuctionRoom());
         detail.setStartedAt(room.getStartedAt());
         detail.setStoppedAt(room.getStoppedAt());
+        detail.setEstimatedEndTime(room.getEstimatedEndTime());
         detail.setStatus(room.getStatus());
         detail.setDepositAmount(room.getDepositAmount() != null ? room.getDepositAmount() : BigDecimal.ZERO);
         detail.setViewCount(room.getViewCount() != null ? room.getViewCount() : 0);

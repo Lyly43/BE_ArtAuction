@@ -1,6 +1,7 @@
 package AdminBackend.Controller;
 
 import AdminBackend.DTO.Request.AddAdminRequest;
+import AdminBackend.DTO.Request.AdminFilterRequest;
 import AdminBackend.DTO.Request.UpdateAdminRequest;
 import AdminBackend.DTO.Response.AdminAdminResponse;
 import AdminBackend.DTO.Response.AdminStatisticsResponse;
@@ -20,17 +21,6 @@ public class AdminAdminController {
     @Autowired
     private AdminAdminService adminAdminService;
 
-    /**
-     * POST /api/admin/admins/them-admin-upload-avatar
-     * Upload avatar admin từ thiết bị và trả về URL
-     *
-     * - avatarFile: MultipartFile (required) - Ảnh avatar từ thiết bị
-     */
-    @PostMapping(value = "/them-admin-upload-avatar", consumes = "multipart/form-data")
-    public ResponseEntity<?> uploadAdminAvatar(
-            @RequestPart("avatarFile") MultipartFile avatarFile) {
-        return adminAdminService.uploadAdminAvatar(avatarFile);
-    }
 
     /**
      * POST /api/admin/admins/them-admin
@@ -63,6 +53,15 @@ public class AdminAdminController {
     }
 
     /**
+     * POST /api/admin/admins/loc-admin
+     * Lọc admin theo các tiêu chí: roles, status, createdAt
+     */
+    @PostMapping("/loc-admin")
+    public ResponseEntity<List<AdminAdminResponse>> filterAdmins(@RequestBody AdminFilterRequest request) {
+        return adminAdminService.filterAdmins(request);
+    }
+
+    /**
      * GET /api/admin/admins/thong-ke
      * Thống kê admin: tổng admin, admin hoạt động, admin bị khóa
      */
@@ -89,6 +88,16 @@ public class AdminAdminController {
     @DeleteMapping("/xoa/{adminId}")
     public ResponseEntity<?> deleteAdmin(@PathVariable String adminId) {
         return adminAdminService.deleteAdmin(adminId);
+    }
+
+    /**
+     * GET /api/admin/admins/{adminId}
+     * Lấy thông tin chi tiết 1 admin theo ID
+     * Chỉ super admin (role = 4) được phép gọi
+     */
+    @GetMapping("/{adminId}")
+    public ResponseEntity<?> getAdminById(@PathVariable String adminId) {
+        return adminAdminService.getAdminById(adminId);
     }
 }
 

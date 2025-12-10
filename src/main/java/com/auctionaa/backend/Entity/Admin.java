@@ -28,7 +28,7 @@ public class Admin extends BaseEntity {
 
     private Integer status; // 0 = Bị Khóa, 1 = Hoạt động
 
-    private Integer role; // Default: 3 (admin role)
+    private Integer role; // 3: Admin , 4: Super Admin
 
     @CreatedDate
     private LocalDateTime createdAt;
