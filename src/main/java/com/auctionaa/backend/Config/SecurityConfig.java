@@ -41,14 +41,19 @@ public class SecurityConfig {
 
                 // Phân quyền
                 .authorizeHttpRequests(auth -> auth
+                        // Swagger/OpenAPI endpoints - cho phép truy cập công khai để xem tài liệu API
+                        // Truy cập Swagger UI tại: http://localhost:8081/swagger-ui.html
+                        .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+
                         // WebSocket/SockJS - cần permitAll để SockJS có thể kết nối
                         .requestMatchers("/ws/**", "/stomp/**", "/ws/info", "/ws/info/**", "/ws/websocket").permitAll()
 
+                        .requestMatchers(HttpMethod.GET, " /api/all-seller-requests").permitAll()
                         // Auth (public)
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
-                        
+
                         // Admin Auth (public - cho phép login)
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()
 
@@ -88,6 +93,7 @@ public class SecurityConfig {
                         // Preflight
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
+                        .requestMatchers(HttpMethod.GET, "/api/auctionroom/*").permitAll()
                         // Còn lại: yêu cầu đã đăng nhập (JWT)
                         .anyRequest().authenticated())
 

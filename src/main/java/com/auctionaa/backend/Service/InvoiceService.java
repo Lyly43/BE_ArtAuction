@@ -13,6 +13,7 @@ import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.InvoiceRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -90,7 +91,7 @@ public class InvoiceService {
         return invoiceRepository.findByUserId(user.getId(), pageable);
     }
 
-    public List<InvoiceListItemDTO> getMyInvoicesArray(String email) {
+  /*  public List<InvoiceListItemDTO> getMyInvoicesArray(String email) {
         User user = userRepository.findById(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -124,6 +125,53 @@ public class InvoiceService {
                             iv.getTotalAmount(),
                             iv.getPaymentStatus(),
                             iv.getCreatedAt());
+                })
+                .toList();
+    }*/
+
+    public List<InvoiceListItemDTO> getMyInvoicesArray(String email, int page, int size) {
+
+        User user = userRepository.findById(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Invoice> invoicePage =
+                invoiceRepository.findByUserIdOrderByOrderDateDesc(user.getId(), pageable);
+
+        List<Invoice> invoices = invoicePage.getContent();
+
+        // Lấy list artworkId
+        var artworkIds = invoices.stream()
+                .map(Invoice::getArtworkId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        // Tải Artwork batch
+        var artworkMap = artworkRepository.findAllById(artworkIds).stream()
+                .collect(java.util.stream.Collectors.toMap(Artwork::getId, a -> a));
+
+        // Map sang DTO
+        return invoices.stream()
+                .map(iv -> {
+                    Artwork art = artworkMap.get(iv.getArtworkId());
+
+                    String avt = (art != null) ? art.getAvtArtwork() : null;
+                    String title = (art != null && art.getTitle() != null)
+                            ? art.getTitle()
+                            : iv.getArtworkTitle();
+
+                    return new InvoiceListItemDTO(
+                            iv.getId(),
+                            iv.getAuctionRoomId(),
+                            iv.getArtworkId(),
+                            title,
+                            avt,
+                            iv.getTotalAmount(),
+                            iv.getPaymentStatus(),
+                            iv.getCreatedAt()
+                    );
                 })
                 .toList();
     }

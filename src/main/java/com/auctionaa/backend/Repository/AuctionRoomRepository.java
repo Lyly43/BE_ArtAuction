@@ -2,9 +2,12 @@ package com.auctionaa.backend.Repository;
 
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.Entity.AuctionRoom;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.Aggregation;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
+
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -12,24 +15,40 @@ import java.util.Optional;
 public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, String> {
 
     // Tìm phòng theo memberId
-    List<AuctionRoom> findByMemberIdsContaining(String memberId);
+    Page<AuctionRoom> findByMemberIdsContaining(String memberId, Pageable pageable);
 
+    /**
+     * Lấy 6 phòng featured theo tổng giá của 2 tranh có giá cao nhất trong room
+     * (dựa trên trường starting_price trong collection auction_sessions).
+     */
     @Aggregation(pipeline = {
+            // Lấy ra tối đa 2 session có starting_price cao nhất cho mỗi room
+            "{ $lookup: { " +
+                    "   from: 'auction_sessions', " +
+                    "   let: { roomId: '$_id' }, " +
+                    "   pipeline: [" +
+                    "     { $match: { $expr: { $eq: ['$auctionRoomId', '$$roomId'] } } }," +
+                    "     { $sort: { starting_price: -1 } }," +
+                    "     { $limit: 2 }" +
+                    "   ], " +
+                    "   as: 'topSessions' } }",
+            // Tính tổng giá của 2 tranh top (nếu <2 thì cộng những cái có)
+            "{ $addFields: { totalPrice: { $sum: '$topSessions.starting_price' } } }",
+            // Sort theo tổng giá giảm dần và giới hạn 6 phòng
+            "{ $sort: { totalPrice: -1 } }",
+            "{ $limit: 6 }",
+            // Project ra DTO cho FE dùng
             "{ $project: { " +
-                    "   id: '$_id', " + // thêm dòng này
+                    "   id: '$_id', " +
                     "   roomName: 1, description: 1, " +
-                    "   viewCount: '$viewCount', " +
-                    "   depositAmount: '$depositAmount', " +
-                    "   memberIds: 1, imageAuctionRoom: 1, type: 1, status: 1, " +
-                    "   createdAt: 1, updatedAt: 1, " +
-                    "   membersCount: { $size: { $ifNull: ['$memberIds', []] } } " + // xem mục 2
-                    "} }",
-
+                    "   viewCount: \"$viewCount\", " +
+                    "   depositAmount: { $convert: { input: \"$depositAmount\", to: \"decimal\" } }, "
+                    +
+                    "   memberIds: 1, imageAuctionRoom: 1, type: 1, status: 1 " +
+                    "} }"
     })
     List<AuctionRoomLiveDTO> findTop6ByMembersCount();
 
-    // (nên sửa tên) dùng contains: List<AuctionRoom> findByMemberIdsContains(String
-    // memberId);
     @Aggregation(pipeline = {
             "{ $lookup: { " +
                     "   from: 'auction_sessions', " +
@@ -43,29 +62,28 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
                     "     { $limit: 1 }" +
                     "   ], " +
                     "   as: 'live' } }",
+
             "{ $addFields: { live: { $first: '$live' } } }",
+
             "{ $project: { " +
-                    // alias _id -> id để map an toàn sang DTO
                     "   id: '$_id', " +
-                    "   roomName: 1, " +
-                    "   imageAuctionRoom: 1, " + // <-- sửa đúng tên field của room
-                    "   type: 1, " +
-                    "   status: 1, " +
-                    "   memberIds: 1, " +
-                    "   depositAmount: '$depositAmount', " +
-                    // lấy viewCount của PHÒNG
-                    "   viewCount: '$viewCount', " +
-                    // thông tin phiên
+                    "   roomName: 1, imageAuctionRoom: 1, " +
+                    "   type: 1, status: 1, memberIds: 1, " +
+                    "   depositAmount: { $convert: { input: \"$depositAmount\", to: \"decimal\" } }, " +
+                    "   viewCount: 1, " +
                     "   sessionId: '$live._id', " +
                     "   startTime: '$live.startTime', " +
-                    "   endTime:   '$live.endedAt', " +
+                    "   endTime: '$live.endedAt', " +
                     "   startingPrice: '$live.startingPrice', " +
-                    "   currentPrice:  '$live.currentPrice', " +
-                    // mô tả: ưu tiên mô tả phiên, rỗng thì fallback về mô tả phòng
+                    "   currentPrice: '$live.currentPrice', " +
                     "   description: { $ifNull: ['$live.description', '$description'] }" +
-                    "} }"
+                    "} }",
+
+            // 👇 THÊM pagination ở cuối pipeline
+            "{ $skip: ?1 }",
+            "{ $limit: ?2 }"
     })
-    List<AuctionRoomLiveDTO> findRoomsWithLivePrices(int runningStatus);
+    List<AuctionRoomLiveDTO> findRoomsWithLivePrices(int runningStatus, long skip, long limit);
 
 
     // Tìm kiếm theo ID (exact match)
@@ -98,5 +116,9 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
     List<AuctionRoom> findByStatus(int status);
 
 //    List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
+    // Lọc theo status với phân trang
+    Page<AuctionRoom> findByStatus(int status, Pageable pageable);
+
+    // List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
 
 }
