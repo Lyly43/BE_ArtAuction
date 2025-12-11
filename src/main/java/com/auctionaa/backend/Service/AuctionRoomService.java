@@ -4,11 +4,14 @@ import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.DTO.Response.MemberResponse;
+import com.auctionaa.backend.DTO.Response.RoomCompleteDetailDTO;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
+import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.AuctionSessionRepository;
+import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -40,6 +43,9 @@ public class AuctionRoomService {
 
     @Autowired
     private AuctionSessionRepository auctionSessionRepository;
+
+    @Autowired
+    private ArtworkRepository artworkRepository;
 
     public AuctionRoom getRoomById(String roomId){
         return auctionRoomRepository.findById(roomId)
@@ -277,5 +283,50 @@ public class AuctionRoomService {
                         user.getUsername(),
                         user.getAvt()))
                 .toList();
+    }
+
+    /**
+     * Lấy tất cả thông tin của phòng đấu giá bao gồm:
+     * - Thông tin phòng (AuctionRoom)
+     * - Tất cả sessions trong phòng (AuctionSession)
+     * - Thông tin tác phẩm (Artwork) của mỗi session
+     *
+     * @param roomId ID của phòng đấu giá
+     * @return RoomCompleteDetailDTO chứa đầy đủ thông tin
+     */
+    public RoomCompleteDetailDTO getRoomCompleteDetail(String roomId) {
+        // 1. Lấy thông tin phòng
+        AuctionRoom room = auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+
+        // 2. Lấy tất cả sessions trong phòng
+        List<AuctionSession> sessions = auctionSessionRepository.findByAuctionRoomId(roomId);
+
+        // 3. Lấy tất cả artworkIds từ sessions
+        List<String> artworkIds = sessions.stream()
+                .map(AuctionSession::getArtworkId)
+                .filter(artworkId -> artworkId != null && !artworkId.isEmpty())
+                .distinct()
+                .toList();
+
+        // 4. Lấy tất cả artworks
+        List<Artwork> artworks = artworkIds.isEmpty()
+                ? new ArrayList<>()
+                : artworkRepository.findAllById(artworkIds);
+
+        // 5. Tạo map để tra cứu artwork nhanh
+        java.util.Map<String, Artwork> artworkMap = artworks.stream()
+                .collect(java.util.stream.Collectors.toMap(Artwork::getId, artwork -> artwork));
+
+        // 6. Tạo danh sách SessionWithArtworkDTO
+        List<RoomCompleteDetailDTO.SessionWithArtworkDTO> sessionWithArtworks = sessions.stream()
+                .map(session -> {
+                    Artwork artwork = artworkMap.get(session.getArtworkId());
+                    return new RoomCompleteDetailDTO.SessionWithArtworkDTO(session, artwork);
+                })
+                .toList();
+
+        // 7. Trả về DTO
+        return new RoomCompleteDetailDTO(room, sessionWithArtworks);
     }
 }

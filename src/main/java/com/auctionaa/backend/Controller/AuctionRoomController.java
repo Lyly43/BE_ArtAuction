@@ -6,6 +6,7 @@ import com.auctionaa.backend.DTO.Request.PagingRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.DTO.Response.MemberResponse;
 import com.auctionaa.backend.DTO.Response.RoomDetailDTO;
+import com.auctionaa.backend.DTO.Response.RoomCompleteDetailDTO;
 import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
@@ -34,6 +35,21 @@ public class AuctionRoomController {
         AuctionRoom auctionRoom = auctionRoomService.getRoomById(id);
         List<AuctionSession> auctionSessionList = auctionSessionRepository.findByAuctionRoomId(id);
         return new RoomDetailDTO(auctionRoom,auctionSessionList);
+    }
+
+    /**
+     * Lấy tất cả thông tin của phòng đấu giá bao gồm:
+     * - Thông tin phòng (AuctionRoom)
+     * - Tất cả sessions trong phòng (AuctionSession) 
+     * - Thông tin tác phẩm (Artwork) của mỗi session
+     * GET /api/auctionroom/complete/{id}
+     *
+     * @param id ID của phòng đấu giá
+     * @return RoomCompleteDetailDTO chứa đầy đủ thông tin
+     */
+    @GetMapping("complete/{id}")
+    public RoomCompleteDetailDTO getRoomCompleteDetail(@PathVariable String id) {
+        return auctionRoomService.getRoomCompleteDetail(id);
     }
     @PostMapping("/history")
     public List<AuctionRoom> getMyAuctionRoom(
