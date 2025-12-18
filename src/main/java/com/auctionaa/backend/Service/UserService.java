@@ -36,7 +36,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
-public class UserService {
+public class  UserService {
     @Autowired
     private UserRepository userRepository;
     @Autowired

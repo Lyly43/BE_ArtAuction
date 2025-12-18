@@ -22,6 +22,7 @@ public class RoomCompleteDetailDTO {
     public static class SessionWithArtworkDTO {
         private AuctionSession session;
         private Artwork artwork;
+        private String ownerName;
     }
 }
 
