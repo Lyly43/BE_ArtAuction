@@ -7,6 +7,7 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface ArtworkRepository extends MongoRepository<Artwork, String> {
 
@@ -17,6 +18,8 @@ public interface ArtworkRepository extends MongoRepository<Artwork, String> {
     // Query theo ownerId (thường chạy rất nhanh nếu có index)
     @Meta(maxExecutionTimeMs = 1000L, cursorBatchSize = 500)
     List<Artwork> findByOwnerId(String ownerId);
+
+//    Optional<Artwork> findById(String Id);
 
     // (giữ API cũ nếu còn dùng – KHÔNG nên gắn @Meta vào derived method không có Pageable)
     List<Artwork> findTop6ByOrderByStartedPriceDesc();

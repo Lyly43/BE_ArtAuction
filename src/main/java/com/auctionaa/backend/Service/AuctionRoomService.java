@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class AuctionRoomService {
@@ -295,38 +296,52 @@ public class AuctionRoomService {
      * @return RoomCompleteDetailDTO chứa đầy đủ thông tin
      */
     public RoomCompleteDetailDTO getRoomCompleteDetail(String roomId) {
-        // 1. Lấy thông tin phòng
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
 
-        // 2. Lấy tất cả sessions trong phòng
         List<AuctionSession> sessions = auctionSessionRepository.findByAuctionRoomId(roomId);
 
-        // 3. Lấy tất cả artworkIds từ sessions
         List<String> artworkIds = sessions.stream()
                 .map(AuctionSession::getArtworkId)
-                .filter(artworkId -> artworkId != null && !artworkId.isEmpty())
+                .filter(id -> id != null && !id.isBlank())
                 .distinct()
                 .toList();
 
-        // 4. Lấy tất cả artworks
         List<Artwork> artworks = artworkIds.isEmpty()
                 ? new ArrayList<>()
                 : artworkRepository.findAllById(artworkIds);
 
-        // 5. Tạo map để tra cứu artwork nhanh
-        java.util.Map<String, Artwork> artworkMap = artworks.stream()
-                .collect(java.util.stream.Collectors.toMap(Artwork::getId, artwork -> artwork));
+        Map<String, Artwork> artworkMap = artworks.stream()
+                .collect(java.util.stream.Collectors.toMap(Artwork::getId, a -> a));
 
-        // 6. Tạo danh sách SessionWithArtworkDTO
+        // ===== NEW: gom ownerIds từ artworks =====
+        List<String> ownerIds = artworks.stream()
+                .map(Artwork::getOwnerId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .toList();
+
+        Map<String, String> ownerNameMap = ownerIds.isEmpty()
+                ? java.util.Collections.emptyMap()
+                : userRepository.findAllById(ownerIds).stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        User::getId,
+                        User::getUsername,   // "name" hiển thị hiện tại = username
+                        (a, b) -> a
+                ));
         List<RoomCompleteDetailDTO.SessionWithArtworkDTO> sessionWithArtworks = sessions.stream()
                 .map(session -> {
                     Artwork artwork = artworkMap.get(session.getArtworkId());
-                    return new RoomCompleteDetailDTO.SessionWithArtworkDTO(session, artwork);
+                    String ownerName = null;
+
+                    if (artwork != null && artwork.getOwnerId() != null) {
+                        ownerName = ownerNameMap.get(artwork.getOwnerId());
+                    }
+
+                    return new RoomCompleteDetailDTO.SessionWithArtworkDTO(session, artwork, ownerName);
                 })
                 .toList();
 
-        // 7. Trả về DTO
         return new RoomCompleteDetailDTO(room, sessionWithArtworks);
     }
 }
