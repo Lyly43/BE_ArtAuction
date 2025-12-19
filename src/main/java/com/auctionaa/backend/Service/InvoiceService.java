@@ -180,7 +180,7 @@ public class InvoiceService {
      * Tìm kiếm và lọc invoice của user hiện tại
      * - Tìm theo ID
      * - Tìm theo artworkTitle (tên artwork) hoặc roomName (tên phòng)
-     * - Lọc theo createdAt hoặc paymentDate (ngày)
+     * - Lọc theo orderDate (ngày đặt hàng)
      * - Filter theo userId (chỉ lấy invoice của user đó)
      * Note: Invoice không có field "type" nên sẽ bỏ qua type filter
      */
@@ -197,7 +197,7 @@ public class InvoiceService {
                     "artworkTitle", // nameField (tìm theo tên artwork)
                     null, // typeField (không có)
                     request.getDateFrom() != null || request.getDateTo() != null
-                            ? "createdAt"
+                            ? "orderDate"  // Sửa: dùng orderDate thay vì createdAt
                             : null, // dateField
                     "userId", // userIdField
                     userId // userId
@@ -219,7 +219,7 @@ public class InvoiceService {
                         null,
                         roomNameRequest.getDateFrom() != null
                                 || roomNameRequest.getDateTo() != null
-                                ? "createdAt"
+                                ? "orderDate"  // Sửa: dùng orderDate thay vì createdAt
                                 : null,
                         "userId", // userIdField
                         userId // userId
@@ -237,7 +237,7 @@ public class InvoiceService {
                 null, // không tìm theo name
                 null, // không có type
                 request.getDateFrom() != null || request.getDateTo() != null
-                        ? "createdAt"
+                        ? "orderDate"  // Sửa: dùng orderDate thay vì createdAt
                         : null,
                 "userId", // userIdField
                 userId // userId

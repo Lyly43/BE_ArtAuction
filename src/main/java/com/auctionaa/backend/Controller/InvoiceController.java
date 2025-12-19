@@ -1,8 +1,10 @@
 package com.auctionaa.backend.Controller;
 
+import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
 import com.auctionaa.backend.DTO.Request.CreateInvoiceRequest;
 import com.auctionaa.backend.DTO.Request.PagingRequest;
 import com.auctionaa.backend.DTO.Response.InvoiceListItemDTO;
+import com.auctionaa.backend.DTO.Response.SearchResponse;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Service.InvoiceService;
@@ -51,6 +53,27 @@ public class InvoiceController {
         return invoiceService.getMyInvoicesArray(email, req.getPage(), req.getSize());
     }
 
-
+    /**
+     * Tìm kiếm và lọc invoice của user hiện tại
+     * Request body (JSON):
+     * - id: Tìm kiếm theo ID (exact match)
+     * - name: Tìm kiếm theo artworkTitle hoặc roomName (partial match, case-insensitive)
+     * - dateFrom: Lọc từ ngày đặt hàng (format: yyyy-MM-dd)
+     * - dateTo: Lọc đến ngày đặt hàng (format: yyyy-MM-dd)
+     * Có thể gửi body rỗng {} để lấy tất cả invoice của user
+     */
+    @PostMapping("/search")
+    public SearchResponse<Invoice> searchAndFilter(
+            @RequestBody(required = false) BaseSearchRequest request,
+            @RequestHeader("Authorization") String authHeader) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new BaseSearchRequest();
+        }
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        List<Invoice> results = invoiceService.searchAndFilter(request, userId);
+        return SearchResponse.success(results);
+    }
 
 }
