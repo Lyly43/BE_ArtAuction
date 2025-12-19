@@ -2,6 +2,7 @@ package com.auctionaa.backend.Service;
 
 import com.auctionaa.backend.DTO.Request.RegisterRequest;
 import com.auctionaa.backend.DTO.Request.UserRequest;
+import com.auctionaa.backend.DTO.Request.VerifyOtpRequest;
 import com.auctionaa.backend.DTO.Response.AuthResponse;
 import com.auctionaa.backend.DTO.Response.UserAVTResponse;
 import com.auctionaa.backend.DTO.Response.UserResponse;
@@ -11,16 +12,19 @@ import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Entity.Wallet;
 import com.auctionaa.backend.Jwt.JwtUtil;
+import com.auctionaa.backend.Otp.OtpRedisService;
 import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.InvoiceRepository;
 import com.auctionaa.backend.Repository.UserRepository;
 import com.auctionaa.backend.Repository.WalletRepository;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
@@ -50,21 +54,26 @@ public class  UserService {
 
     private final ModelMapper mapper;
     private final CloudinaryService cloudinaryService;
+    private final OtpRedisService otpRedisService;
+    private final MailService mailService;
+
+    @Value("${app.otp.expireMinutes}")
+    private long otpExpireMinutes;
 
     // private RegisterResponse registerResponse;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public UserService(ModelMapper mapper, CloudinaryService cloudinaryService) {
+    public UserService(ModelMapper mapper, CloudinaryService cloudinaryService, OtpRedisService otpRedisService, MailService mailService) {
         this.mapper = mapper;
         this.cloudinaryService = cloudinaryService;
+        this.otpRedisService = otpRedisService;
+        this.mailService = mailService;
     }
 
     public AuthResponse register(RegisterRequest request) {
-
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             return new AuthResponse(0, "Incorrect password bro!!!");
         }
-
         if (userRepository.existsByEmail(request.getEmail())) {
             return new AuthResponse(0, "Email already existed!!!");
         }
@@ -72,28 +81,74 @@ public class  UserService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-
-        String encodedPassword = passwordEncoder.encode(request.getPassword());
-        user.setPassword(encodedPassword);
+        user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setPhonenumber(request.getPhone());
-
         user.setCreatedAt(LocalDateTime.now());
-        user.setStatus(1);
-        // ✅ generate ID trước khi save
+
+        user.setStatus(0); // ✅ CHƯA VERIFY
         user.generateId();
 
-        User savedUser = userRepository.save(user);
+        userRepository.save(user);
 
-        // ✅ Tự động tạo ví cho user mới
-        Wallet wallet = new Wallet();
-        wallet.setUserId(savedUser.getId());
-        wallet.setBalance(BigDecimal.ZERO);
-        wallet.setFrozenBalance(BigDecimal.ZERO);
-        wallet.generateId(); // Generate ID cho wallet
-        walletRepository.save(wallet);
+        // Cooldown resend (optional: cho register luôn không cần cooldown)
+        String otp = otpRedisService.createAndStoreOtp(user.getEmail());
+        mailService.sendOtpHtml(user.getEmail(), otp,otpExpireMinutes);
 
-        return new AuthResponse(1, "Register Successfully");
+        return new AuthResponse(1, "Registered. OTP has been sent to your email.");
 
+    }
+
+    @Transactional
+    public AuthResponse verifyOtp(VerifyOtpRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        // Nếu bạn dùng 2 = BANNED
+        if (user.getStatus() == 2) return new AuthResponse(0, "User has been banned");
+        if (user.getStatus() == 1) return new AuthResponse(1, "Already verified");
+
+        OtpRedisService.VerifyResult rs = otpRedisService.verify(request.getEmail(), request.getOtp());
+
+        if (rs == OtpRedisService.VerifyResult.EXPIRED_OR_NOT_FOUND)
+            return new AuthResponse(0, "OTP expired or not found");
+        if (rs == OtpRedisService.VerifyResult.TOO_MANY_ATTEMPTS)
+            return new AuthResponse(0, "Too many attempts. Please resend OTP");
+        if (rs == OtpRedisService.VerifyResult.INVALID)
+            return new AuthResponse(0, "Invalid OTP");
+
+        // OK
+        user.setStatus(1);
+        userRepository.save(user);
+
+        // Tạo wallet sau verify
+        if (!walletRepository.existsByUserId(user.getId())) {
+            Wallet wallet = new Wallet();
+            wallet.setUserId(user.getId());
+            wallet.setBalance(BigDecimal.ZERO);
+            wallet.setFrozenBalance(BigDecimal.ZERO);
+            wallet.generateId();
+            walletRepository.save(wallet);
+        }
+
+        String token = jwtUtil.generateToken(user.getId());
+        return new AuthResponse(1, "Verify OTP successfully", token);
+    }
+
+    public AuthResponse resendOtp(String email) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (user.getStatus() == 2) return new AuthResponse(0, "User has been banned");
+        if (user.getStatus() == 1) return new AuthResponse(1, "Already verified");
+
+        if (!otpRedisService.canResend(email)) {
+            return new AuthResponse(0, "Please wait before resending OTP");
+        }
+
+        String otp = otpRedisService.createAndStoreOtp(email);
+        mailService.sendOtpHtml(email, otp, otpExpireMinutes);
+
+        return new AuthResponse(1, "OTP resent. Please check your email.");
     }
 
     public Optional<User> login(String email, String rawPassword) {

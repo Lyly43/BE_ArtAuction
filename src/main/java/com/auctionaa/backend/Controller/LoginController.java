@@ -36,6 +36,14 @@ public class LoginController {
 
         User user = userOptional.get();
 
+        if (user.getStatus() == 2) {
+            return ResponseEntity.badRequest().body(new AuthResponse(0, "User has been banned"));
+        }
+        if (user.getStatus() == 0) {
+            return ResponseEntity.badRequest().body(new AuthResponse(0, "Email not verified"));
+        }
+
+
         if (passwordEncoder.matches(loginRequest.getPassword(), user.getPassword())) {
             String token = jwtUtil.generateToken(user.getId());
             user.setStatus(1); // ✅ đánh dấu user đang active
