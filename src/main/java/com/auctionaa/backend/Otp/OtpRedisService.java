@@ -1,5 +1,6 @@
 package com.auctionaa.backend.Otp;
 
+import com.auctionaa.backend.DTO.OtpToRedis.OtpPayload;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;

@@ -104,7 +104,7 @@ public class  UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         // Nếu bạn dùng 2 = BANNED
-        if (user.getStatus() == 2) return new AuthResponse(0, "User has been banned");
+        if (user.getStatus() == 0) return new AuthResponse(0, "User has been banned");
         if (user.getStatus() == 1) return new AuthResponse(1, "Already verified");
 
         OtpRedisService.VerifyResult rs = otpRedisService.verify(request.getEmail(), request.getOtp());
