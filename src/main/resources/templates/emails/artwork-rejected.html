@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Tác phẩm chưa được duyệt</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 40px 0;
+            font-family: 'Inter', Arial, sans-serif;
+            background: linear-gradient(135deg, #fff5f6 0%, #ffeef0 40%, #fff9f2 100%);
+            color: #301515;
+        }
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 35px 60px rgba(155, 25, 25, 0.08);
+            overflow: hidden;
+        }
+        .hero {
+            padding: 32px;
+            background: radial-gradient(circle at top right, #ff6d6f, #ff3b3f);
+            color: #ffffff;
+        }
+        .hero h1 {
+            margin: 0;
+            font-size: 28px;
+            letter-spacing: 0.4px;
+        }
+        .content {
+            padding: 36px;
+            line-height: 1.75;
+        }
+        .pill {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 999px;
+            background: #ffe6e7;
+            color: #d92f35;
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 18px;
+        }
+        .reason-box {
+            margin: 24px 0;
+            padding: 20px 22px;
+            border-radius: 18px;
+            background: #fff5f4;
+            border: 1px solid #ffd1d3;
+        }
+        .reason-box h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #d92f35;
+        }
+        .admin-note {
+            margin-top: 18px;
+            padding: 18px;
+            border-left: 4px solid #ffc062;
+            background: #fffaf0;
+            color: #745217;
+        }
+        .button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            text-decoration: none;
+            background: linear-gradient(135deg, #ff6d6f, #ff3b3f);
+            color: #ffffff;
+            padding: 14px 34px;
+            border-radius: 999px;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            box-shadow: 0 12px 24px rgba(255, 67, 72, 0.25);
+            margin-top: 26px;
+        }
+        .footer {
+            padding: 24px 36px 36px;
+            text-align: center;
+            font-size: 13px;
+            color: #a06464;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="hero">
+        <p style="margin:0 0 10px;font-size:14px;opacity:0.85;">Artwork Review</p>
+        <h1>Tác phẩm cần điều chỉnh thêm</h1>
+    </div>
+    <div class="content">
+        <span class="pill">Needs Attention</span>
+        <p>Xin chào <strong th:text="${userName}">Artist</strong>,<br/>
+            Rất tiếc, tác phẩm <strong th:text="${artworkTitle}">Artwork</strong> của bạn chưa thể được phê duyệt ở thời điểm hiện tại.</p>
+
+        <div class="reason-box">
+            <h3>Lý do chính</h3>
+            <p style="margin:0;" th:text="${reason}">
+                ...
+            </p>
+        </div>
+
+        <div class="admin-note" th:if="${adminNote != null}">
+            <strong>Gợi ý từ ban thẩm định</strong>
+            <p style="margin:6px 0 0;" th:text="${adminNote}">...</p>
+        </div>
+
+        <a class="button" th:href="${detailLink}">
+            Xem lại tác phẩm & chỉnh sửa
+        </a>
+
+        <p style="margin-top:32px;color:#a06464;">
+            Chúng tôi rất mong nhận được phiên bản hoàn thiện hơn của bạn. Khi đã cập nhật, hãy gửi lại để đội ngũ có thể xem xét lần nữa.
+        </p>
+    </div>
+    <div class="footer">
+        ArtAuction Admin • Email này mang tính thông báo. Vui lòng liên hệ bộ phận hỗ trợ nếu cần thêm thông tin.
+    </div>
+</div>
+</body>
+</html>
+
+
