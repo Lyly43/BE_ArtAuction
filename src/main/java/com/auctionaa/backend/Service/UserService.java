@@ -1,5 +1,6 @@
 package com.auctionaa.backend.Service;
 
+import com.auctionaa.backend.DTO.OtpToRedis.PendingRegisterPayload;
 import com.auctionaa.backend.DTO.Request.RegisterRequest;
 import com.auctionaa.backend.DTO.Request.UserRequest;
 import com.auctionaa.backend.DTO.Request.VerifyOtpRequest;
@@ -13,6 +14,7 @@ import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Entity.Wallet;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Otp.OtpRedisService;
+import com.auctionaa.backend.Otp.PendingRegisterRedisService;
 import com.auctionaa.backend.Repository.ArtworkRepository;
 import com.auctionaa.backend.Repository.InvoiceRepository;
 import com.auctionaa.backend.Repository.UserRepository;
@@ -56,6 +58,7 @@ public class  UserService {
     private final CloudinaryService cloudinaryService;
     private final OtpRedisService otpRedisService;
     private final MailService mailService;
+    private  final PendingRegisterRedisService pendingRegisterRedisService;
 
     @Value("${app.otp.expireMinutes}")
     private long otpExpireMinutes;
@@ -63,51 +66,47 @@ public class  UserService {
     // private RegisterResponse registerResponse;
     private final BCryptPasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
-    public UserService(ModelMapper mapper, CloudinaryService cloudinaryService, OtpRedisService otpRedisService, MailService mailService) {
+    public UserService(ModelMapper mapper, CloudinaryService cloudinaryService, OtpRedisService otpRedisService, MailService mailService, PendingRegisterRedisService pendingRegisterRedisService) {
         this.mapper = mapper;
         this.cloudinaryService = cloudinaryService;
         this.otpRedisService = otpRedisService;
         this.mailService = mailService;
+        this.pendingRegisterRedisService = pendingRegisterRedisService;
     }
 
     public AuthResponse register(RegisterRequest request) {
+
         if (!request.getPassword().equals(request.getConfirmPassword())) {
             return new AuthResponse(0, "Incorrect password bro!!!");
         }
-        if (userRepository.existsByEmail(request.getEmail())) {
+
+        String email = request.getEmail().toLowerCase();
+
+        if (userRepository.existsByEmail(email)) {
             return new AuthResponse(0, "Email already existed!!!");
         }
 
-        User user = new User();
-        user.setUsername(request.getUsername());
-        user.setEmail(request.getEmail());
-        user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setPhonenumber(request.getPhone());
-        user.setCreatedAt(LocalDateTime.now());
+        // ✅ lưu pending register vào Redis (lưu password hash)
+        String passwordHash = passwordEncoder.encode(request.getPassword());
+        pendingRegisterRedisService.store(request, passwordHash);
 
-        user.setStatus(0); // ✅ CHƯA VERIFY
-        user.generateId();
+        // (optional) cooldown resend
+        // if (!otpRedisService.canResend(email)) return new AuthResponse(0, "Please wait before resend OTP");
 
-        userRepository.save(user);
-
-        // Cooldown resend (optional: cho register luôn không cần cooldown)
-        String otp = otpRedisService.createAndStoreOtp(user.getEmail());
-        mailService.sendOtpHtml(user.getEmail(), otp,otpExpireMinutes);
+        String otp = otpRedisService.createAndStoreOtp(email);
+        mailService.sendOtpHtml(email, otp, otpExpireMinutes);
 
         return new AuthResponse(1, "Registered. OTP has been sent to your email.");
-
     }
+
 
     @Transactional
     public AuthResponse verifyOtp(VerifyOtpRequest request) {
-        User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        // Nếu bạn dùng 2 = BANNED
-        if (user.getStatus() == 0) return new AuthResponse(0, "User has been banned");
-        if (user.getStatus() == 1) return new AuthResponse(1, "Already verified");
+        String email = request.getEmail().toLowerCase();
 
-        OtpRedisService.VerifyResult rs = otpRedisService.verify(request.getEmail(), request.getOtp());
+        // ✅ verify OTP trước
+        OtpRedisService.VerifyResult rs = otpRedisService.verify(email, request.getOtp());
 
         if (rs == OtpRedisService.VerifyResult.EXPIRED_OR_NOT_FOUND)
             return new AuthResponse(0, "OTP expired or not found");
@@ -116,23 +115,46 @@ public class  UserService {
         if (rs == OtpRedisService.VerifyResult.INVALID)
             return new AuthResponse(0, "Invalid OTP");
 
-        // OK
-        user.setStatus(1);
-        userRepository.save(user);
-
-        // Tạo wallet sau verify
-        if (!walletRepository.existsByUserId(user.getId())) {
-            Wallet wallet = new Wallet();
-            wallet.setUserId(user.getId());
-            wallet.setBalance(BigDecimal.ZERO);
-            wallet.setFrozenBalance(BigDecimal.ZERO);
-            wallet.generateId();
-            walletRepository.save(wallet);
+        // ✅ lấy pending payload
+        PendingRegisterPayload pending = pendingRegisterRedisService.get(email);
+        if (pending == null) {
+            return new AuthResponse(0, "Register session expired. Please register again.");
         }
 
-        String token = jwtUtil.generateToken(user.getId());
+        // ✅ tránh race-condition
+        if (userRepository.existsByEmail(email)) {
+            pendingRegisterRedisService.delete(email);
+            return new AuthResponse(0, "Email already existed!!!");
+        }
+
+        // ✅ tạo user thật (status 1)
+        User user = new User();
+        user.generateId();
+        user.setEmail(pending.getEmail());
+        user.setUsername(pending.getUsername());
+        user.setPassword(pending.getPasswordHash());
+        user.setPhonenumber(pending.getPhone());
+        user.setCreatedAt(LocalDateTime.now());
+        user.setStatus(1);
+
+        User savedUser = userRepository.save(user);
+
+        // ✅ tạo wallet
+        Wallet wallet = new Wallet();
+        wallet.generateId();
+        wallet.setUserId(savedUser.getId());
+        wallet.setBalance(BigDecimal.ZERO);
+        wallet.setFrozenBalance(BigDecimal.ZERO);
+        walletRepository.save(wallet);
+
+        // ✅ cleanup
+        pendingRegisterRedisService.delete(email);
+        otpRedisService.delete(email);
+
+        String token = jwtUtil.generateToken(savedUser.getId());
         return new AuthResponse(1, "Verify OTP successfully", token);
     }
+
 
     public AuthResponse resendOtp(String email) {
         User user = userRepository.findByEmail(email)

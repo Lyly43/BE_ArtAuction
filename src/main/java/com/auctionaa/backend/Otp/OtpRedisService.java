@@ -77,4 +77,11 @@ public class OtpRedisService {
     public enum VerifyResult {
         OK, INVALID, EXPIRED_OR_NOT_FOUND, TOO_MANY_ATTEMPTS
     }
+
+    public void delete(String email){
+        redisTemplate.delete(otpKey(email));
+        redisTemplate.delete(attemptsKey(email));
+        redisTemplate.delete(resendKey(email));
+    }
+
 }
