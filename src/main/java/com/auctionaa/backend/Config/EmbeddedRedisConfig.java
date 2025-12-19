@@ -40,26 +40,6 @@ public class EmbeddedRedisConfig {
         }
     }
 
-    @Configuration
-    public class RedisConfig {
 
-        @Bean
-        public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
-            RedisTemplate<String, Object> template = new RedisTemplate<>();
-            template.setConnectionFactory(connectionFactory);
-
-            // Key: string
-            template.setKeySerializer(new StringRedisSerializer());
-            template.setHashKeySerializer(new StringRedisSerializer());
-
-            // Value: json
-            GenericJackson2JsonRedisSerializer json = new GenericJackson2JsonRedisSerializer();
-            template.setValueSerializer(json);
-            template.setHashValueSerializer(json);
-
-            template.afterPropertiesSet();
-            return template;
-        }
-    }
 }
 
