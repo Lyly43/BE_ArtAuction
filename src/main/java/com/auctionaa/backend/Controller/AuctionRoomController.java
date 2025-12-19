@@ -143,6 +143,31 @@ public class AuctionRoomController {
     }
 
     /**
+     * Tìm kiếm auction room công khai (không yêu cầu authentication)
+     * Tìm kiếm theo ID phòng hoặc tên phòng, trả về toàn bộ thông tin của auction room
+     * 
+     * Request body (JSON):
+     * - id: Tìm kiếm theo ID phòng (exact match)
+     * - name: Tìm kiếm theo tên phòng (partial match, case-insensitive)
+     * - type: Lọc theo thể loại
+     * - dateFrom: Lọc từ ngày (format: yyyy-MM-dd)
+     * - dateTo: Lọc đến ngày (format: yyyy-MM-dd)
+     * 
+     * Nếu gửi body rỗng {} hoặc không có điều kiện, trả về tất cả phòng đấu giá
+     * 
+     * @return Danh sách auction room với đầy đủ thông tin (JSON)
+     */
+    @PostMapping("/search-public")
+    public List<AuctionRoom> searchAuctionRoomsPublic(
+            @RequestBody(required = false) BaseSearchRequest request) {
+        // Nếu request null hoặc không có body, tạo object mới (lấy tất cả)
+        if (request == null) {
+            request = new BaseSearchRequest();
+        }
+        return auctionRoomService.searchAuctionRoomsPublic(request);
+    }
+
+    /**
      * Lấy danh sách member của một phòng đấu giá
      * GET /api/auctionroom/{roomId}/members
      *

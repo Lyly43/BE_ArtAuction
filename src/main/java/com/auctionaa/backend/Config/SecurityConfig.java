@@ -53,6 +53,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auctionroom/search-public").permitAll()
 
                         // Admin Auth (public - cho phép login)
                         .requestMatchers(HttpMethod.POST, "/api/admin/auth/login").permitAll()

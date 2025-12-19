@@ -24,8 +24,10 @@ import org.springframework.web.server.ResponseStatusException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class AuctionRoomService {
@@ -157,18 +159,56 @@ public class AuctionRoomService {
      * - Lọc theo thể loại (type)
      * - Lọc theo ngày tạo (dateFrom, dateTo)
      * - Filter theo adminId hoặc memberIds (user là admin hoặc member)
+     * 
+     * Logic: Nếu có cả ID và name, tìm theo ID HOẶC name (OR logic)
      */
     public List<AuctionRoom> searchAndFilter(BaseSearchRequest request, String userId) {
-        List<AuctionRoom> rooms = genericSearchService.searchAndFilter(
-                request,
-                AuctionRoom.class,
-                "_id", // idField
-                "roomName", // nameField
-                "type", // typeField
-                "createdAt", // dateField
-                null, // userIdField (không dùng vì cần check cả adminId và memberIds)
-                null // userId (sẽ filter sau)
-        );
+        List<AuctionRoom> rooms;
+        
+        // Nếu có cả ID và name, tìm theo cả hai (OR logic)
+        boolean hasId = request.getId() != null && !request.getId().trim().isEmpty();
+        boolean hasName = request.getName() != null && !request.getName().trim().isEmpty();
+        
+        if (hasId && hasName) {
+            // Tìm theo ID
+            List<AuctionRoom> byId = auctionRoomRepository.findById(request.getId().trim())
+                    .map(List::of)
+                    .orElse(new ArrayList<>());
+            
+            // Tìm theo name
+            List<AuctionRoom> byName = auctionRoomRepository.findByRoomNameContainingIgnoreCase(request.getName().trim());
+            
+            // Kết hợp kết quả (loại bỏ duplicate)
+            Set<String> seenIds = new HashSet<>();
+            rooms = new ArrayList<>();
+            for (AuctionRoom room : byId) {
+                if (!seenIds.contains(room.getId())) {
+                    rooms.add(room);
+                    seenIds.add(room.getId());
+                }
+            }
+            for (AuctionRoom room : byName) {
+                if (!seenIds.contains(room.getId())) {
+                    rooms.add(room);
+                    seenIds.add(room.getId());
+                }
+            }
+            
+            // Áp dụng các filter khác (type, dateFrom, dateTo)
+            rooms = applyAdditionalFilters(rooms, request);
+        } else {
+            // Sử dụng GenericSearchService cho các trường hợp khác
+            rooms = genericSearchService.searchAndFilter(
+                    request,
+                    AuctionRoom.class,
+                    "_id", // idField
+                    "roomName", // nameField
+                    "type", // typeField
+                    "createdAt", // dateField
+                    null, // userIdField (không dùng vì cần check cả adminId và memberIds)
+                    null // userId (sẽ filter sau)
+            );
+        }
 
         // Filter theo userId: user là admin hoặc là member
         if (userId != null && !userId.isEmpty()) {
@@ -179,6 +219,106 @@ public class AuctionRoomService {
         }
 
         initializeDepositForRooms(rooms);
+        return rooms;
+    }
+    
+    /**
+     * Áp dụng các filter bổ sung (type, dateFrom, dateTo) cho danh sách rooms
+     */
+    private List<AuctionRoom> applyAdditionalFilters(List<AuctionRoom> rooms, BaseSearchRequest request) {
+        return rooms.stream()
+                .filter(room -> {
+                    // Filter theo type
+                    if (request.getType() != null && !request.getType().trim().isEmpty()) {
+                        if (room.getType() == null || !room.getType().equals(request.getType().trim())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter theo dateFrom
+                    if (request.getDateFrom() != null && room.getCreatedAt() != null) {
+                        if (room.getCreatedAt().toLocalDate().isBefore(request.getDateFrom())) {
+                            return false;
+                        }
+                    }
+                    
+                    // Filter theo dateTo
+                    if (request.getDateTo() != null && room.getCreatedAt() != null) {
+                        if (room.getCreatedAt().toLocalDate().isAfter(request.getDateTo())) {
+                            return false;
+                        }
+                    }
+                    
+                    return true;
+                })
+                .toList();
+    }
+
+    /**
+     * Tìm kiếm auction room công khai (không filter theo userId)
+     * Tìm kiếm theo ID hoặc tên phòng, trả về toàn bộ thông tin
+     * 
+     * @param request BaseSearchRequest với id hoặc name
+     * @return Danh sách auction room với đầy đủ thông tin
+     */
+    public List<AuctionRoom> searchAuctionRoomsPublic(BaseSearchRequest request) {
+        if (request == null) {
+            request = new BaseSearchRequest();
+        }
+        
+        List<AuctionRoom> rooms;
+        
+        // Nếu có cả ID và name, tìm theo cả hai (OR logic)
+        boolean hasId = request.getId() != null && !request.getId().trim().isEmpty();
+        boolean hasName = request.getName() != null && !request.getName().trim().isEmpty();
+        
+        if (hasId && hasName) {
+            // Tìm theo ID
+            List<AuctionRoom> byId = auctionRoomRepository.findById(request.getId().trim())
+                    .map(List::of)
+                    .orElse(new ArrayList<>());
+            
+            // Tìm theo name
+            List<AuctionRoom> byName = auctionRoomRepository.findByRoomNameContainingIgnoreCase(request.getName().trim());
+            
+            // Kết hợp kết quả (loại bỏ duplicate)
+            Set<String> seenIds = new HashSet<>();
+            rooms = new ArrayList<>();
+            for (AuctionRoom room : byId) {
+                if (!seenIds.contains(room.getId())) {
+                    rooms.add(room);
+                    seenIds.add(room.getId());
+                }
+            }
+            for (AuctionRoom room : byName) {
+                if (!seenIds.contains(room.getId())) {
+                    rooms.add(room);
+                    seenIds.add(room.getId());
+                }
+            }
+            
+            // Áp dụng các filter khác (type, dateFrom, dateTo)
+            rooms = applyAdditionalFilters(rooms, request);
+        } else if (hasId) {
+            // Chỉ tìm theo ID
+            rooms = auctionRoomRepository.findById(request.getId().trim())
+                    .map(List::of)
+                    .orElse(new ArrayList<>());
+        } else if (hasName) {
+            // Chỉ tìm theo name
+            rooms = auctionRoomRepository.findByRoomNameContainingIgnoreCase(request.getName().trim());
+            // Áp dụng các filter khác
+            rooms = applyAdditionalFilters(rooms, request);
+        } else {
+            // Không có điều kiện tìm kiếm, trả về tất cả
+            rooms = auctionRoomRepository.findAll();
+            // Áp dụng các filter khác
+            rooms = applyAdditionalFilters(rooms, request);
+        }
+        
+        // Khởi tạo deposit amount cho các rooms
+        initializeDepositForRooms(rooms);
+        
         return rooms;
     }
 
