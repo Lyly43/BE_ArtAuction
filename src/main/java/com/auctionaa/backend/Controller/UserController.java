@@ -1,13 +1,17 @@
 package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.UserRequest;
+import com.auctionaa.backend.DTO.Response.CheckUserInRoomResponse;
 import com.auctionaa.backend.DTO.Response.KycVerifyResponse;
 import com.auctionaa.backend.DTO.Response.UserAVTResponse;
 import com.auctionaa.backend.DTO.Response.UserResponse;
 import com.auctionaa.backend.DTO.Response.UserTradeStatsResponse;
+import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Jwt.JwtUtil;
+import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Service.KycService;
 import com.auctionaa.backend.Service.UserService;
+import org.springframework.http.HttpStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +29,8 @@ public class UserController {
     private JwtUtil jwtUtil;
     @Autowired
     private KycService kycService;
+    @Autowired
+    private AuctionRoomRepository auctionRoomRepository;
 
     @GetMapping("/info")
     public ResponseEntity<?> getInfoUser(@RequestHeader("Authorization") String authHeader) {
@@ -66,5 +72,47 @@ public class UserController {
             @RequestHeader("Authorization") String authHeader) {
         String userId = jwtUtil.extractUserId(authHeader);
         return ResponseEntity.ok(userService.getTradingStats(userId));
+    }
+
+    /**
+     * Kiểm tra user có nằm trong member list của auction room hay không
+     * GET /api/user/check-in-room/{roomId}
+     * 
+     * @param roomId ID của auction room cần kiểm tra
+     * @param authHeader Authorization header chứa JWT token
+     * @return CheckUserInRoomResponse với status 1 (có) hoặc 0 (không có) và message tương ứng
+     */
+    @GetMapping("/check-in-room/{roomId}")
+    public ResponseEntity<CheckUserInRoomResponse> checkUserInRoom(
+            @PathVariable String roomId,
+            @RequestHeader("Authorization") String authHeader) {
+        
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        
+        // Tìm auction room theo ID
+        AuctionRoom room = auctionRoomRepository.findById(roomId)
+                .orElse(null);
+        
+        // Nếu không tìm thấy phòng
+        if (room == null) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                    .body(new CheckUserInRoomResponse(0, "Không tìm thấy phòng đấu giá với ID: " + roomId));
+        }
+        
+        // Kiểm tra user có trong memberIds không
+        boolean isMember = room.getMemberIds() != null && room.getMemberIds().contains(userId);
+        
+        if (isMember) {
+            return ResponseEntity.ok(new CheckUserInRoomResponse(
+                    1, 
+                    "Có người dùng trong phòng " + roomId
+            ));
+        } else {
+            return ResponseEntity.ok(new CheckUserInRoomResponse(
+                    0, 
+                    "Không có user trong phòng " + roomId
+            ));
+        }
     }
 }
