@@ -46,62 +46,36 @@ public class ArtworkIngestController {
             @RequestPart("image") MultipartFile image,
             @Valid @RequestPart("metadata") String metadataJson
     ) throws JsonProcessingException {
-        ArtworkIngestRequest metadata = new ObjectMapper().readValue(metadataJson, ArtworkIngestRequest.class);
-        // 1) Lấy userId từ JWT
+
+        // 1) Parse metadata
+        ArtworkIngestRequest metadata = new ObjectMapper()
+                .readValue(metadataJson, ArtworkIngestRequest.class);
+
+        // 2) JWT -> userId
         String userId;
         try {
             userId = jwtUtil.extractUserId(authHeader);
             if (userId == null || userId.isBlank()) {
                 return ResponseEntity.status(401).body(Map.of(
-                        "success", false,
+                        "status", false,
                         "message", "Không lấy được userId từ JWT"
                 ));
             }
         } catch (Exception e) {
             return ResponseEntity.status(401).body(Map.of(
-                    "success", false,
+                    "status", false,
                     "message", "JWT không hợp lệ: " + e.getMessage()
             ));
         }
 
-        // (Tuỳ chọn) Nếu bạn có thể lấy tên người dùng:
-        // String displayName = userService.findDisplayNameById(userId);
-        String displayName = null; // nếu chưa có thì để null
+        // (Tuỳ chọn) nếu bạn có displayName thì lấy từ DB, không thì để null
+        String displayName = null;
 
-        // 2) Gọi Flask predict
-        FlaskPredictResponse predict = ingestService.callFlaskPredict(image);
-        if (predict == null || !predict.isSuccess()) {
-            return ResponseEntity.status(502).body(Map.of(
-                    "status", false,
-                    "message", "Flask Predict lỗi hoặc không phản hồi hợp lệ"
-            ));
-        }
-
-        // 3) Nếu AI → trả message
-        if ("AI".equalsIgnoreCase(predict.getPrediction())) {
-            return ResponseEntity.ok(Map.of(
-                    "status", false,
-                    "prediction", predict.getPrediction(),
-                    "humanProbability", predict.getHuman_probability(),
-                    "aiProbability", predict.getAi_probability(),
-                    "message", "Ảnh bị phát hiện là AI, không lưu."
-            ));
-        }
-
-        FlaskClassifyResponse classify = ingestService.callFlaskClassify(image);
-        // ✅ lấy top 3 genre (probability cao nhất)
-        List<GenreScore> top3Genres = Collections.emptyList();
-        if (classify != null && classify.getTopk() != null) {
-            top3Genres = classify.getTopk().stream()
-                    .limit(3)
-                    .map(x -> new GenreScore(x.getLabel(), x.getProbability() == null ? 0.0 : x.getProbability()))
-                    .toList();
-        }
-
-        // 4) Human → đảm bảo folder tồn tại: "{tenNguoiDung}_{userId}" (hoặc "user_{userId}")
         try {
+            // 3) Upload Cloudinary (giữ logic folder)
             String folder = ingestService.buildUserFolder(displayName, userId);
             folderService.ensureFolder(folder);
+
             String secureUrl = ingestService.uploadAndReturnUrl(image, folder);
             if (secureUrl == null) {
                 return ResponseEntity.status(500).body(Map.of(
@@ -110,25 +84,20 @@ public class ArtworkIngestController {
                 ));
             }
 
-            Artwork saved = ingestService.saveArtwork(userId, metadata, secureUrl,classify);
-
-            String genre = (classify != null && classify.getTop1() != null) ? classify.getTop1().getLabel() : null;
+            // 4) Save artwork: lưu dữ liệu từ request + gán ownerId = userId từ JWT
+            Artwork saved = ingestService.saveArtworkFromRequest(userId, metadata, secureUrl);
 
             return ResponseEntity.ok(Map.of(
                     "status", true,
-                    "prediction", predict.getPrediction(),
-                    "humanProbability", predict.getHuman_probability(),
-                    "aiProbability", predict.getAi_probability(),
-                    "message", "Ảnh là Human. Đã upload & lưu metadata.",
+                    "message", "Đã upload ảnh & lưu metadata.",
                     "cloudinary_url", secureUrl,
                     "artwork_id", saved.getId(),
-                    "artwork", saved,
-                    "top3Genres", top3Genres
+                    "artwork", saved
             ));
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(Map.of(
                     "status", false,
-                    "message", "Lỗi khi đảm bảo folder/upload/lưu: " + ex.getMessage()
+                    "message", "Lỗi upload/lưu: " + ex.getMessage()
             ));
         }
     }
