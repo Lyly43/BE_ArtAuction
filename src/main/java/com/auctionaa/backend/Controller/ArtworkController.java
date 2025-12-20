@@ -31,6 +31,19 @@ public class ArtworkController {
                 .toList();
     }
 
+    /**
+     * Lấy 4 tranh có giá khởi điểm cao nhất
+     * GET /api/artwork/top-4-highest-price
+     * 
+     * @return Danh sách 4 artwork có startedPrice cao nhất
+     */
+    @GetMapping("/top-4-highest-price")
+    public List<ArtworkResponse> getTop4ArtworksByHighestPrice() {
+        return artworkService.getTop4ArtworksByHighestPrice().stream()
+                .map(artworkService::toResponse)
+                .toList();
+    }
+
     @GetMapping("/all")
     public List<ArtworkResponse> getAll() {
         return artworkService.getAllArtwork().stream()

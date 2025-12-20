@@ -39,6 +39,14 @@ public class ArtworkService {
         return artworkRepository.findByOrderByStartedPriceDesc(PageRequest.of(0, 6));
     }
 
+    /**
+     * Lấy 4 tranh có giá khởi điểm cao nhất
+     * @return Danh sách 4 artwork có startedPrice cao nhất
+     */
+    public List<Artwork> getTop4ArtworksByHighestPrice() {
+        return artworkRepository.findByOrderByStartedPriceDesc(PageRequest.of(0, 4));
+    }
+
     public List<Artwork> getAllArtwork() {
         return artworkRepository.findAll();
     }
@@ -117,8 +125,10 @@ public class ArtworkService {
     private BidsRepository bidsRepository;
 
     public ArtworkResponse toResponse(Artwork artwork) {
-        User user = userRepository.findById(artwork.getOwnerId())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        // Tìm user, nếu không tìm thấy thì set ownerName là null hoặc "Unknown"
+        String ownerName = userRepository.findById(artwork.getOwnerId())
+                .map(User::getUsername)
+                .orElse("Unknown");
 
         ArtworkResponse dto = new ArtworkResponse();
         dto.setId(artwork.getId());
@@ -136,12 +146,14 @@ public class ArtworkService {
         dto.setCertificateId(artwork.getCertificateId());
         dto.setCreatedAt(artwork.getCreatedAt());
         dto.setUpdatedAt(artwork.getUpdatedAt());
-        dto.setOwnerName(user.getUsername());
+        dto.setOwnerName(ownerName);
 
-        // Lấy bid mới nhất của chính ownerId
-        bidsRepository.findTopByAuctionSessionIdAndUserIdOrderByBidTimeDesc(
-                artwork.getId(),
-                artwork.getOwnerId()).ifPresent(bid -> dto.setMyLatestBidAmount(bid.getAmountAtThatTime()));
+        // Lấy bid mới nhất của chính ownerId (chỉ khi ownerId không null)
+        if (artwork.getOwnerId() != null && !artwork.getOwnerId().trim().isEmpty()) {
+            bidsRepository.findTopByAuctionSessionIdAndUserIdOrderByBidTimeDesc(
+                    artwork.getId(),
+                    artwork.getOwnerId()).ifPresent(bid -> dto.setMyLatestBidAmount(bid.getAmountAtThatTime()));
+        }
 
         return dto;
     }

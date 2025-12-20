@@ -152,6 +152,74 @@ public class AuctionRoomService {
         return rooms;
     }
 
+    /**
+     * Lấy 4 phòng đấu giá đang diễn ra (status = 1)
+     * @return Danh sách 4 phòng đấu giá đang diễn ra
+     */
+    public List<AuctionRoom> getTop4OngoingRooms() {
+        Pageable pageable = PageRequest.of(0, 4, org.springframework.data.domain.Sort.by("createdAt").descending());
+        Page<AuctionRoom> pageResult = auctionRoomRepository.findByStatus(1, pageable);
+        List<AuctionRoom> rooms = pageResult.getContent();
+        initializeDepositForRooms(rooms);
+        return rooms;
+    }
+
+    /**
+     * Lấy 4 phòng đấu giá sắp bắt đầu (status = 0) có giá tranh cao nhất
+     * Sắp xếp theo giá startingPrice cao nhất của session trong phòng
+     * @return Danh sách 4 phòng đấu giá sắp bắt đầu có giá cao nhất
+     */
+    public List<AuctionRoom> getTop4UpcomingRoomsByHighestPrice() {
+        // Lấy tất cả phòng sắp diễn ra (status = 0)
+        List<AuctionRoom> upcomingRooms = auctionRoomRepository.findByStatus(0);
+        
+        // Tính giá cao nhất cho mỗi phòng và sắp xếp
+        List<AuctionRoomWithPrice> roomsWithPrice = upcomingRooms.stream()
+                .map(room -> {
+                    // Lấy session có startingPrice cao nhất trong phòng
+                    BigDecimal highestPrice = auctionSessionRepository
+                            .findFirstByAuctionRoomIdOrderByStartingPriceDesc(room.getId())
+                            .map(session -> session.getStartingPrice() != null 
+                                    ? session.getStartingPrice() 
+                                    : BigDecimal.ZERO)
+                            .orElse(BigDecimal.ZERO);
+                    
+                    return new AuctionRoomWithPrice(room, highestPrice);
+                })
+                .sorted((a, b) -> b.getHighestPrice().compareTo(a.getHighestPrice())) // Sắp xếp giảm dần theo giá
+                .limit(4) // Chỉ lấy 4 phòng đầu tiên
+                .toList();
+        
+        // Lấy danh sách AuctionRoom từ AuctionRoomWithPrice
+        List<AuctionRoom> topRooms = roomsWithPrice.stream()
+                .map(AuctionRoomWithPrice::getRoom)
+                .toList();
+        
+        initializeDepositForRooms(topRooms);
+        return topRooms;
+    }
+
+    /**
+     * Helper class để lưu trữ AuctionRoom và giá cao nhất
+     */
+    private static class AuctionRoomWithPrice {
+        private final AuctionRoom room;
+        private final BigDecimal highestPrice;
+
+        public AuctionRoomWithPrice(AuctionRoom room, BigDecimal highestPrice) {
+            this.room = room;
+            this.highestPrice = highestPrice;
+        }
+
+        public AuctionRoom getRoom() {
+            return room;
+        }
+
+        public BigDecimal getHighestPrice() {
+            return highestPrice;
+        }
+    }
+
 
     /**
      * Tìm kiếm và lọc auction room của user hiện tại theo các tiêu chí:

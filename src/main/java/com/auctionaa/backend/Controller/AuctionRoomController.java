@@ -26,6 +26,7 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/auctionroom/")
 public class AuctionRoomController {
+    //Nam
     @Autowired
     private AuctionRoomService auctionRoomService;
 
@@ -95,6 +96,30 @@ public class AuctionRoomController {
         int page = req.getPage();
         int size = req.getSize();
         return auctionRoomService.getUpcomingRooms(page, size);
+    }
+
+    /**
+     * Lấy 4 phòng đấu giá đang diễn ra (status = 1)
+     * GET /api/auctionroom/top-4-ongoing
+     * 
+     * @return Danh sách 4 phòng đấu giá đang diễn ra
+     */
+    @GetMapping("/top-4-ongoing")
+    public List<AuctionRoom> getTop4OngoingRooms() {
+        return auctionRoomService.getTop4OngoingRooms();
+    }
+
+    /**
+     * Lấy 4 phòng đấu giá sắp bắt đầu (status = 0) có giá tranh cao nhất
+     * GET /api/auctionroom/top-4-upcoming-highest-price
+     * 
+     * Sắp xếp theo giá startingPrice cao nhất của session trong phòng
+     * 
+     * @return Danh sách 4 phòng đấu giá sắp bắt đầu có giá cao nhất
+     */
+    @GetMapping("/top-4-upcoming-highest-price")
+    public List<AuctionRoom> getTop4UpcomingRoomsByHighestPrice() {
+        return auctionRoomService.getTop4UpcomingRoomsByHighestPrice();
     }
     /**
      * Lấy tất cả phòng đấu giá trong database

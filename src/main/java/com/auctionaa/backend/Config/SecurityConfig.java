@@ -73,9 +73,12 @@ public class SecurityConfig {
                         // Ví dụ endpoint topup mở public (giữ nguyên từ config cũ)
                         .requestMatchers(HttpMethod.POST, "/api/wallets/topups").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/artwork/featured").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/artwork/top-4-highest-price").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auctionroom/*").permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/api/auctionroom/*/members", "GET")).permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/auctionroom/members").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auctionroom/top-4-ongoing").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/auctionroom/top-4-upcoming-highest-price").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/artwork/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/artwork/*").permitAll()
