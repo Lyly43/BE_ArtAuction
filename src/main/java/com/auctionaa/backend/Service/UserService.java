@@ -42,7 +42,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
 
 @Service
-public class  UserService {
+public class UserService {
     @Autowired
     private UserRepository userRepository;
     @Autowired
@@ -58,7 +58,7 @@ public class  UserService {
     private final CloudinaryService cloudinaryService;
     private final OtpRedisService otpRedisService;
     private final MailService mailService;
-    private  final PendingRegisterRedisService pendingRegisterRedisService;
+    private final PendingRegisterRedisService pendingRegisterRedisService;
 
     @Value("${app.otp.expireMinutes}")
     private long otpExpireMinutes;
@@ -157,18 +157,34 @@ public class  UserService {
 
 
     public AuthResponse resendOtp(String email) {
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+        String emailLower = email.toLowerCase();
+        
+        // ✅ Kiểm tra xem có pending registration không (cho trường hợp đăng ký mới)
+        PendingRegisterPayload pending = pendingRegisterRedisService.get(emailLower);
+        if (pending == null) {
+            // Nếu không có pending registration, kiểm tra xem user đã tồn tại chưa
+            Optional<User> userOpt = userRepository.findByEmail(emailLower);
+            if (userOpt.isEmpty()) {
+                return new AuthResponse(0, "No pending registration found. Please register first.");
+            }
+            
+            User user = userOpt.get();
+            if (user.getStatus() == 2) {
+                return new AuthResponse(0, "User has been banned");
+            }
+            if (user.getStatus() == 1) {
+                return new AuthResponse(1, "Already verified");
+            }
+        }
 
-        if (user.getStatus() == 2) return new AuthResponse(0, "User has been banned");
-        if (user.getStatus() == 1) return new AuthResponse(1, "Already verified");
-
-        if (!otpRedisService.canResend(email)) {
+        // ✅ Kiểm tra cooldown trước khi resend
+        if (!otpRedisService.canResend(emailLower)) {
             return new AuthResponse(0, "Please wait before resending OTP");
         }
 
-        String otp = otpRedisService.createAndStoreOtp(email);
-        mailService.sendOtpHtml(email, otp, otpExpireMinutes);
+        // ✅ Tạo và gửi OTP mới
+        String otp = otpRedisService.createAndStoreOtp(emailLower);
+        mailService.sendOtpHtml(emailLower, otp, otpExpireMinutes);
 
         return new AuthResponse(1, "OTP resent. Please check your email.");
     }

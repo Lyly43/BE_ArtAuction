@@ -36,5 +36,6 @@ public class ArtworkResponse {
         private String email;
         private String avt;
         private int status;
+        private int role;
     }
 }
