@@ -58,7 +58,7 @@ public class AuctionRoomService {
         User user = userRepository.findById(email)
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
 
         Page<AuctionRoom> pageResult =
                 auctionRoomRepository.findByMemberIdsContaining(user.getId(), pageable);
@@ -74,7 +74,7 @@ public class AuctionRoomService {
 
 
     public List<AuctionRoom> getAllAuctionRoom() {
-        List<AuctionRoom> rooms = auctionRoomRepository.findAll();
+        List<AuctionRoom> rooms = auctionRoomRepository.findAllByOrderByCreatedAtDesc();
         initializeDepositForRooms(rooms);
         return rooms;
     }
@@ -133,7 +133,7 @@ public class AuctionRoomService {
      * Lấy danh sách phòng đấu giá đang diễn ra (status = 1) với phân trang
      */
     public List<AuctionRoom> getOngoingRooms(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
         Page<AuctionRoom> pageResult = auctionRoomRepository.findByStatus(1, pageable);
         List<AuctionRoom> rooms = pageResult.getContent();
         initializeDepositForRooms(rooms);
@@ -144,7 +144,7 @@ public class AuctionRoomService {
      * Lấy danh sách phòng đấu giá sắp diễn ra (status = 2) với phân trang
      */
     public List<AuctionRoom> getUpcomingRooms(int page, int size) {
-        Pageable pageable = PageRequest.of(page, size);
+        Pageable pageable = PageRequest.of(page, size, org.springframework.data.domain.Sort.by("createdAt").descending());
         Page<AuctionRoom> pageResult = auctionRoomRepository.findByStatus(2, pageable);
         List<AuctionRoom> rooms = pageResult.getContent();
         initializeDepositForRooms(rooms);
@@ -217,6 +217,18 @@ public class AuctionRoomService {
                             || (room.getMemberIds() != null && room.getMemberIds().contains(userId)))
                     .toList();
         }
+
+        // Sắp xếp theo createdAt DESC (mới nhất trước)
+        rooms = rooms.stream()
+                .sorted((r1, r2) -> {
+                    LocalDateTime c1 = r1.getCreatedAt();
+                    LocalDateTime c2 = r2.getCreatedAt();
+                    if (c1 == null && c2 == null) return 0;
+                    if (c1 == null) return 1;
+                    if (c2 == null) return -1;
+                    return c2.compareTo(c1); // DESC
+                })
+                .collect(java.util.stream.Collectors.toList());
 
         initializeDepositForRooms(rooms);
         return rooms;
@@ -310,8 +322,8 @@ public class AuctionRoomService {
             // Áp dụng các filter khác
             rooms = applyAdditionalFilters(rooms, request);
         } else {
-            // Không có điều kiện tìm kiếm, trả về tất cả
-            rooms = auctionRoomRepository.findAll();
+            // Không có điều kiện tìm kiếm, trả về tất cả (sắp xếp theo createdAt DESC)
+            rooms = auctionRoomRepository.findAllByOrderByCreatedAtDesc();
             // Áp dụng các filter khác
             rooms = applyAdditionalFilters(rooms, request);
         }
