@@ -58,6 +58,13 @@ public class AdminAdminService {
     }
 
     /**
+     * Kiểm tra có phải admin (role = 3) hoặc super admin (role = 4) hay không
+     */
+    private boolean isAdminOrSuperAdmin(Admin admin) {
+        return admin != null && admin.getRole() != null && (admin.getRole() == 3 || admin.getRole() == 4);
+    }
+
+    /**
      * Admin thêm admin mới (JSON thuần, avatar là URL đã upload trước đó)
      */
     public ResponseEntity<AdminBasicResponse<AdminAdminResponse>> addAdmin(AddAdminRequest request) {
@@ -264,9 +271,9 @@ public class AdminAdminService {
      */
     public ResponseEntity<UpdateResponse<AdminAdminResponse>> updateAdmin(String adminId, UpdateAdminRequest request) {
         Admin currentAdmin = getCurrentAdmin();
-        if (!isSuperAdmin(currentAdmin)) {
+        if (!isAdminOrSuperAdmin(currentAdmin)) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                    .body(new UpdateResponse<>(0, "Only super admin (role = 4) can update admins", null));
+                    .body(new UpdateResponse<>(0, "Only admin (role = 3) or super admin (role = 4) can update admins", null));
         }
         Optional<Admin> adminOpt = adminRepository.findById(adminId);
 
