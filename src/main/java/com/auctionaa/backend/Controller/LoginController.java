@@ -67,7 +67,7 @@ public class LoginController {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         // Tạo response DTO
-        ArtworkResponse.TokenResponse tokenResponse = new ArtworkResponse.TokenResponse(user.getUsername(), user.getEmail(), user.getAvt(), user.getStatus());
+        ArtworkResponse.TokenResponse tokenResponse = new ArtworkResponse.TokenResponse(user.getUsername(), user.getEmail(), user.getAvt(), user.getStatus(), user.getRole());
 
         return ResponseEntity.ok(tokenResponse);
     }

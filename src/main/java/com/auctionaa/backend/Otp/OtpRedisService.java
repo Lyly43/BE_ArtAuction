@@ -1,6 +1,7 @@
 package com.auctionaa.backend.Otp;
 
 import com.auctionaa.backend.DTO.OtpToRedis.OtpPayload;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -14,7 +15,7 @@ import java.time.LocalDateTime;
 public class OtpRedisService {
 
     private final RedisTemplate<String, Object> redisTemplate;
-
+    private final ObjectMapper objectMapper; // ✅ thêm dòng này
     @Value("${app.otp.pepper}") private String pepper;
     @Value("${app.otp.expireMinutes}") private long expireMinutes;
     @Value("${app.otp.maxAttempts}") private int maxAttempts;
@@ -61,7 +62,10 @@ public class OtpRedisService {
             return VerifyResult.TOO_MANY_ATTEMPTS;
         }
 
-        OtpPayload payload = (OtpPayload) obj;
+//        OtpPayload payload = (OtpPayload) obj;
+
+        OtpPayload payload = objectMapper.convertValue(obj, OtpPayload.class);
+
         String inputHash = OtpUtil.sha256Base64(otpInput, pepper);
 
         if (!inputHash.equals(payload.getOtpHash())) {
