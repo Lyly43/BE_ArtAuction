@@ -74,29 +74,5 @@ public class PaymentController {
         return ResponseEntity.ok(resp);
     }
 
-    // (1) INIT: tạo QR + note (chưa check MB)
-    @PostMapping("/{invoiceId}/payment/init")
-    public ResponseEntity<InvoicePaymentResponse> initPayment(
-            @RequestHeader("Authorization") String authHeader,
-            @PathVariable String invoiceId
-    ) {
-        String userId = jwtUtil.extractUserId(authHeader);
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
 
-        return ResponseEntity.ok(invoicePaymentService.initPayment(invoiceId, userId));
-    }
-
-    // (2) CONFIRM: check MB và mark paid nếu khớp
-    @PostMapping("/{invoiceId}/payment/confirm")
-    public ResponseEntity<InvoicePaymentConfirmResponse> confirmPayment(
-            @RequestHeader("Authorization") String authHeader,
-            @PathVariable String invoiceId
-    ) {
-        String userId = jwtUtil.extractUserId(authHeader);
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
-
-        return ResponseEntity.ok(invoicePaymentService.confirmPayment(invoiceId, userId));
-    }
 }
