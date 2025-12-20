@@ -16,6 +16,8 @@ public interface AdminRepository extends MongoRepository<Admin, String> {
     boolean existsByEmail(String email);
 
     long countByStatus(int status);
+    
+    long countByRole(int role);
 
     @Query("{ $or: [ " +
            "{ 'id': { $regex: ?0, $options: 'i' } }, " +

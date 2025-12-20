@@ -1,30 +1,27 @@
 package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.Config.ZegoCloudConfig;
-import com.auctionaa.backend.DTO.Request.AuctionSessionCreateRequest;
 import com.auctionaa.backend.DTO.Request.StreamStartRequest;
-import com.auctionaa.backend.DTO.Response.StreamStartResponse;
+import AdminBackend.DTO.Response.AdminBasicResponse;
+import AdminBackend.Jwt.AdminJwtUtil;
+import AdminBackend.Repository.AdminRepository;
+import com.auctionaa.backend.Entity.Admin;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.Invoice;
-import com.auctionaa.backend.Entity.User;
-import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
-import com.auctionaa.backend.Repository.UserRepository;
 import com.auctionaa.backend.Service.CloudinaryService;
 import com.auctionaa.backend.Service.StreamService;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -36,62 +33,71 @@ public class StreamController {
     private final ZegoCloudConfig zegoConfig;
     private final StreamService streamService;
     private final CloudinaryService cloudinaryService;
-    private final JwtUtil jwtUtil;
-    private final UserRepository userRepository;
+    private final AdminJwtUtil adminJwtUtil;
+    private final AdminRepository adminRepository;
     private final AuctionRoomRepository roomRepo;
     @Value("${zegocloud.server-secret}")
     private String serverSecret;
 
-    @PostMapping(value = "/create", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public StreamStartResponse creatStream(
+    @PostMapping(value = "/create", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<AdminBasicResponse<Map<String, Object>>> creatStream(
             @RequestHeader(value = "Authorization", required = false) String authHeader,
-            @RequestParam String roomName,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String type,
-            @RequestParam(required = false) MultipartFile file,
-            @RequestParam(required = false) String sessionsJson // FE gửi JSON sessions ở đây
+            @RequestBody StreamStartRequest request
     ) throws IOException {
 
         // Lấy & validate token
         String token = extractBearer(authHeader);
-        if (!jwtUtil.validateToken(token)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        if (!adminJwtUtil.validateToken(token)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid admin token");
         }
 
-        // Lấy userId từ token -> tìm user
-        String userId = jwtUtil.extractUserId(token);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        // Lấy adminId từ token -> tìm admin
+        String adminId = adminJwtUtil.extractAdminId(token);
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin not found"));
 
-        // Parse danh sách sessions từ FE (nếu có)
-        List<AuctionSessionCreateRequest> sessions = new ArrayList<>();
-        if (sessionsJson != null && !sessionsJson.isBlank()) {
-            try {
-                ObjectMapper mapper = new ObjectMapper();
-                sessions = mapper.readValue(sessionsJson, new TypeReference<List<AuctionSessionCreateRequest>>() {
-                });
-            } catch (Exception e) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid sessions format: " + e.getMessage());
-            }
+        // Gắn adminId từ token vào request (override nếu có trong body)
+        request.setAdminId(admin.getId());
+
+        // Validate required fields
+        if (request.getRoomName() == null || request.getRoomName().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "roomName is required");
         }
 
-        // Build request cho service
-        StreamStartRequest rq = new StreamStartRequest();
-        rq.setAdminId(user.getId()); // gắn adminId
-        rq.setRoomName(roomName);
-        rq.setDescription(description);
-        rq.setType(type == null ? "public" : type);
-        rq.setSessions(sessions); // thêm danh sách session
+        // Validate startedAt nếu có
+        if (request.getStartedAt() != null && !request.getStartedAt().isAfter(java.time.LocalDateTime.now())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startedAt must be in the future");
+        }
+
+        // Validate depositAmount nếu có
+        if (request.getDepositAmount() != null && request.getDepositAmount().compareTo(java.math.BigDecimal.ZERO) < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "depositAmount must be >= 0");
+        }
+
+        // Validate paymentDeadlineDays nếu có
+        if (request.getPaymentDeadlineDays() != null && request.getPaymentDeadlineDays() <= 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "paymentDeadlineDays must be > 0");
+        }
+
+        // Validate sessions
+        if (request.getSessions() == null || request.getSessions().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "At least one session is required");
+        }
+
+        // Đếm số sessions sẽ được tạo
+        int sessionsCount = request.getSessions().size();
 
         // 5️⃣ Gọi service để tạo phòng + session
-        AuctionRoom room = streamService.createdStream(rq, file);
+        AuctionRoom room = streamService.createdStream(request, null);
 
-        // Trả về kết quả
-        return StreamStartResponse.builder()
-                .roomId(room.getId())
-                .wsUrl("ws://localhost:8081/ws/stream/" + room.getId())
-                .status(room.getStatus())
-                .build();
+        // Tạo data response
+        Map<String, Object> data = new HashMap<>();
+        data.put("roomId", room.getId());
+        data.put("sessionsCreated", sessionsCount);
+
+        // Trả về kết quả theo format chuẩn
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(new AdminBasicResponse<>(1, "Auction room created successfully", data));
     }
 
     @PostMapping("/start/{roomId}")
@@ -125,15 +131,19 @@ public class StreamController {
     public Map<String, Object> issueToken(
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String roomId) {
-        String userId = jwtUtil.extractUserId(authHeader);
-
-        var user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+        String token = extractBearer(authHeader);
+        if (!adminJwtUtil.validateToken(token)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid admin token");
+        }
+        
+        String adminId = adminJwtUtil.extractAdminId(token);
+        Admin admin = adminRepository.findById(adminId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin not found"));
 
         var room = roomRepo.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
 
-        String role = userId.equals(room.getAdminId()) ? "host" : "audience";
+        String role = adminId.equals(room.getAdminId()) ? "host" : "audience";
 
         long now = System.currentTimeMillis() / 1000;
         long expireAt = now + zegoConfig.getTokenTtl();
@@ -141,7 +151,7 @@ public class StreamController {
         return Map.of(
                 "appID", zegoConfig.getAppId(),
                 "token", serverSecret,
-                "userId", userId,
+                "userId", adminId,
                 "roomId", roomId,
                 "role", role,
                 "expireAt", expireAt
