@@ -1,6 +1,7 @@
 package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.AuctionRegistrationRequest;
+import com.auctionaa.backend.DTO.Request.VerifyPaymentRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRegistrationResponse;
 import com.auctionaa.backend.DTO.Response.InvoicePaymentConfirmResponse;
 import com.auctionaa.backend.DTO.Response.InvoicePaymentResponse;
@@ -46,17 +47,32 @@ public class PaymentController {
         return depositService.createQrAndCheck(roomId, userId);
     }
 
-    @PostMapping("/application-fee-and-deposit")
-    public AuctionRegistrationResponse payApplicationFeeAndDeposit(
+    @PostMapping("/registration/payment")
+    public ResponseEntity<AuctionRegistrationResponse> createPayment(
             @RequestHeader("Authorization") String authHeader,
             @PathVariable String roomId
     ) {
         String userId = jwtUtil.extractUserId(authHeader);
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
-        return depositService.payApplicationFeeAndDeposit(roomId, userId);
+
+        AuctionRegistrationResponse resp =
+                depositService.createApplicationFeeAndDepositPayment(roomId, userId);
+
+        return ResponseEntity.ok(resp);
     }
 
+    @PostMapping("/registration/verify")
+    public ResponseEntity<AuctionRegistrationResponse> verifyPayment(
+            @RequestHeader("Authorization") String authHeader,
+            @PathVariable String roomId,
+            @RequestBody VerifyPaymentRequest request
+    ) {
+        String userId = jwtUtil.extractUserId(authHeader);
+
+        AuctionRegistrationResponse resp =
+                depositService.verifyApplicationFeeAndDepositPayment(roomId, userId, request.getNote());
+
+        return ResponseEntity.ok(resp);
+    }
 
     // (1) INIT: tạo QR + note (chưa check MB)
     @PostMapping("/{invoiceId}/payment/init")

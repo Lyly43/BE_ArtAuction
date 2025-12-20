@@ -99,10 +99,7 @@ public class AuctionRoomDepositService {
 
 
     // 🔹 THANH TOÁN COMBO: PHÍ HỒ SƠ + CỌC
-    public AuctionRegistrationResponse payApplicationFeeAndDeposit(
-            String roomId,
-            String userId
-    ) {
+    public AuctionRegistrationResponse createApplicationFeeAndDepositPayment(String roomId, String userId) {
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
 
@@ -116,18 +113,79 @@ public class AuctionRoomDepositService {
         }
 
         BigDecimal total = deposit.add(APPLICATION_FEE);
+
+        // NOTE dùng để đối soát giao dịch
         String note = generateComboNote(roomId, userId);
 
-        return processPayment(
-                total,
+        // chỉ tạo QR, chưa verify
+        String qrUrl = String.format(
+                "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s",
+                url(mbProps.getBankCode()),
+                url(mbProps.getAccountNo()),
+                url(total.toPlainString()),
+                url(note)
+        );
+
+        return new AuctionRegistrationResponse(
+                qrUrl,
                 note,
-                () -> {
-                    // ✅ Combo: vừa ghi nhận đã trả phí hồ sơ
-                    markApplicationFeePaid(room, userId);
-                    // ✅ Vừa cho vào phòng luôn
-                    addMemberIfNotExists(room, userId);
-                    auctionRoomRepository.save(room);
-                },
+                false,
+                "Vui lòng quét QR và chuyển khoản đúng nội dung. Sau đó bấm 'Tôi đã chuyển khoản' để hệ thống xác nhận."
+        );
+    }
+
+    //verify transaction
+    public AuctionRegistrationResponse verifyApplicationFeeAndDepositPayment(String roomId, String userId, String note) {
+        AuctionRoom room = auctionRoomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
+
+        if (userId == null || userId.isBlank()) {
+            throw new IllegalArgumentException("userId không được để trống");
+        }
+        if (note == null || note.isBlank()) {
+            throw new IllegalArgumentException("note không được để trống");
+        }
+
+        BigDecimal deposit = room.getDepositAmount();
+        if (deposit == null || deposit.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("depositAmount của phòng không hợp lệ");
+        }
+        BigDecimal total = deposit.add(APPLICATION_FEE);
+
+        // verify MB
+        boolean paid = hasMatchingTransaction(total, note);
+
+        // vẫn trả về qrUrl để FE hiển thị lại nếu cần
+        String qrUrl = String.format(
+                "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s",
+                url(mbProps.getBankCode()),
+                url(mbProps.getAccountNo()),
+                url(total.toPlainString()),
+                url(note)
+        );
+
+        if (!paid) {
+            return new AuctionRegistrationResponse(
+                    qrUrl,
+                    note,
+                    false,
+                    "Chưa tìm thấy giao dịch tương ứng. Vui lòng kiểm tra đã chuyển đúng số tiền & nội dung, rồi thử lại sau."
+            );
+        }
+
+        // ✅ chống gọi lại nhiều lần (idempotent)
+        // Nếu bạn muốn tách riêng flag “đã join room” thì có thể kiểm tra memberIds luôn.
+        if (!hasPaidApplicationFee(room, userId)) {
+            markApplicationFeePaid(room, userId);
+        }
+        addMemberIfNotExists(room, userId);
+
+        auctionRoomRepository.save(room);
+
+        return new AuctionRegistrationResponse(
+                qrUrl,
+                note,
+                true,
                 "Thanh toán phí hồ sơ và tiền cọc thành công, bạn đã được thêm vào phòng đấu giá."
         );
     }
