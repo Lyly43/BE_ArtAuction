@@ -25,6 +25,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -403,39 +404,52 @@ public class AuctionRoomService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Auction room not found"));
 
-        // 2. Tạo danh sách tất cả userIds (adminId + memberIds)
-        List<String> userIds = new ArrayList<>();
+        // 2. Tạo danh sách tất cả userIds (adminId + memberIds) - sử dụng Set để tránh duplicate
+        Set<String> userIdSet = new LinkedHashSet<>();
 
         // Thêm adminId nếu có
-        if (room.getAdminId() != null && !room.getAdminId().isEmpty()) {
-            userIds.add(room.getAdminId());
+        if (room.getAdminId() != null && !room.getAdminId().trim().isEmpty()) {
+            userIdSet.add(room.getAdminId().trim());
         }
 
         // Thêm memberIds nếu có
         if (room.getMemberIds() != null && !room.getMemberIds().isEmpty()) {
             for (String memberId : room.getMemberIds()) {
-                // Tránh duplicate nếu adminId cũng có trong memberIds
-                if (!userIds.contains(memberId)) {
-                    userIds.add(memberId);
+                if (memberId != null && !memberId.trim().isEmpty()) {
+                    userIdSet.add(memberId.trim());
                 }
             }
         }
 
         // 3. Nếu không có member nào, trả về empty list
-        if (userIds.isEmpty()) {
+        if (userIdSet.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // 4. Query tất cả users theo userIds
+        // 4. Chuyển Set sang List để query
+        List<String> userIds = new ArrayList<>(userIdSet);
+
+        // 5. Query tất cả users theo userIds
         List<User> users = userRepository.findAllById(userIds);
 
-        // 5. Map sang MemberResponse
-        return users.stream()
-                .map(user -> new MemberResponse(
+        // 6. Tạo map để dễ tra cứu
+        Map<String, User> userMap = users.stream()
+                .collect(java.util.stream.Collectors.toMap(User::getId, user -> user));
+
+        // 7. Map sang MemberResponse theo thứ tự userIds (đảm bảo thứ tự và bao gồm cả user không tồn tại)
+        List<MemberResponse> members = new ArrayList<>();
+        for (String userId : userIds) {
+            User user = userMap.get(userId);
+            if (user != null) {
+                members.add(new MemberResponse(
                         user.getId(),
                         user.getUsername(),
-                        user.getAvt()))
-                .toList();
+                        user.getAvt()));
+            }
+            // Nếu user không tồn tại, bỏ qua (hoặc có thể thêm với thông tin mặc định nếu cần)
+        }
+
+        return members;
     }
 
     /**

@@ -75,6 +75,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/artwork/featured").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/auctionroom/*").permitAll()
                         .requestMatchers(new AntPathRequestMatcher("/api/auctionroom/*/members", "GET")).permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/auctionroom/members").permitAll()
 
                         .requestMatchers(HttpMethod.GET, "/api/artwork/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/artwork/*").permitAll()

@@ -2,6 +2,7 @@ package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.AuctionRoomRequest;
 import com.auctionaa.backend.DTO.Request.BaseSearchRequest;
+import com.auctionaa.backend.DTO.Request.GetRoomMembersRequest;
 import com.auctionaa.backend.DTO.Request.PagingRequest;
 import com.auctionaa.backend.DTO.Response.AuctionRoomLiveDTO;
 import com.auctionaa.backend.DTO.Response.MemberResponse;
@@ -14,7 +15,10 @@ import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Repository.AuctionSessionRepository;
 import com.auctionaa.backend.Service.AuctionRoomService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -98,7 +102,7 @@ public class AuctionRoomController {
      *
      * @return Danh sách tất cả phòng đấu giá
      */
-    @GetMapping("/all")
+    @GetMapping("/allAuctionRoom")
     public List<AuctionRoom> getAllRooms() {
         return auctionRoomService.getAllAuctionRoom();
     }
@@ -168,15 +172,40 @@ public class AuctionRoomController {
     }
 
     /**
-     * Lấy danh sách member của một phòng đấu giá
-     * GET /api/auctionroom/{roomId}/members
+     * Lấy danh sách member của một phòng đấu giá theo ID phòng
+     * POST /api/auctionroom/members
+     * 
+     * Request body (JSON):
+     * - roomId: ID của phòng đấu giá
+     * 
+     * Trả về danh sách tất cả member trong phòng đấu giá, bao gồm cả admin
      *
-     * @param roomId ID của phòng đấu giá
+     * @param request Request chứa roomId
      * @return Danh sách member với id, username, avt
+     * @throws ResponseStatusException Nếu không tìm thấy phòng đấu giá hoặc roomId rỗng
      */
-    @GetMapping("/{roomId}/members")
-    public List<MemberResponse> getRoomMembers(@PathVariable String roomId) {
-        return auctionRoomService.getRoomMembers(roomId);
+    @PostMapping("/members")
+    public ResponseEntity<List<MemberResponse>> getRoomMembers(
+            @RequestBody GetRoomMembersRequest request) {
+        try {
+            // Validate request
+            if (request == null || request.getRoomId() == null || request.getRoomId().trim().isEmpty()) {
+                throw new ResponseStatusException(
+                        HttpStatus.BAD_REQUEST,
+                        "roomId không được để trống"
+                );
+            }
+            
+            List<MemberResponse> members = auctionRoomService.getRoomMembers(request.getRoomId().trim());
+            return ResponseEntity.ok(members);
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ResponseStatusException(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Lỗi khi lấy danh sách member: " + e.getMessage()
+            );
+        }
     }
 
 }
