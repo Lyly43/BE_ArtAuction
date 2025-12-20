@@ -46,7 +46,16 @@ public class StreamService {
     public AuctionRoom startStream(String roomId) {
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+        
+        // Set status = 1 (Đang diễn ra)
         room.setStatus(1);
+        
+        // Set startedAt nếu chưa có (trường hợp tạo phòng không có startedAt)
+        if (room.getStartedAt() == null) {
+            room.setStartedAt(LocalDateTime.now());
+        }
+        
+        room.setUpdatedAt(LocalDateTime.now());
         return auctionRoomRepository.save(room);
     }
 
@@ -56,19 +65,39 @@ public class StreamService {
         room.generateId();
         room.setAdminId(rq.getAdminId());
         room.setRoomName(rq.getRoomName());
-        room.setStartedAt(LocalDateTime.now());
+        
+        // Set startedAt: từ request nếu có, nếu không thì dùng now
+        if (rq.getStartedAt() != null) {
+            room.setStartedAt(rq.getStartedAt());
+        } else {
+            room.setStartedAt(LocalDateTime.now());
+        }
+        
         room.setDescription(rq.getDescription());
-        room.setType(rq.getType());
+        room.setType(rq.getType() != null ? rq.getType() : "public");
         room.setMemberIds(new ArrayList<>(List.of(rq.getAdminId())));
         room.setStatus(2); // CREATED
         room.setViewCount(0);
         room.setCreatedAt(LocalDateTime.now());
         room.setUpdatedAt(LocalDateTime.now());
 
-        if (file != null && !file.isEmpty()) {
+        // Set imageAuctionRoom từ request (URL string) hoặc upload file
+        if (rq.getImageAuctionRoom() != null && !rq.getImageAuctionRoom().isBlank()) {
+            room.setImageAuctionRoom(rq.getImageAuctionRoom());
+        } else if (file != null && !file.isEmpty()) {
             CloudinaryService.UploadResult result = cloudinaryService.uploadImage(file,
                     "auctionaa/liveStream/" + room.getId(), "cover", null);
             room.setImageAuctionRoom(result.getUrl());
+        }
+
+        // Set estimatedEndTime từ request
+        if (rq.getEstimatedEndTime() != null) {
+            room.setEstimatedEndTime(rq.getEstimatedEndTime());
+        }
+
+        // Set paymentDeadlineDays từ request
+        if (rq.getPaymentDeadlineDays() != null) {
+            room.setPaymentDeadlineDays(rq.getPaymentDeadlineDays());
         }
 
         if (room.getRoomName() == null || room.getRoomName().isBlank()) {
@@ -83,6 +112,17 @@ public class StreamService {
         if (rq.getSessions() != null && !rq.getSessions().isEmpty()) {
             List<AuctionSession> sessions = new ArrayList<>();
             for (AuctionSessionCreateRequest s : rq.getSessions()) {
+                // Validate session
+                if (s.getArtworkId() == null || s.getArtworkId().isBlank()) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "artworkId is required for each session");
+                }
+                if (s.getStartingPrice() == null || s.getStartingPrice().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "startingPrice must be > 0 for artwork: " + s.getArtworkId());
+                }
+                if (s.getBidStep() == null || s.getBidStep().compareTo(BigDecimal.ZERO) <= 0) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bidStep must be > 0 for artwork: " + s.getArtworkId());
+                }
+
                 AuctionSession session = new AuctionSession();
                 session.generateId();
                 session.setAuctionRoomId(savedRoom.getId());
@@ -91,34 +131,40 @@ public class StreamService {
                 session.setStartingPrice(s.getStartingPrice());
                 session.setCurrentPrice(s.getStartingPrice());
                 session.setBidStep(s.getBidStep());
-                session.setStatus(0); // DRAFT
+                session.setStatus(0); // STOPPED/DRAFT
                 session.setOrderIndex(i++);
-                session.setStartTime(null); // mặc định null
+                session.setStartTime(null); // mặc định null, sẽ set khi start
                 session.setEndedAt(null);
                 session.setCreatedAt(LocalDateTime.now());
                 session.setUpdatedAt(LocalDateTime.now());
                 session.setBidCount(0);
                 session.setViewCount(0);
 
-                int durationMinutes = (s.getDurationMinutes() > 0) ? s.getDurationMinutes()
+                int durationMinutes = (s.getDurationMinutes() > 0) 
+                        ? s.getDurationMinutes() 
                         : DEFAULT_SESSION_DURATION_MINUTES;
                 int durationSeconds = durationMinutes * 60;
                 session.setDurationSeconds(durationSeconds);
-                session.setDurationMinutes(durationMinutes); // Lưu thời gian bằng phút vào field riêng
+                session.setDurationMinutes(durationMinutes);
                 session.setMaxDurationSeconds(resolveMaxDurationSeconds(s, durationSeconds));
                 session.setExtendStepSeconds(DEFAULT_EXTEND_STEP_SECONDS);
                 session.setExtendThresholdSeconds(DEFAULT_EXTEND_THRESHOLD_SECONDS);
-
-                // type không còn lưu thời gian, có thể dùng cho mục đích khác (thể loại, v.v.)
-                // session.setType(...) - để trống hoặc set từ request nếu có
 
                 sessions.add(session);
             }
             auctionSessionRepository.saveAll(sessions);
         }
 
-        BigDecimal depositAmount = auctionRoomService.recomputeAndPersistDeposit(savedRoom.getId());
-        savedRoom.setDepositAmount(depositAmount);
+        // Set depositAmount: từ request nếu có, nếu không thì tính toán
+        if (rq.getDepositAmount() != null) {
+            savedRoom.setDepositAmount(rq.getDepositAmount());
+        } else {
+            BigDecimal depositAmount = auctionRoomService.recomputeAndPersistDeposit(savedRoom.getId());
+            savedRoom.setDepositAmount(depositAmount);
+        }
+        
+        // Save lại nếu có thay đổi depositAmount
+        savedRoom = auctionRoomRepository.save(savedRoom);
 
         return savedRoom;
     }

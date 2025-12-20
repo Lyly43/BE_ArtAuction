@@ -248,11 +248,13 @@ public class AdminAdminService {
         long totalAdmins = adminRepository.count();
         long activeAdmins = adminRepository.countByStatus(1);
         long lockedAdmins = adminRepository.countByStatus(0);
+        long totalSuperAdmins = adminRepository.countByRole(4); // Super Admin có role = 4
 
         AdminStatisticsResponse statistics = new AdminStatisticsResponse();
         statistics.setTotalAdmins(totalAdmins);
         statistics.setActiveAdmins(activeAdmins);
         statistics.setLockedAdmins(lockedAdmins);
+        statistics.setTotalSuperAdmins(totalSuperAdmins);
 
         return ResponseEntity.ok(statistics);
     }

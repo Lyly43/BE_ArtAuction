@@ -605,11 +605,12 @@ public class AdminAuctionRoomService {
             session.setOrderIndex(orderIndex++);
             session.setSellerId(artwork.getOwnerId());
             session.setType(request.getType());
+            session.setEndedAt(null);
 
             // Tính toán thời gian cho từng session
             // Giả sử mỗi session kéo dài 10 phút (có thể điều chỉnh)
-            session.setStartTime(currentStartTime);
-            session.setEndedAt(currentStartTime.plusMinutes(10)); // Có thể điều chỉnh logic này
+            session.setStartTime(null);
+//            session.setEndedAt(currentStartTime.plusMinutes(10)); // Có thể điều chỉnh logic này
 
             // Cập nhật thời gian bắt đầu cho session tiếp theo
             currentStartTime = currentStartTime.plusMinutes(10);
