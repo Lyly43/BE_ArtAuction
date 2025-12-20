@@ -122,10 +122,10 @@ public class AdminAuctionRoomService {
     }
 
     /**
-     * Lấy tất cả phòng đấu giá
+     * Lấy tất cả phòng đấu giá (sắp xếp theo createdAt DESC - mới nhất trước)
      */
     public ResponseEntity<List<AdminAuctionRoomResponse>> getAllAuctionRooms() {
-        List<AuctionRoom> rooms = auctionRoomRepository.findAll();
+        List<AuctionRoom> rooms = auctionRoomRepository.findAllByOrderByCreatedAtDesc();
         List<AdminAuctionRoomResponse> responses = rooms.stream()
                 .map(this::mapToResponseAndUpdateStatusIfNeeded)
                 .collect(Collectors.toList());
@@ -133,7 +133,7 @@ public class AdminAuctionRoomService {
     }
 
     /**
-     * Tìm kiếm theo room id hoặc roomName
+     * Tìm kiếm theo room id hoặc roomName (sắp xếp theo createdAt DESC - mới nhất trước)
      */
     public ResponseEntity<List<AdminAuctionRoomResponse>> searchAuctionRooms(String searchTerm) {
         if (searchTerm == null || searchTerm.trim().isEmpty()) {
@@ -148,7 +148,12 @@ public class AdminAuctionRoomService {
         List<AuctionRoom> byName = auctionRoomRepository.findByRoomNameContainingIgnoreCase(trimmed);
         resultSet.addAll(byName);
 
-        List<AdminAuctionRoomResponse> responses = resultSet.stream()
+        // Sắp xếp theo createdAt DESC (mới nhất trước)
+        List<AuctionRoom> sortedRooms = resultSet.stream()
+                .sorted(Comparator.comparing(AuctionRoom::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)).reversed())
+                .collect(Collectors.toList());
+
+        List<AdminAuctionRoomResponse> responses = sortedRooms.stream()
                 .map(this::mapToResponseAndUpdateStatusIfNeeded)
                 .collect(Collectors.toList());
 
@@ -239,6 +244,9 @@ public class AdminAuctionRoomService {
                     return true;
                 })
                 .collect(Collectors.toList());
+        
+        // Sắp xếp theo createdAt DESC (mới nhất trước)
+        filteredRooms.sort(Comparator.comparing(AuctionRoom::getCreatedAt, Comparator.nullsLast(LocalDateTime::compareTo)).reversed());
         
         List<AdminAuctionRoomResponse> responses = filteredRooms.stream()
                 .map(this::mapToResponseAndUpdateStatusIfNeeded)

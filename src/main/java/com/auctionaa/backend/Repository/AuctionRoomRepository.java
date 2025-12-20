@@ -65,6 +65,9 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
 
             "{ $addFields: { live: { $first: '$live' } } }",
 
+
+            "{ $sort: { createdAt: -1 } }",
+
             "{ $project: { " +
                     "   id: '$_id', " +
                     "   roomName: 1, imageAuctionRoom: 1, " +
@@ -79,12 +82,10 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
                     "   description: { $ifNull: ['$live.description', '$description'] }" +
                     "} }",
 
-            // 👇 THÊM pagination ở cuối pipeline
             "{ $skip: ?1 }",
             "{ $limit: ?2 }"
     })
     List<AuctionRoomLiveDTO> findRoomsWithLivePrices(int runningStatus, long skip, long limit);
-
 
     // Tìm kiếm theo ID (exact match)
     Optional<AuctionRoom> findById(String id);
@@ -118,6 +119,9 @@ public interface AuctionRoomRepository extends MongoRepository<AuctionRoom, Stri
 //    List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
     // Lọc theo status với phân trang
     Page<AuctionRoom> findByStatus(int status, Pageable pageable);
+
+    // Lấy tất cả phòng sắp xếp theo createdAt DESC (mới nhất trước)
+    List<AuctionRoom> findAllByOrderByCreatedAtDesc();
 
     // List<AuctionRoom> findByRoomNameContainingIgnoreCase(String roomName);
 
