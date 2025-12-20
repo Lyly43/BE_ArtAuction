@@ -66,6 +66,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/stream/**").permitAll()
                         // - getRoom public để người xem lấy thông tin phòng
                         .requestMatchers(HttpMethod.GET, "/api/stream/room/**").permitAll()
+                        // - token endpoint: tự validate token trong controller (cho phép cả user và admin)
+                        .requestMatchers(HttpMethod.GET, "/api/stream/token").permitAll()
 
                         // Chat endpoints - cần authentication
                         .requestMatchers(HttpMethod.GET, "/api/chats/**").authenticated()

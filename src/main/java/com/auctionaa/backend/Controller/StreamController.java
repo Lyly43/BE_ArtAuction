@@ -10,8 +10,10 @@ import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
+import com.auctionaa.backend.Repository.UserRepository;
 import com.auctionaa.backend.Service.CloudinaryService;
 import com.auctionaa.backend.Service.StreamService;
+import com.auctionaa.backend.Jwt.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,8 @@ public class StreamController {
     private final AdminJwtUtil adminJwtUtil;
     private final AdminRepository adminRepository;
     private final AuctionRoomRepository roomRepo;
+    private final JwtUtil jwtUtil;
+    private final UserRepository userRepository;
     @Value("${zegocloud.server-secret}")
     private String serverSecret;
 
@@ -132,18 +136,41 @@ public class StreamController {
             @RequestHeader("Authorization") String authHeader,
             @RequestParam String roomId) {
         String token = extractBearer(authHeader);
-        if (!adminJwtUtil.validateToken(token)) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid admin token");
-        }
         
-        String adminId = adminJwtUtil.extractAdminId(token);
-        Admin admin = adminRepository.findById(adminId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin not found"));
+        String userId;
+        String role;
+        boolean isAdmin = false;
+        
+        // Thử validate token admin trước
+        if (adminJwtUtil.validateToken(token)) {
+            String adminId = adminJwtUtil.extractAdminId(token);
+            adminRepository.findById(adminId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin not found"));
+            userId = adminId;
+            isAdmin = true;
+        } 
+        // Nếu không phải admin token, thử validate user token
+        else if (jwtUtil.validateToken(token)) {
+            String userExtractedId = jwtUtil.extractUserId(token);
+            userRepository.findById(userExtractedId)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+            userId = userExtractedId;
+            isAdmin = false;
+        } 
+        // Nếu cả hai đều không hợp lệ
+        else {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
 
         var room = roomRepo.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
 
-        String role = adminId.equals(room.getAdminId()) ? "host" : "audience";
+        // Xác định role: admin sở hữu phòng là "host", còn lại là "audience"
+        if (isAdmin && userId.equals(room.getAdminId())) {
+            role = "host";
+        } else {
+            role = "audience";
+        }
 
         long now = System.currentTimeMillis() / 1000;
         long expireAt = now + zegoConfig.getTokenTtl();
@@ -151,7 +178,7 @@ public class StreamController {
         return Map.of(
                 "appID", zegoConfig.getAppId(),
                 "token", serverSecret,
-                "userId", adminId,
+                "userId", userId,
                 "roomId", roomId,
                 "role", role,
                 "expireAt", expireAt
