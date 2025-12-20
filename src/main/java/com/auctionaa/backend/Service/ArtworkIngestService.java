@@ -158,6 +158,7 @@ public class ArtworkIngestService {
         // ✅ ảnh
         a.setAvtArtwork(secureUrl);
         a.setImageUrls(List.of(secureUrl)); // nếu muốn chỉ lưu avt thì có thể để null hoặc emptyList()
+        a.setAiVerified(true);
 
         // ✅ default values
         a.setStatus(0);          // 0: Chưa duyệt
