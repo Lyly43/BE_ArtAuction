@@ -69,12 +69,14 @@ public class InvoiceService {
         iv.setRoomName(room.getRoomName());
 
         // Giao dịch
-        iv.setAmount(req.getAmount());
+        // Làm tròn xuống (floor) tất cả các giá trị tiền về số nguyên (chỉ lấy phần trước dấu phẩy)
+        java.math.RoundingMode roundingMode = java.math.RoundingMode.FLOOR;
+        iv.setAmount(req.getAmount() != null ? req.getAmount().setScale(0, roundingMode) : null);
         iv.setPaymentMethod(req.getPaymentMethod());
         iv.setPaymentStatus(req.getPaymentStatus());
         iv.setTransactionType(req.getTransactionType());
-        iv.setShippingFee(req.getShippingFee());
-        iv.setTotalAmount(req.getTotalAmount());
+        iv.setShippingFee(req.getShippingFee() != null ? req.getShippingFee().setScale(0, roundingMode) : null);
+        iv.setTotalAmount(req.getTotalAmount() != null ? req.getTotalAmount().setScale(0, roundingMode) : null);
         iv.setPaymentDate(req.getPaymentDate());
         iv.setOrderDate(req.getOrderDate());
 

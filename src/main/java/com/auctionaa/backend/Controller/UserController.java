@@ -5,7 +5,10 @@ import com.auctionaa.backend.DTO.Response.CheckUserInRoomResponse;
 import com.auctionaa.backend.DTO.Response.KycVerifyResponse;
 import com.auctionaa.backend.DTO.Response.UserAVTResponse;
 import com.auctionaa.backend.DTO.Response.UserResponse;
+import com.auctionaa.backend.DTO.Response.UserRoleResponse;
 import com.auctionaa.backend.DTO.Response.UserTradeStatsResponse;
+import com.auctionaa.backend.Entity.User;
+import com.auctionaa.backend.Repository.UserRepository;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
@@ -17,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/api/user") // <— bỏ dấu "/" cuối
@@ -31,6 +35,8 @@ public class UserController {
     private KycService kycService;
     @Autowired
     private AuctionRoomRepository auctionRoomRepository;
+    @Autowired
+    private UserRepository userRepository;
 
     @GetMapping("/info")
     public ResponseEntity<?> getInfoUser(@RequestHeader("Authorization") String authHeader) {
@@ -114,5 +120,37 @@ public class UserController {
                     "Không có user trong phòng " + roomId
             ));
         }
+    }
+
+    /**
+     * Lấy role hiện tại của user
+     * GET /api/user/role
+     * 
+     * @param authHeader Authorization header chứa JWT token
+     * @return UserRoleResponse chứa role và roleName của user hiện tại
+     */
+    @GetMapping("/role")
+    public ResponseEntity<UserRoleResponse> getCurrentUserRole(
+            @RequestHeader("Authorization") String authHeader) {
+        
+        // Lấy userId từ JWT token
+        String userId = jwtUtil.extractUserId(authHeader);
+        
+        // Tìm user trong database
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, 
+                        "User not found"
+                ));
+        
+        // Map role sang roleName
+        String roleName = switch (user.getRole()) {
+            case 0 -> "User";
+            case 1 -> "Buyer";
+            case 2 -> "Seller";
+            default -> "Unknown";
+        };
+        
+        return ResponseEntity.ok(new UserRoleResponse(user.getRole(), roleName));
     }
 }

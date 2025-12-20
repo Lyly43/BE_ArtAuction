@@ -163,12 +163,14 @@ public class AdminInvoiceService {
 
         Invoice invoice = optionalInvoice.get();
 
-        if (request.getAmount() != null) invoice.setAmount(request.getAmount());
-        if (request.getBuyerPremium() != null) invoice.setBuyerPremium(request.getBuyerPremium());
-        if (request.getInsuranceFee() != null) invoice.setInsuranceFee(request.getInsuranceFee());
-        if (request.getSalesTax() != null) invoice.setSalesTax(request.getSalesTax());
-        if (request.getShippingFee() != null) invoice.setShippingFee(request.getShippingFee());
-        if (request.getTotalAmount() != null) invoice.setTotalAmount(request.getTotalAmount());
+        // Làm tròn xuống (floor) tất cả các giá trị tiền về số nguyên (chỉ lấy phần trước dấu phẩy)
+        java.math.RoundingMode roundingMode = java.math.RoundingMode.FLOOR;
+        if (request.getAmount() != null) invoice.setAmount(request.getAmount().setScale(0, roundingMode));
+        if (request.getBuyerPremium() != null) invoice.setBuyerPremium(request.getBuyerPremium().setScale(0, roundingMode));
+        if (request.getInsuranceFee() != null) invoice.setInsuranceFee(request.getInsuranceFee().setScale(0, roundingMode));
+        if (request.getSalesTax() != null) invoice.setSalesTax(request.getSalesTax().setScale(0, roundingMode));
+        if (request.getShippingFee() != null) invoice.setShippingFee(request.getShippingFee().setScale(0, roundingMode));
+        if (request.getTotalAmount() != null) invoice.setTotalAmount(request.getTotalAmount().setScale(0, roundingMode));
         if (StringUtils.hasText(request.getPaymentMethod())) invoice.setPaymentMethod(request.getPaymentMethod());
         if (request.getPaymentStatus() != null) invoice.setPaymentStatus(request.getPaymentStatus());
         if (request.getInvoiceStatus() != null) invoice.setInvoiceStatus(request.getInvoiceStatus());

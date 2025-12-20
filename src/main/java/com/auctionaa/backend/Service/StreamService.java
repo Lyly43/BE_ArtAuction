@@ -16,6 +16,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -218,6 +219,15 @@ public class StreamService {
             BigDecimal shipping = BigDecimal.valueOf(75);
             BigDecimal salesTax = artworkPrice.multiply(BigDecimal.valueOf(0.085));
             BigDecimal total = artworkPrice.add(buyerPremium).add(insurance).add(shipping).add(salesTax);
+            
+            // Làm tròn xuống (floor) tất cả các giá trị tiền về số nguyên (chỉ lấy phần trước dấu phẩy)
+            RoundingMode roundingMode = RoundingMode.FLOOR;
+            artworkPrice = artworkPrice.setScale(0, roundingMode);
+            buyerPremium = buyerPremium.setScale(0, roundingMode);
+            insurance = insurance.setScale(0, roundingMode);
+            shipping = shipping.setScale(0, roundingMode);
+            salesTax = salesTax.setScale(0, roundingMode);
+            total = total.setScale(0, roundingMode);
 
             Invoice invoice = new Invoice();
             invoice.generateId();

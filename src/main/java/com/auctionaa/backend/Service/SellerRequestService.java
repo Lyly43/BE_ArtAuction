@@ -3,6 +3,7 @@ package com.auctionaa.backend.Service;
 import com.auctionaa.backend.DTO.Request.SellerRequestDTO;
 import com.auctionaa.backend.DTO.Response.SellerRequestResponse;
 import com.auctionaa.backend.DTO.Response.SellerRequestWithUserResponse;
+import com.auctionaa.backend.Entity.Notification;
 import com.auctionaa.backend.Entity.SellerRequest;
 import com.auctionaa.backend.Entity.User;
 import com.auctionaa.backend.Repository.SellerRequestRepository;
@@ -26,6 +27,7 @@ public class SellerRequestService {
     private final SellerRequestRepository sellerRequestRepository;
     private final UserRepository userRepository;
     private final CloudinaryService cloudinaryService;
+    private final NotificationService notificationService;
 
     public List<SellerRequestWithUserResponse> getAllSellerRequests() {
         List<SellerRequest> requests = sellerRequestRepository.findAll();
@@ -61,10 +63,12 @@ public class SellerRequestService {
         }
 
         // Kiểm tra đã có request đang pending chưa
-        SellerRequest existingRequest = sellerRequestRepository.findByUserId(userId)
-                .orElse(null);
+        // Sử dụng findByUserIdOrderByCreatedAtDesc để tránh lỗi non-unique result
+        List<SellerRequest> existingRequests = sellerRequestRepository.findByUserIdOrderByCreatedAtDesc(userId);
+        boolean hasPendingRequest = existingRequests.stream()
+                .anyMatch(req -> "PENDING".equals(req.getStatus()));
 
-        if (existingRequest != null && "PENDING".equals(existingRequest.getStatus())) {
+        if (hasPendingRequest) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Bạn đã có request đang chờ duyệt. Vui lòng đợi admin xử lý.");
         }
@@ -132,7 +136,17 @@ public class SellerRequestService {
         request.setAdminNote(adminNote != null ? adminNote : "Đã được duyệt bởi admin");
         request = sellerRequestRepository.save(request);
 
-        log.info("Seller request {} approved, user {} role updated to 2 (seller)", requestId, user.getId());
+        // Tạo thông báo cho seller
+        Notification notification = new Notification();
+        notification.setUserId(user.getId());
+        notification.setTitle("Seller Request Approved");
+        notification.setNotificationContent("Your request to become a Seller has been approved. Please proceed with the confirmation.");
+        notification.setNotificationType(0); // Có thể điều chỉnh theo loại notification
+        notification.setNotificationStatus(1); // 1 = đã gửi
+        notification.setRefId(requestId); // Tham chiếu đến request ID
+        notificationService.addNotification(notification);
+
+        log.info("Seller request {} approved, user {} role updated to 2 (seller). Notification sent.", requestId, user.getId());
 
         return mapToResponse(request);
     }
