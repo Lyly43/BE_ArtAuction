@@ -141,8 +141,12 @@ public class StreamController {
         String role;
         boolean isAdmin = false;
         
-        // Thử validate token admin trước
-        if (adminJwtUtil.validateToken(token)) {
+        // Kiểm tra xem token có phải admin token không (dựa vào tokenType claim)
+        // Chỉ kiểm tra nếu token validate được với admin secret
+        boolean isAdminToken = adminJwtUtil.validateToken(token) && adminJwtUtil.isAdminToken(token);
+        
+        if (isAdminToken) {
+            // Validate và extract admin ID
             String adminId = adminJwtUtil.extractAdminId(token);
             adminRepository.findById(adminId)
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Admin not found"));

@@ -88,6 +88,25 @@ public class AdminJwtUtil {
         }
     }
 
+    /**
+     * Kiểm tra xem token có phải admin token không dựa vào claim "tokenType"
+     */
+    public boolean isAdminToken(String headerOrToken) {
+        try {
+            String token = sanitize(headerOrToken);
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key)
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            
+            Object tokenType = claims.get("tokenType");
+            return "ADMIN".equals(tokenType);
+        } catch (JwtException | IllegalArgumentException e) {
+            return false;
+        }
+    }
+
     private String sanitize(String headerOrToken) {
         if (headerOrToken == null) return "";
         String t = headerOrToken.trim();
