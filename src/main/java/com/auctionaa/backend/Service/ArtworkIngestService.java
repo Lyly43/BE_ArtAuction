@@ -137,4 +137,33 @@ public class ArtworkIngestService {
         Map res = cloudFolderService.uploadToFolder(image.getBytes(), folder, publicId);
         return (String) res.get("secure_url");
     }
+
+    public Artwork saveArtworkFromRequest(String userId, ArtworkIngestRequest req, String secureUrl) {
+        Artwork a = new Artwork();
+
+        // ✅ lấy từ JWT
+        a.setOwnerId(userId);
+
+        // ✅ map fields từ request -> entity
+        a.setTitle(req.getTitle());
+        a.setDescription(req.getDescription());
+        a.setStartedPrice(req.getStartedPrice());
+
+        a.setPaintingGenre(req.getPaintingGenre());     // thể loại
+        a.setYearOfCreation(req.getYearOfCreation());   // năm
+        a.setMaterial(req.getMaterial());
+        a.setSize(req.getSize());
+        a.setCertificateId(req.getCertificateId());
+
+        // ✅ ảnh
+        a.setAvtArtwork(secureUrl);
+        a.setImageUrls(List.of(secureUrl)); // nếu muốn chỉ lưu avt thì có thể để null hoặc emptyList()
+
+        // ✅ default values
+        a.setStatus(0);          // 0: Chưa duyệt
+
+        // BaseEntity
+        a.generateId();
+        return artworkRepository.save(a);
+    }
 }
