@@ -126,10 +126,13 @@ public class AdminDashboardService {
 
     /**
      * Thống kê revenue so sánh tháng
-     * Tính tổng totalAmount từ tất cả Invoice (không filter theo status)
+     * ✅ CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+     * ✅ Lấy từ trường totalAmount (không phải amount)
      * Dùng createdAt để tính revenue (giống các API thống kê khác)
      */
     private DashboardStatisticsResponse.MonthlyRevenueStat getRevenueMonthlyStat() {
+        // ✅ CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+        // ✅ Lấy từ trường totalAmount (không phải amount)
         // Dùng createdAt để tính revenue (đảm bảo consistency với các API thống kê khác)
         MonthlyComparisonResponse comparison = monthlyStatisticsService.getMonthlyRevenueComparison("invoices", "createdAt", "totalAmount");
         MonthlyComparisonResponse.MonthlyComparisonData compData = comparison.getData();
@@ -157,42 +160,64 @@ public class AdminDashboardService {
     }
     
     /**
-     * Tính tổng doanh thu từ tất cả invoices (không filter theo thời gian)
+     * Tính tổng doanh thu từ tất cả invoices đã thanh toán (paymentStatus = 1)
+     * ✅ CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+     * ✅ Lấy từ trường totalAmount (không phải amount)
+     * Không filter theo thời gian - tính tổng tất cả invoices đã thanh toán
      */
     private BigDecimal calculateTotalRevenue() {
+        // ✅ CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+        // ✅ Lấy từ trường totalAmount (không phải amount)
+        // Sử dụng $sum trực tiếp với totalAmount để tránh mất precision
         org.springframework.data.mongodb.core.aggregation.Aggregation aggregation = 
             org.springframework.data.mongodb.core.aggregation.Aggregation.newAggregation(
                 org.springframework.data.mongodb.core.aggregation.Aggregation.match(
-                    org.springframework.data.mongodb.core.query.Criteria.where("totalAmount").ne(null)
+                    org.springframework.data.mongodb.core.query.Criteria.where("paymentStatus").is(1) // CHỈ lấy invoices đã thanh toán
+                        .and("totalAmount").ne(null) // Đảm bảo totalAmount không null
                 ),
-                org.springframework.data.mongodb.core.aggregation.Aggregation.project()
-                    .andExpression(
-                        "{$convert: {" +
-                            "input: '$totalAmount', " +
-                            "to: 'double', " +
-                            "onError: 0, " +
-                            "onNull: 0" +
-                        "}}"
-                    ).as("convertedAmount"),
                 org.springframework.data.mongodb.core.aggregation.Aggregation.group()
-                    .sum("convertedAmount").as("total")
+                    .sum("totalAmount").as("total")
             );
 
         org.springframework.data.mongodb.core.aggregation.AggregationResults<java.util.Map> results = 
             mongoTemplate.aggregate(aggregation, "invoices", java.util.Map.class);
 
+        // Debug: Log số invoices matched
+        long matchedCount = mongoTemplate.count(
+            org.springframework.data.mongodb.core.query.Query.query(
+                org.springframework.data.mongodb.core.query.Criteria.where("paymentStatus").is(1)
+                    .and("totalAmount").ne(null)
+            ), 
+            "invoices"
+        );
+        System.out.println("DEBUG calculateTotalRevenue - Matched invoices count: " + matchedCount);
+
         if (results.getMappedResults().isEmpty()) {
+            System.out.println("DEBUG calculateTotalRevenue - No aggregation results");
             return BigDecimal.ZERO;
         }
 
         java.util.Map<String, Object> result = results.getMappedResults().get(0);
         Object total = result.get("total");
         
+        System.out.println("DEBUG calculateTotalRevenue - Total value type: " + (total != null ? total.getClass().getName() : "null") + 
+            ", value: " + total);
+        
         if (total == null) {
             return BigDecimal.ZERO;
         }
         
+        // Xử lý Decimal128 (MongoDB lưu BigDecimal dưới dạng Decimal128) để giữ precision
+        if (total instanceof org.bson.types.Decimal128) {
+            BigDecimal value = ((org.bson.types.Decimal128) total).bigDecimalValue();
+            System.out.println("DEBUG calculateTotalRevenue - Converted Decimal128 to BigDecimal: " + value);
+            return value;
+        }
+        if (total instanceof BigDecimal) {
+            return (BigDecimal) total;
+        }
         if (total instanceof Number) {
+            // Chuyển sang BigDecimal để tránh mất precision
             return BigDecimal.valueOf(((Number) total).doubleValue());
         }
         

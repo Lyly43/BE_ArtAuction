@@ -204,32 +204,46 @@ public class MonthlyStatisticsService {
 
     /**
      * Tính tổng số tiền trong một khoảng thời gian
-     * Đối với invoices, tính tất cả invoice có totalAmount không null
+     * ✅ Đối với invoices: CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+     * ✅ Lấy từ trường totalAmount (không phải amount)
      * Nếu dateField là "orderDate", dùng $or để query cả orderDate và createdAt
      */
     private double sumAmountInRange(String collectionName, String dateField, String amountField,
                                    LocalDateTime start, LocalDateTime end) {
-        // Nếu là invoices và dateField là orderDate, dùng $or để query cả orderDate và createdAt
-        if ("invoices".equals(collectionName) && "orderDate".equals(dateField)) {
-            // Dùng $or: orderDate trong khoảng HOẶC (orderDate không tồn tại/null VÀ createdAt trong khoảng)
-            Criteria criteria = new Criteria().orOperator(
-                Criteria.where("orderDate").gte(start).lte(end),
-                new Criteria().andOperator(
-                    new Criteria().orOperator(
-                        Criteria.where("orderDate").is(null),
-                        Criteria.where("orderDate").exists(false)
-                    ),
-                    Criteria.where("createdAt").gte(start).lte(end)
-                )
-            ).and(amountField).ne(null);
-            
-            return sumAmountWithCriteria(collectionName, criteria, amountField);
-        } else {
-            // Các trường hợp khác: chỉ filter theo dateField
-            Criteria criteria = Criteria.where(dateField).gte(start).lte(end)
+        Criteria criteria;
+        
+        // ✅ Đối với invoices: CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+        // ✅ Lấy từ trường totalAmount (không phải amount) - amountField đã được truyền vào là "totalAmount"
+        if ("invoices".equals(collectionName)) {
+            // Base criteria: paymentStatus = 1 (đã thanh toán) và totalAmount không null
+            criteria = Criteria.where("paymentStatus").is(1)
                 .and(amountField).ne(null);
-            return sumAmountWithCriteria(collectionName, criteria, amountField);
+            
+            // Nếu dateField là "orderDate", dùng $or để query cả orderDate và createdAt
+            if ("orderDate".equals(dateField)) {
+                criteria = criteria.andOperator(
+                    new Criteria().orOperator(
+                        Criteria.where("orderDate").gte(start).lte(end),
+                        new Criteria().andOperator(
+                            new Criteria().orOperator(
+                                Criteria.where("orderDate").is(null),
+                                Criteria.where("orderDate").exists(false)
+                            ),
+                            Criteria.where("createdAt").gte(start).lte(end)
+                        )
+                    )
+                );
+            } else {
+                // Các dateField khác (như "createdAt"): chỉ filter theo dateField
+                criteria = criteria.and(dateField).gte(start).lte(end);
+            }
+        } else {
+            // Các collection khác: chỉ filter theo dateField
+            criteria = Criteria.where(dateField).gte(start).lte(end)
+                .and(amountField).ne(null);
         }
+        
+        return sumAmountWithCriteria(collectionName, criteria, amountField);
     }
     
     /**
@@ -242,22 +256,31 @@ public class MonthlyStatisticsService {
         System.out.println("DEBUG sumAmountWithCriteria - collection: " + collectionName + 
             ", amountField: " + amountField);
         
-        // Sử dụng $convert để chuyển String thành Double nếu cần
-        // Xử lý cả trường hợp totalAmount là String hoặc Number trong database
-        // Sử dụng $convert với onError để xử lý lỗi an toàn
-        Aggregation aggregation = Aggregation.newAggregation(
-            Aggregation.match(criteria),
-            Aggregation.project()
-                .andExpression(
-                    "{$convert: {" +
-                        "input: '$" + amountField + "', " +
-                        "to: 'double', " +
-                        "onError: 0, " +
-                        "onNull: 0" +
-                    "}}"
-                ).as("convertedAmount"),
-            Aggregation.group().sum("convertedAmount").as("total")
-        );
+        // ✅ Sử dụng $sum trực tiếp với totalAmount để tránh mất precision
+        // Chỉ dùng $convert nếu amountField có thể là String, nếu không thì sum trực tiếp
+        Aggregation aggregation;
+        if ("invoices".equals(collectionName) && "totalAmount".equals(amountField)) {
+            // Đối với invoices.totalAmount: sum trực tiếp để giữ precision
+            aggregation = Aggregation.newAggregation(
+                Aggregation.match(criteria),
+                Aggregation.group().sum(amountField).as("total")
+            );
+        } else {
+            // Các trường hợp khác: dùng $convert để xử lý String
+            aggregation = Aggregation.newAggregation(
+                Aggregation.match(criteria),
+                Aggregation.project()
+                    .andExpression(
+                        "{$convert: {" +
+                            "input: '$" + amountField + "', " +
+                            "to: 'double', " +
+                            "onError: 0, " +
+                            "onNull: 0" +
+                        "}}"
+                    ).as("convertedAmount"),
+                Aggregation.group().sum("convertedAmount").as("total")
+            );
+        }
 
         AggregationResults<Map> results = mongoTemplate.aggregate(
             aggregation, collectionName, Map.class);
@@ -283,17 +306,22 @@ public class MonthlyStatisticsService {
             return 0.0;
         }
         
-        // Xử lý Decimal128 (MongoDB lưu BigDecimal dưới dạng Decimal128)
+        // Xử lý Decimal128 (MongoDB lưu BigDecimal dưới dạng Decimal128) - giữ precision
         if (total instanceof Decimal128) {
-            double value = ((Decimal128) total).bigDecimalValue().doubleValue();
-            System.out.println("DEBUG - Converted Decimal128 to double: " + value);
+            BigDecimal bigDecimalValue = ((Decimal128) total).bigDecimalValue();
+            double value = bigDecimalValue.doubleValue();
+            System.out.println("DEBUG - Converted Decimal128 to double: " + value + " (BigDecimal: " + bigDecimalValue + ")");
             return value;
         }
         if (total instanceof BigDecimal) {
-            return ((BigDecimal) total).doubleValue();
+            double value = ((BigDecimal) total).doubleValue();
+            System.out.println("DEBUG - Converted BigDecimal to double: " + value + " (BigDecimal: " + total + ")");
+            return value;
         }
         if (total instanceof Number) {
-            return ((Number) total).doubleValue();
+            double value = ((Number) total).doubleValue();
+            System.out.println("DEBUG - Number to double: " + value);
+            return value;
         }
         // Nếu là String (trường hợp MongoDB trả về string), parse
         if (total instanceof String) {

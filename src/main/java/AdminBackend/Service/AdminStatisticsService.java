@@ -103,16 +103,24 @@ public class AdminStatisticsService {
 
     /**
      * Thống kê doanh thu (invoice) theo ngày
+     * ✅ CHỈ tính từ invoices đã thanh toán (paymentStatus = 1)
+     * ✅ Lấy từ trường totalAmount (không phải amount)
      * Xử lý cả trường hợp totalAmount là String hoặc Number trong database
      */
     public ChartDataResponse getRevenueStats(DateRangeRequest request) {
         LocalDateTime startDateTime = request.getBegin().atStartOfDay();
         LocalDateTime endDateTime = request.getEnd().atTime(23, 59, 59);
 
+        // ✅ CHỈ lấy invoices đã thanh toán (paymentStatus = 1)
+        // ✅ Lấy từ trường totalAmount (không phải amount)
         // Sử dụng $convert để chuyển String thành Double nếu cần
         // Xử lý cả trường hợp totalAmount là String hoặc Number trong database
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("createdAt").gte(startDateTime).lte(endDateTime)),
+                Aggregation.match(
+                    Criteria.where("paymentStatus").is(1) // CHỈ lấy invoices đã thanh toán
+                        .and("createdAt").gte(startDateTime).lte(endDateTime)
+                        .and("totalAmount").ne(null) // Đảm bảo totalAmount không null
+                ),
                 Aggregation.project()
                         .andExpression("dateToString('%d/%m/%Y', createdAt)").as("date")
                         .andExpression(
@@ -158,43 +166,93 @@ public class AdminStatisticsService {
     }
 
     /**
-     * Thống kê số report được báo cáo theo ngày
+     * Thống kê số report được báo cáo theo entityType (phân loại cho biểu đồ tròn)
+     * ✅ Phân loại theo ReportConstants: User, Artwork, Auction Room, AI Artwork
      */
     public ChartDataResponse getReportsStats(DateRangeRequest request) {
         LocalDateTime startDateTime = request.getBegin().atStartOfDay();
         LocalDateTime endDateTime = request.getEnd().atTime(23, 59, 59);
 
+        // Group theo entityType và đếm số lượng
         Aggregation aggregation = Aggregation.newAggregation(
                 Aggregation.match(Criteria.where("createdAt").gte(startDateTime).lte(endDateTime)),
-                Aggregation.project()
-                        .andExpression("dateToString('%d/%m/%Y', createdAt)").as("date"),
-                Aggregation.group("date").count().as("count"),
+                Aggregation.group("entityType").count().as("count"),
                 Aggregation.sort(org.springframework.data.domain.Sort.Direction.ASC, "_id")
         );
 
         AggregationResults<Map> results = mongoTemplate.aggregate(
                 aggregation, "reports", Map.class);
 
-        Map<String, Long> dataMap = results.getMappedResults().stream()
-                .collect(Collectors.toMap(
-                        item -> (String) item.get("_id"),
-                        item -> ((Number) item.get("count")).longValue()
-                ));
+        // Map entityType (int) sang tên (String) và đếm số lượng
+        Map<String, Long> dataMap = new HashMap<>();
+        for (Map<String, Object> item : results.getMappedResults()) {
+            Object entityTypeObj = item.get("_id");
+            if (entityTypeObj instanceof Number) {
+                int entityType = ((Number) entityTypeObj).intValue();
+                String entityTypeName = com.auctionaa.backend.Constants.ReportConstants.getEntityTypeName(entityType);
+                Long count = ((Number) item.get("count")).longValue();
+                dataMap.put(entityTypeName, count);
+            }
+        }
 
-        List<ChartDataResponse.ChartDataItem> dataItems = fillAllDatesWithCount(request.getBegin(), request.getEnd(), dataMap);
+        // Tạo data items cho biểu đồ tròn
+        // Đảm bảo có đủ 4 loại (nếu không có thì count = 0)
+        List<ChartDataResponse.ChartDataItem> dataItems = new ArrayList<>();
+        String[] entityTypes = {"User", "Artwork", "Auction Room", "AI Artwork"};
+        for (String entityTypeName : entityTypes) {
+            ChartDataResponse.ChartDataItem item = new ChartDataResponse.ChartDataItem();
+            item.setDate(entityTypeName); // Dùng field "date" để lưu tên entity type
+            item.setCount(dataMap.getOrDefault(entityTypeName, 0L));
+            dataItems.add(item);
+        }
 
-        return buildChartResponse("Thống kê báo cáo", dataItems);
+        // Build response cho biểu đồ tròn
+        List<String> labels = dataItems.stream()
+                .map(ChartDataResponse.ChartDataItem::getDate)
+                .collect(Collectors.toList());
+
+        List<Object> data = dataItems.stream()
+                .map(ChartDataResponse.ChartDataItem::getCount)
+                .collect(Collectors.toList());
+
+        // Màu sắc cho từng loại (theo thứ tự: User, Artwork, Auction Room, AI Artwork)
+        List<String> colors = List.of(
+                "#FF6384", // Red cho User
+                "#FFCE56", // Yellow cho Artwork
+                "#36A2EB", // Blue cho Auction Room
+                "#4BC0C0"  // Cyan cho AI Artwork
+        );
+
+        ChartDataResponse.ChartDataset dataset = new ChartDataResponse.ChartDataset();
+        dataset.setLabel("Phân loại báo cáo");
+        dataset.setData(data);
+        dataset.setBackgroundColor(colors);
+
+        ChartDataResponse response = new ChartDataResponse();
+        response.setStatus(1);
+        response.setMessage("Success");
+        response.setData(dataItems);
+        response.setLabels(labels);
+        response.setDatasets(Collections.singletonList(dataset));
+
+        return response;
     }
 
     /**
      * Thống kê số tác phẩm được thêm vào theo ngày
+     * ✅ CHỈ tính từ artworks đã duyệt (status = 1) và đã được AI verify (aiVerified = true)
      */
     public ChartDataResponse getArtworksStats(DateRangeRequest request) {
         LocalDateTime startDateTime = request.getBegin().atStartOfDay();
         LocalDateTime endDateTime = request.getEnd().atTime(23, 59, 59);
 
+        // ✅ CHỈ lấy artworks đã duyệt (status = 1) và đã được AI verify (aiVerified = true)
         Aggregation aggregation = Aggregation.newAggregation(
-                Aggregation.match(Criteria.where("createdAt").gte(startDateTime).lte(endDateTime)),
+                Aggregation.match(
+                    Criteria.where("status").is(1) // CHỈ lấy artworks đã duyệt
+                        .and("aiVerified").is(true) // CHỈ lấy artworks đã được AI verify
+                        .and("createdAt").gte(startDateTime).lte(endDateTime)
+                ),
                 Aggregation.project()
                         .andExpression("dateToString('%d/%m/%Y', createdAt)").as("date"),
                 Aggregation.group("date").count().as("count"),
