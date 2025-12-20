@@ -1,7 +1,9 @@
 package com.auctionaa.backend.Controller;
 
 import com.auctionaa.backend.DTO.Request.ArtworkIngestRequest;
+import com.auctionaa.backend.DTO.Request.FlaskClassifyResponse;
 import com.auctionaa.backend.DTO.Response.FlaskPredictResponse;
+import com.auctionaa.backend.DTO.Response.GenreScore;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Jwt.JwtUtil;
 import com.auctionaa.backend.Service.ArtworkIngestService;
@@ -14,6 +16,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -65,7 +70,7 @@ public class ArtworkIngestController {
 
         // 2) Gọi Flask predict
         FlaskPredictResponse predict = ingestService.callFlaskPredict(image);
-        if (predict == null || !Boolean.TRUE.equals(predict.isSuccess())) {
+        if (predict == null || !predict.isSuccess()) {
             return ResponseEntity.status(502).body(Map.of(
                     "status", false,
                     "message", "Flask Predict lỗi hoặc không phản hồi hợp lệ"
@@ -83,6 +88,16 @@ public class ArtworkIngestController {
             ));
         }
 
+        FlaskClassifyResponse classify = ingestService.callFlaskClassify(image);
+        // ✅ lấy top 3 genre (probability cao nhất)
+        List<GenreScore> top3Genres = Collections.emptyList();
+        if (classify != null && classify.getTopk() != null) {
+            top3Genres = classify.getTopk().stream()
+                    .limit(3)
+                    .map(x -> new GenreScore(x.getLabel(), x.getProbability() == null ? 0.0 : x.getProbability()))
+                    .toList();
+        }
+
         // 4) Human → đảm bảo folder tồn tại: "{tenNguoiDung}_{userId}" (hoặc "user_{userId}")
         try {
             String folder = ingestService.buildUserFolder(displayName, userId);
@@ -95,7 +110,9 @@ public class ArtworkIngestController {
                 ));
             }
 
-            Artwork saved = ingestService.saveArtwork(userId, metadata, secureUrl);
+            Artwork saved = ingestService.saveArtwork(userId, metadata, secureUrl,classify);
+
+            String genre = (classify != null && classify.getTop1() != null) ? classify.getTop1().getLabel() : null;
 
             return ResponseEntity.ok(Map.of(
                     "status", true,
@@ -104,9 +121,9 @@ public class ArtworkIngestController {
                     "aiProbability", predict.getAi_probability(),
                     "message", "Ảnh là Human. Đã upload & lưu metadata.",
                     "cloudinary_url", secureUrl,
-                    "folder", folder,
                     "artwork_id", saved.getId(),
-                    "artwork", saved
+                    "artwork", saved,
+                    "top3Genres", top3Genres
             ));
         } catch (Exception ex) {
             return ResponseEntity.status(500).body(Map.of(
