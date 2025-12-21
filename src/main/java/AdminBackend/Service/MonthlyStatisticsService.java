@@ -237,6 +237,10 @@ public class MonthlyStatisticsService {
                 // Các dateField khác (như "createdAt"): chỉ filter theo dateField
                 criteria = criteria.and(dateField).gte(start).lte(end);
             }
+            
+            // Debug: Log criteria cho invoices
+            System.out.println("DEBUG sumAmountInRange - invoices: dateField=" + dateField + 
+                ", start=" + start + ", end=" + end);
         } else {
             // Các collection khác: chỉ filter theo dateField
             criteria = Criteria.where(dateField).gte(start).lte(end)
@@ -256,31 +260,21 @@ public class MonthlyStatisticsService {
         System.out.println("DEBUG sumAmountWithCriteria - collection: " + collectionName + 
             ", amountField: " + amountField);
         
-        // ✅ Sử dụng $sum trực tiếp với totalAmount để tránh mất precision
-        // Chỉ dùng $convert nếu amountField có thể là String, nếu không thì sum trực tiếp
-        Aggregation aggregation;
-        if ("invoices".equals(collectionName) && "totalAmount".equals(amountField)) {
-            // Đối với invoices.totalAmount: sum trực tiếp để giữ precision
-            aggregation = Aggregation.newAggregation(
-                Aggregation.match(criteria),
-                Aggregation.group().sum(amountField).as("total")
-            );
-        } else {
-            // Các trường hợp khác: dùng $convert để xử lý String
-            aggregation = Aggregation.newAggregation(
-                Aggregation.match(criteria),
-                Aggregation.project()
-                    .andExpression(
-                        "{$convert: {" +
-                            "input: '$" + amountField + "', " +
-                            "to: 'double', " +
-                            "onError: 0, " +
-                            "onNull: 0" +
-                        "}}"
-                    ).as("convertedAmount"),
-                Aggregation.group().sum("convertedAmount").as("total")
-            );
-        }
+        // ✅ Luôn dùng $convert để xử lý cả trường hợp totalAmount là String hoặc Number
+        // Đảm bảo hoạt động đúng với mọi trường hợp
+        Aggregation aggregation = Aggregation.newAggregation(
+            Aggregation.match(criteria),
+            Aggregation.project()
+                .andExpression(
+                    "{$convert: {" +
+                        "input: '$" + amountField + "', " +
+                        "to: 'double', " +
+                        "onError: 0, " +
+                        "onNull: 0" +
+                    "}}"
+                ).as("convertedAmount"),
+            Aggregation.group().sum("convertedAmount").as("total")
+        );
 
         AggregationResults<Map> results = mongoTemplate.aggregate(
             aggregation, collectionName, Map.class);
