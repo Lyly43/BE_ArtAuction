@@ -11,12 +11,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Optional;
-
-import static java.util.BitSet.valueOf;
 
 @Service
 @RequiredArgsConstructor
@@ -30,13 +27,21 @@ public class TopUpService {
         Wallet wallet = walletRepo.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Wallet không tồn tại"));
 
+        // ✅ Đảm bảo amount được xử lý đúng (loại bỏ scale thập phân nếu có)
+        BigDecimal amount = req.getAmount();
+        if (amount == null) {
+            throw new IllegalArgumentException("Amount không được để trống");
+        }
+        // Chuyển về số nguyên (VND không có phần thập phân)
+        amount = amount.setScale(0, RoundingMode.HALF_UP);
+
         // 1️⃣ Tạo transaction PENDING
         WalletTransaction txn = new WalletTransaction();
         txn.setStatus(0); // 0 = PENDING
         txn.setTransactionType(1); // 1 = TOP_UP
         txn.setUserId(wallet.getUserId());
         txn.setWalletId(wallet.getId());
-        txn.setBalance(req.getAmount());
+        txn.setBalance(amount);
 
         String txnId = generateTransactionId();
         txn.setId(txnId);
@@ -48,16 +53,18 @@ public class TopUpService {
 
         txn = txnRepo.save(txn);
 
-        // 2️⃣ Tạo QR compact2 VietQR
+        // 2️⃣ Tạo QR compact2 VietQR - dùng toPlainString() để tránh scientific
+        // notation
+        String amountStr = amount.toPlainString();
         String qrUrl = String.format(
                 "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s%s",
                 url(mbProps.getBankCode()),
                 url(mbProps.getAccountNo()),
-                url(req.getAmount().toPlainString()),
+                url(amountStr),
                 url(note),
                 (mbProps.getAccountName() != null && !mbProps.getAccountName().isBlank())
-                        ? "&accountName=" + url(mbProps.getAccountName()) : ""
-        );
+                        ? "&accountName=" + url(mbProps.getAccountName())
+                        : "");
 
         return new CreateTopUpResponse(txn.getId(), qrUrl, qrUrl, note);
     }
@@ -71,8 +78,11 @@ public class TopUpService {
     }
 
     private String url(String s) {
-        try { return URLEncoder.encode(s, StandardCharsets.UTF_8); }
-        catch (Exception e) { return s; }
+        try {
+            return URLEncoder.encode(s, StandardCharsets.UTF_8);
+        } catch (Exception e) {
+            return s;
+        }
     }
 
     private String generateTransactionId() {
