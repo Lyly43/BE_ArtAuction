@@ -15,6 +15,7 @@ import java.math.BigDecimal;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,71 +32,71 @@ public class AuctionRoomDepositService {
     private final MbClient mbClient;
     private final MbProps mbProps;
 
-    // 🔹 THANH TOÁN CỌC
-    public AuctionRegistrationResponse createQrAndCheck(
-            String roomId,
-            String userId
-    ) {
-        AuctionRoom room = auctionRoomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
-
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("userId không được để trống");
-        }
-
-        // ❗ BẮT BUỘC ĐÃ THANH TOÁN PHÍ HỒ SƠ TRƯỚC
-        if (!hasPaidApplicationFee(room, userId)) {
-            throw new ResponseStatusException(
-                    BAD_REQUEST,
-                    "Bạn cần thanh toán phí hồ sơ cho phòng này trước khi thanh toán tiền cọc."
-            );
-        }
-
-        // LẤY TIỀN CỌC TỪ auction_rooms.depositAmount
-        BigDecimal amount = room.getDepositAmount();
-        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new IllegalArgumentException("depositAmount của phòng không hợp lệ");
-        }
-
-        String note = generateArNote(roomId, userId);
-
-        return processPayment(
-                amount,
-                note,
-                () -> {
-                    addMemberIfNotExists(room, userId);
-                    // (tuỳ bro) có thể set room.setPaymentStatus(1)…
-                    auctionRoomRepository.save(room);
-                },
-                "Thanh toán cọc thành công, bạn đã được thêm vào phòng đấu giá."
-        );
-    }
-
-
-    // 🔹 THANH TOÁN PHÍ HỒ SƠ (100.000 VND)
-    public AuctionRegistrationResponse payApplicationFee(String roomId, String userId) {
-
-        AuctionRoom room = auctionRoomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
-
-        if (userId == null || userId.isBlank()) {
-            throw new IllegalArgumentException("userId không được để trống");
-        }
-
-        BigDecimal amount = APPLICATION_FEE;
-        String note = generateAppFeeNote(roomId, userId);
-
-        return processPayment(
-                amount,
-                note,
-                () -> {
-                    // ✅ Ghi nhận user này đã thanh toán phí hồ sơ cho phòng này
-                    markApplicationFeePaid(room, userId);
-                    auctionRoomRepository.save(room);
-                },
-                "Thanh toán phí hồ sơ thành công."
-        );
-    }
+//    // 🔹 THANH TOÁN CỌC
+//    public AuctionRegistrationResponse createQrAndCheck(
+//            String roomId,
+//            String userId
+//    ) {
+//        AuctionRoom room = auctionRoomRepository.findById(roomId)
+//                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
+//
+//        if (userId == null || userId.isBlank()) {
+//            throw new IllegalArgumentException("userId không được để trống");
+//        }
+//
+//        // ❗ BẮT BUỘC ĐÃ THANH TOÁN PHÍ HỒ SƠ TRƯỚC
+//        if (!hasPaidApplicationFee(room, userId)) {
+//            throw new ResponseStatusException(
+//                    BAD_REQUEST,
+//                    "Bạn cần thanh toán phí hồ sơ cho phòng này trước khi thanh toán tiền cọc."
+//            );
+//        }
+//
+//        // LẤY TIỀN CỌC TỪ auction_rooms.depositAmount
+//        BigDecimal amount = room.getDepositAmount();
+//        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+//            throw new IllegalArgumentException("depositAmount của phòng không hợp lệ");
+//        }
+//
+//        String note = generateArNote(roomId, userId);
+//
+//        return processPayment(
+//                amount,
+//                note,
+//                () -> {
+//                    addMemberIfNotExists(room, userId);
+//                    // (tuỳ bro) có thể set room.setPaymentStatus(1)…
+//                    auctionRoomRepository.save(room);
+//                },
+//                "Thanh toán cọc thành công, bạn đã được thêm vào phòng đấu giá."
+//        );
+//    }
+//
+//
+//    // 🔹 THANH TOÁN PHÍ HỒ SƠ (100.000 VND)
+//    public AuctionRegistrationResponse payApplicationFee(String roomId, String userId) {
+//
+//        AuctionRoom room = auctionRoomRepository.findById(roomId)
+//                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
+//
+//        if (userId == null || userId.isBlank()) {
+//            throw new IllegalArgumentException("userId không được để trống");
+//        }
+//
+//        BigDecimal amount = APPLICATION_FEE;
+//        String note = generateAppFeeNote(roomId, userId);
+//
+//        return processPayment(
+//                amount,
+//                note,
+//                () -> {
+//                    // ✅ Ghi nhận user này đã thanh toán phí hồ sơ cho phòng này
+//                    markApplicationFeePaid(room, userId);
+//                    auctionRoomRepository.save(room);
+//                },
+//                "Thanh toán phí hồ sơ thành công."
+//        );
+//    }
 
 
     // 🔹 THANH TOÁN COMBO: PHÍ HỒ SƠ + CỌC
@@ -114,10 +115,9 @@ public class AuctionRoomDepositService {
 
         BigDecimal total = deposit.add(APPLICATION_FEE);
 
-        // NOTE dùng để đối soát giao dịch
-        String note = generateComboNote(roomId, userId);
+        // ✅ note deterministic
+        String note = generateComboNoteStable(roomId, userId);
 
-        // chỉ tạo QR, chưa verify
         String qrUrl = String.format(
                 "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s",
                 url(mbProps.getBankCode()),
@@ -134,28 +134,28 @@ public class AuctionRoomDepositService {
         );
     }
 
+
     //verify transaction
-    public AuctionRegistrationResponse verifyApplicationFeeAndDepositPayment(String roomId, String userId, String note) {
+    public AuctionRegistrationResponse verifyApplicationFeeAndDepositPayment(String roomId, String userId) {
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Auction room không tồn tại"));
 
         if (userId == null || userId.isBlank()) {
             throw new IllegalArgumentException("userId không được để trống");
         }
-        if (note == null || note.isBlank()) {
-            throw new IllegalArgumentException("note không được để trống");
-        }
 
         BigDecimal deposit = room.getDepositAmount();
         if (deposit == null || deposit.compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("depositAmount của phòng không hợp lệ");
         }
+
         BigDecimal total = deposit.add(APPLICATION_FEE);
 
-        // verify MB
+        // ✅ tự tính lại đúng note
+        String note = generateComboNoteStable(roomId, userId);
+
         boolean paid = hasMatchingTransaction(total, note);
 
-        // vẫn trả về qrUrl để FE hiển thị lại nếu cần
         String qrUrl = String.format(
                 "https://img.vietqr.io/image/%s-%s-compact2.png?amount=%s&addInfo=%s",
                 url(mbProps.getBankCode()),
@@ -173,13 +173,11 @@ public class AuctionRoomDepositService {
             );
         }
 
-        // ✅ chống gọi lại nhiều lần (idempotent)
-        // Nếu bạn muốn tách riêng flag “đã join room” thì có thể kiểm tra memberIds luôn.
+        // ✅ idempotent theo data hiện có
         if (!hasPaidApplicationFee(room, userId)) {
             markApplicationFeePaid(room, userId);
         }
         addMemberIfNotExists(room, userId);
-
         auctionRoomRepository.save(room);
 
         return new AuctionRegistrationResponse(
@@ -191,52 +189,8 @@ public class AuctionRoomDepositService {
     }
 
 
+
     // ================== HELPER METHODS ==================
-
-    private String generateArNote(String roomId, String userId) {
-        String roomSuffix = (roomId != null && roomId.length() > 4)
-                ? roomId.substring(roomId.length() - 4)
-                : roomId;
-
-        String userSuffix = (userId != null && userId.length() > 4)
-                ? userId.substring(userId.length() - 4)
-                : userId;
-
-        String millis = String.valueOf(System.currentTimeMillis());
-        String last4 = millis.substring(millis.length() - 4);
-
-        return "AR-" + roomSuffix + "-" + userSuffix + "-" + last4;
-    }
-
-    private String generateAppFeeNote(String roomId, String userId) {
-        String roomSuffix = (roomId != null && roomId.length() > 4)
-                ? roomId.substring(roomId.length() - 4)
-                : roomId;
-
-        String userSuffix = (userId != null && userId.length() > 4)
-                ? userId.substring(userId.length() - 4)
-                : userId;
-
-        String millis = String.valueOf(System.currentTimeMillis());
-        String last4 = millis.substring(millis.length() - 4);
-
-        return "AF-" + roomSuffix + "-" + userSuffix + "-" + last4; // AF = Application Fee
-    }
-
-    private String generateComboNote(String roomId, String userId) {
-        String roomSuffix = (roomId != null && roomId.length() > 4)
-                ? roomId.substring(roomId.length() - 4)
-                : roomId;
-
-        String userSuffix = (userId != null && userId.length() > 4)
-                ? userId.substring(userId.length() - 4)
-                : userId;
-
-        String millis = String.valueOf(System.currentTimeMillis());
-        String last4 = millis.substring(millis.length() - 4);
-
-        return "ARF-" + roomSuffix + "-" + userSuffix + "-" + last4; // ARF = Auction + Registration Fee
-    }
 
     private String url(String s) {
         try {
@@ -247,32 +201,47 @@ public class AuctionRoomDepositService {
     }
 
     private boolean hasMatchingTransaction(BigDecimal amount, String note) {
-        LocalDate today = LocalDate.now();
-        List<MbTxn> txns = mbClient.fetchRecentTransactions(
-                today.minusDays(1),
-                today
-        );
+        if (amount == null || note == null || note.isBlank()) return false;
 
-        if (txns == null || txns.isEmpty()) {
-            return false;
-        }
+        ZoneId zone = ZoneId.of("Asia/Bangkok");
+        LocalDate today = LocalDate.now(zone);
+
+        List<MbTxn> txns = mbClient.fetchRecentTransactions(today.minusDays(1), today.plusDays(1));
+        if (txns == null || txns.isEmpty()) return false;
+
+        String noteKey = normalizeKey(note);
+        BigDecimal target = amount.stripTrailingZeros();
 
         return txns.stream().anyMatch(tx -> {
-            String credit = tx.getCreditAmount(); // chỉnh theo field thật trong MbTxn
-            if (credit == null) return false;
+            BigDecimal credit = parseMoney(tx.getCreditAmount());
+            if (credit == null || credit.compareTo(BigDecimal.ZERO) <= 0) return false;
+            if (credit.stripTrailingZeros().compareTo(target) != 0) return false;
 
-            // TODO: convert credit -> BigDecimal cho chuẩn, VD:
-            // BigDecimal creditAmount = new BigDecimal(credit);
-            // if (creditAmount.compareTo(amount) != 0) return false;
+            String combined = safe(tx.getDescription()) + " " + safe(tx.getAddDescription());
+            String textKey = normalizeKey(combined);
 
-            if (!credit.equals(amount.toPlainString())) {
-                return false;
-            }
-
-            String desc = tx.getDescription();
-            return desc != null && desc.contains(note);
+            return textKey.contains(noteKey);
         });
     }
+
+    private BigDecimal parseMoney(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.isBlank()) return null;
+        try { return new BigDecimal(digits); }
+        catch (Exception e) { return null; }
+    }
+
+    private String safe(String s) { return s == null ? "" : s; }
+
+    /** lowercase + bỏ dấu + bỏ mọi ký tự không phải chữ/số */
+    private String normalizeKey(String s) {
+        if (s == null) return "";
+        String n = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return n.toLowerCase().replaceAll("[^a-z0-9]", "");
+    }
+
 
     private void addMemberIfNotExists(AuctionRoom room, String userId) {
         if (room.getMemberIds() == null) {
@@ -327,5 +296,20 @@ public class AuctionRoomDepositService {
             room.getApplicationFeePaidUserIds().add(userId);
         }
     }
+
+    private String generateComboNoteStable(String roomId, String userId) {
+        String roomSuffix = (roomId != null && roomId.length() > 5)
+                ? roomId.substring(roomId.length() - 5)
+                : roomId;
+
+        String userSuffix = (userId != null && userId.length() > 5)
+                ? userId.substring(userId.length() - 5)
+                : userId;
+
+        // ✅ KHÔNG millis, KHÔNG random
+        // Ngắn gọn, dễ match với MB (MB hay bỏ ký tự đặc biệt)
+        return "ARF" + roomSuffix + userSuffix; // ví dụ: ARF12345ABCDE
+    }
+
 
 }

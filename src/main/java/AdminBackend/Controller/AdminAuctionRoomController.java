@@ -6,6 +6,7 @@ import AdminBackend.DTO.Request.CreateAuctionRoomCompleteRequest;
 import AdminBackend.DTO.Request.UpdateAuctionRoomRequest;
 import AdminBackend.DTO.Response.AdminAuctionRoomResponse;
 import AdminBackend.DTO.Response.AuctionRoomStatisticsResponse;
+import AdminBackend.DTO.Response.PagedResponse;
 import AdminBackend.Service.AdminAuctionRoomService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,6 +32,17 @@ public class AdminAuctionRoomController {
     @GetMapping("/lay-du-lieu")
     public ResponseEntity<List<AdminAuctionRoomResponse>> getAllAuctionRooms() {
         return adminAuctionRoomService.getAllAuctionRooms();
+    }
+
+    /**
+     * GET /api/admin/auction-rooms/lay-du-lieu-phan-trang?page=0&size=20
+     * Lấy auction rooms có phân trang (Optimized for performance)
+     */
+    @GetMapping("/lay-du-lieu-phan-trang")
+    public ResponseEntity<PagedResponse<AdminAuctionRoomResponse>> getAuctionRoomsPaginated(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        return adminAuctionRoomService.getAuctionRoomsPaginated(page, size);
     }
 
     @GetMapping("/tim-kiem")

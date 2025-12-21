@@ -11,6 +11,7 @@ import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
 import AdminBackend.DTO.Response.AuctionRoomDetailResponse;
 import AdminBackend.DTO.Response.AuctionRoomStatisticsResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
+import AdminBackend.DTO.Response.PagedResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import com.auctionaa.backend.Entity.AuctionRoom;
 import com.auctionaa.backend.Entity.AuctionSession;
@@ -29,6 +30,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.CollectionType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -130,6 +135,34 @@ public class AdminAuctionRoomService {
                 .map(this::mapToResponseAndUpdateStatusIfNeeded)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Lấy phòng đấu giá có phân trang (Optimized for performance)
+     * Sắp xếp theo createdAt DESC (mới nhất trên đầu)
+     */
+    public ResponseEntity<PagedResponse<AdminAuctionRoomResponse>> getAuctionRoomsPaginated(int page, int size) {
+        // Tạo Pageable với sort theo createdAt DESC
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        
+        // Query database với pagination
+        Page<AuctionRoom> roomPage = auctionRoomRepository.findAll(pageable);
+        
+        // Map sang AdminAuctionRoomResponse
+        List<AdminAuctionRoomResponse> responses = roomPage.getContent().stream()
+                .map(this::mapToResponseAndUpdateStatusIfNeeded)
+                .collect(Collectors.toList());
+        
+        // Tạo PagedResponse
+        PagedResponse<AdminAuctionRoomResponse> pagedResponse = new PagedResponse<>(
+                responses,
+                roomPage.getNumber(),
+                roomPage.getTotalPages(),
+                roomPage.getTotalElements(),
+                roomPage.getSize()
+        );
+        
+        return ResponseEntity.ok(pagedResponse);
     }
 
     /**
@@ -477,9 +510,15 @@ public class AdminAuctionRoomService {
         response.setEstimatedEndTime(room.getEstimatedEndTime());
         response.setCreatedAt(room.getCreatedAt());
 
-        PricePair pricePair = fetchPriceForRoom(room.getId());
-        response.setStartingPrice(pricePair.startingPrice());
-        response.setCurrentPrice(pricePair.currentPrice());
+        // PERFORMANCE FIX: SKIP price loading - causes N+1 query (80 rooms = 80 queries!)
+        // Price only needed in detail view, not list view
+        // PricePair pricePair = fetchPriceForRoom(room.getId());
+        // response.setStartingPrice(pricePair.startingPrice());
+        // response.setCurrentPrice(pricePair.currentPrice());
+        
+        // Set to 0 for list view - load real price only in detail view
+        response.setStartingPrice(BigDecimal.ZERO);
+        response.setCurrentPrice(BigDecimal.ZERO);
 
         // Tính tổng số người tham gia từ memberIds
         if (room.getMemberIds() != null) {

@@ -79,7 +79,7 @@ public class InvoiceService {
         iv.setTotalAmount(req.getTotalAmount() != null ? req.getTotalAmount().setScale(0, roundingMode) : null);
         iv.setPaymentDate(req.getPaymentDate());
         iv.setOrderDate(req.getOrderDate());
-
+        iv.setPaymentNote(buildPaymentNote(iv.getId()));
         iv.setRecipientNameText(req.getRecipientNameText());
         iv.setNote(req.getNote());
         iv.setCreatedAt(LocalDateTime.now());
@@ -264,6 +264,11 @@ public class InvoiceService {
                 totalAmountStr,
                 invoice.getPaymentStatus()  // int
         );
+    }
+
+    private String buildPaymentNote(String invoiceId) {
+        // invoiceId của bạn đã dạng "IV-...." rồi -> dùng luôn, khỏi thêm "IV-"
+        return invoiceId;
     }
 
 }

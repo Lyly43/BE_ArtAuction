@@ -11,6 +11,7 @@ import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
 import AdminBackend.DTO.Response.ArtworkStatisticsResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
+import AdminBackend.DTO.Response.PagedResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import com.auctionaa.backend.Entity.Artwork;
 import com.auctionaa.backend.Entity.User;
@@ -19,6 +20,10 @@ import com.auctionaa.backend.Repository.UserRepository;
 import com.auctionaa.backend.Service.EmailService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
@@ -94,6 +99,35 @@ public class AdminArtworkService {
     public ResponseEntity<List<AdminArtworkResponse>> getAllArtworks() {
         List<AdminArtworkResponse> responses = getAllArtworksData();
         return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Lấy tác phẩm có phân trang (Optimized)
+     * Sử dụng Spring Data Pageable để query hiệu quả hơn
+     * Sắp xếp theo createdAt giảm dần (mới nhất trên đầu)
+     */
+    public ResponseEntity<PagedResponse<AdminArtworkResponse>> getArtworksPaginated(int page, int size) {
+        // Tạo Pageable với sort theo createdAt DESC
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        
+        // Query database với pagination
+        Page<Artwork> artworkPage = artworkRepository.findAll(pageable);
+        
+        // Map sang AdminArtworkResponse
+        List<AdminArtworkResponse> responses = artworkPage.getContent().stream()
+                .map(this::mapToAdminArtworkResponse)
+                .collect(Collectors.toList());
+        
+        // Tạo PagedResponse
+        PagedResponse<AdminArtworkResponse> pagedResponse = new PagedResponse<>(
+                responses,
+                artworkPage.getNumber(),
+                artworkPage.getTotalPages(),
+                artworkPage.getTotalElements(),
+                artworkPage.getSize()
+        );
+        
+        return ResponseEntity.ok(pagedResponse);
     }
 
     /**
