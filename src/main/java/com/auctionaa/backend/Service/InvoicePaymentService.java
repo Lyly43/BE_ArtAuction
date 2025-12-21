@@ -18,6 +18,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Optional;
 
@@ -57,41 +58,39 @@ public class InvoicePaymentService {
     public InvoicePaymentResponse initPayment(String invoiceId, String userIdFromToken) {
         PaymentContext ctx = buildPaymentContext(invoiceId, userIdFromToken);
 
-        String qrUrl = buildVietQrUrl(ctx.amount, ctx.note);
-        saveQrOnly(ctx.invoice, qrUrl);
+        // ✅ chỉ dùng paymentNote
+        String note = getOrCreatePaymentNote(ctx.invoice);
 
-        return new InvoicePaymentResponse(
-                ctx.invoice,
-                ctx.artwork
-        );
+        // ✅ luôn đồng bộ QR theo paymentNote
+        String qrUrl = ensureQrMatchesNote(ctx.invoice, ctx.amount, note);
+
+        return new InvoicePaymentResponse(ctx.invoice, ctx.artwork);
     }
 
     // (2) CONFIRM: trả về DTO mới có qrUrl
     public InvoicePaymentConfirmResponse confirmPayment(String invoiceId, String userIdFromToken) {
         PaymentContext ctx = buildPaymentContext(invoiceId, userIdFromToken);
 
-        String qrUrl = (ctx.invoice.getPaymentQr() != null && !ctx.invoice.getPaymentQr().isBlank())
-                ? ctx.invoice.getPaymentQr()
-                : buildVietQrUrl(ctx.amount, ctx.note);
+        // ✅ chỉ dùng paymentNote
+        String note = getOrCreatePaymentNote(ctx.invoice);
 
-        boolean paid = hasMatchingTransaction(ctx.amount, ctx.note);
+        // ✅ luôn đồng bộ QR theo paymentNote (để trả về qrUrl đúng note)
+        String qrUrl = ensureQrMatchesNote(ctx.invoice, ctx.amount, note);
+
+        // ✅ check giao dịch theo đúng paymentNote
+        boolean paid = hasMatchingTransaction(ctx.amount, note);
 
         String message;
         if (paid) {
             markPaid(ctx.invoice, qrUrl);
             message = "Xác nhận thanh toán thành công.";
         } else {
-            saveQrOnly(ctx.invoice, qrUrl);
             message = "Chưa tìm thấy giao dịch tương ứng. Vui lòng thử lại sau.";
         }
 
-        return new InvoicePaymentConfirmResponse(
-                qrUrl,
-                ctx.note,
-                paid,
-                message
-        );
+        return new InvoicePaymentConfirmResponse(qrUrl, note, paid, message);
     }
+
 
     // ================== SPLIT METHODS ==================
 
@@ -181,30 +180,92 @@ public class InvoicePaymentService {
             return s;
         }
     }
-
     private boolean hasMatchingTransaction(BigDecimal amount, String note) {
-        LocalDate today = LocalDate.now();
+        if (amount == null || note == null || note.isBlank()) return false;
 
+        // ✅ tránh lệch timezone
+        ZoneId zone = ZoneId.of("Asia/Bangkok");
+        LocalDate today = LocalDate.now(zone);
+
+        // ✅ mở rộng cửa sổ để tránh API hiểu "to" là exclusive / lệch ngày
         List<MbTxn> txns = mbClient.fetchRecentTransactions(
                 today.minusDays(1),
-                today
+                today.plusDays(1)
         );
-
         if (txns == null || txns.isEmpty()) return false;
 
+        // ✅ normalize note: bỏ dấu cách, dấu '-', ký tự đặc biệt -> chỉ còn [a-z0-9]
+        String noteKey = normalizeKey(note);
+
+        BigDecimal target = amount.stripTrailingZeros();
+
         return txns.stream().anyMatch(tx -> {
-            String credit = tx.getCreditAmount();
-            if (credit == null) return false;
+            BigDecimal creditAmount = parseMoney(tx.getCreditAmount());
+            if (creditAmount == null) return false;
 
-            try {
-                BigDecimal creditAmount = new BigDecimal(credit);
-                if (creditAmount.compareTo(amount) != 0) return false;
-            } catch (NumberFormatException e) {
-                return false;
-            }
+            // chỉ nhận giao dịch vào (credit > 0)
+            if (creditAmount.compareTo(BigDecimal.ZERO) <= 0) return false;
 
-            String desc = tx.getDescription();
-            return desc != null && note != null && desc.contains(note);
+            if (creditAmount.stripTrailingZeros().compareTo(target) != 0) return false;
+
+            // ✅ ghép cả description + addDescription rồi normalize
+            String combined = (tx.getDescription() == null ? "" : tx.getDescription())
+                    + " "
+                    + (tx.getAddDescription() == null ? "" : tx.getAddDescription());
+
+            String textKey = normalizeKey(combined);
+
+            // ✅ contains sau normalize => "IV-IV-xxx" sẽ match "IVIVxxx"
+            return textKey.contains(noteKey);
         });
     }
+
+    /** Giữ lại chữ + số, lowercase, bỏ hết dấu cách/ký tự đặc biệt */
+    private String normalizeKey(String s) {
+        if (s == null) return "";
+        return s.toLowerCase().replaceAll("[^a-z0-9]", "");
+    }
+
+    /** Parse số tiền: "7,610" / "7610" / "VND 7 610" -> 7610 */
+    private BigDecimal parseMoney(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+
+        // chỉ lấy digits
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.isBlank()) return null;
+
+        try {
+            return new BigDecimal(digits);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private String getOrCreatePaymentNote(Invoice invoice) {
+        if (invoice.getPaymentNote() != null && !invoice.getPaymentNote().isBlank()) {
+            return invoice.getPaymentNote();
+        }
+
+        // NOTE ổn định theo invoiceId, tránh IV-IV-
+        String id = invoice.getId(); // ví dụ "IV-20918396451500"
+        String note = id;            // dùng luôn id làm note
+
+        invoice.setPaymentNote(note);
+        invoiceRepository.save(invoice);
+        return note;
+    }
+
+    private String ensureQrMatchesNote(Invoice invoice, BigDecimal amount, String note) {
+        String currentQr = invoice.getPaymentQr();
+        String expectedQr = buildVietQrUrl(amount, note);
+
+        if (currentQr == null || currentQr.isBlank() || !currentQr.contains("addInfo=" + note)) {
+            // QR chưa có hoặc đang lệch note -> ghi đè lại cho đúng
+            saveQrOnly(invoice, expectedQr);
+            return expectedQr;
+        }
+        return currentQr;
+    }
+
+
 }

@@ -57,6 +57,7 @@ public class Invoice extends BaseEntity {
     private int invoiceStatus; // 0=created, 1=confirmed, 2=completed, 3=cancelled
 
     private String paymentQr;
+    private String paymentNote; // note cố định cho hóa đơn
 
     @Indexed
     private LocalDateTime paymentDate;
