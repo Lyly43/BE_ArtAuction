@@ -8,6 +8,7 @@ import AdminBackend.DTO.Request.UpdateArtworkRequest;
 import AdminBackend.DTO.Response.AdminArtworkResponse;
 import AdminBackend.DTO.Response.ArtworkForSelectionResponse;
 import AdminBackend.DTO.Response.ArtworkStatisticsResponse;
+import AdminBackend.DTO.Response.PagedResponse;
 import AdminBackend.Service.AdminArtworkService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +40,19 @@ public class AdminArtworkController {
     @GetMapping("/lay-du-lieu-tac-pham")
     public ResponseEntity<List<AdminArtworkResponse>> getAllArtworks() {
         return adminArtworkService.getAllArtworks();
+    }
+
+    /**
+     * GET /api/admin/artworks/lay-du-lieu-tac-pham-phan-trang?page=0&size=20
+     * Lấy tác phẩm có phân trang (Optimized for performance)
+     * @param page số trang (bắt đầu từ 0)
+     * @param size số lượng items mỗi trang (default 20)
+     */
+    @GetMapping("/lay-du-lieu-tac-pham-phan-trang")
+    public ResponseEntity<PagedResponse<AdminArtworkResponse>> getArtworksPaginated(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        return adminArtworkService.getArtworksPaginated(page, size);
     }
 
     /**

@@ -6,6 +6,7 @@ import AdminBackend.DTO.Request.UserFilterRequest;
 import AdminBackend.DTO.Response.AdminBasicResponse;
 import AdminBackend.DTO.Response.AdminUserResponse;
 import AdminBackend.DTO.Response.MonthlyComparisonResponse;
+import AdminBackend.DTO.Response.PagedResponse;
 import AdminBackend.DTO.Response.UpdateResponse;
 import AdminBackend.DTO.Response.UserStatisticsResponse;
 import com.auctionaa.backend.Entity.User;
@@ -13,6 +14,10 @@ import com.auctionaa.backend.Entity.Wallet;
 import com.auctionaa.backend.Repository.UserRepository;
 import com.auctionaa.backend.Repository.WalletRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -25,6 +30,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.Map;
 
 @Service
 public class AdminUserService {
@@ -111,6 +117,36 @@ public class AdminUserService {
     public ResponseEntity<List<AdminUserResponse>> getAllUsers() {
         List<AdminUserResponse> responses = getAllUsersData();
         return ResponseEntity.ok(responses);
+    }
+
+    /**
+     * Lấy người dùng có phân trang (Optimized)
+     * Sử dụng Spring Data Pageable để query hiệu quả hơn
+     * Sắp xếp theo createdAt giảm dần (mới nhất trên đầu)
+     * PERFORMANCE: Skip wallet loading - balance không cần thiết ở list view
+     */
+    public ResponseEntity<PagedResponse<AdminUserResponse>> getUsersPaginated(int page, int size) {
+        // Tạo Pageable với sort theo createdAt DESC
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        
+        // Query database với pagination
+        Page<User> userPage = userRepository.findAll(pageable);
+        
+        // Map sang AdminUserResponse WITHOUT wallet - để tăng tốc
+        List<AdminUserResponse> responses = userPage.getContent().stream()
+                .map(this::mapToAdminUserResponseWithoutBalance)
+                .collect(Collectors.toList());
+        
+        // Tạo PagedResponse
+        PagedResponse<AdminUserResponse> pagedResponse = new PagedResponse<>(
+                responses,
+                userPage.getNumber(),
+                userPage.getTotalPages(),
+                userPage.getTotalElements(),
+                userPage.getSize()
+        );
+        
+        return ResponseEntity.ok(pagedResponse);
     }
 
     /**
@@ -358,7 +394,7 @@ public class AdminUserService {
     }
 
     /**
-     * Helper method: Map User entity sang AdminUserResponse
+     * Helper method: Map User entity sang AdminUserResponse (CŨ - có N+1 query)
      */
     private AdminUserResponse mapToAdminUserResponse(User user) {
         AdminUserResponse response = new AdminUserResponse();
@@ -380,6 +416,57 @@ public class AdminUserService {
         BigDecimal balance = walletOpt.map(Wallet::getBalance)
                 .orElse(BigDecimal.ZERO);
         response.setBalance(balance);
+
+        return response;
+    }
+
+    /**
+     * Helper method: Map User entity sang AdminUserResponse (OPTIMIZED - dùng wallet map)
+     * Sử dụng cho pagination để tránh N+1 query
+     */
+    private AdminUserResponse mapToAdminUserResponseWithWallet(User user, Map<String, BigDecimal> walletMap) {
+        AdminUserResponse response = new AdminUserResponse();
+        response.setId(user.getId());
+        response.setFullname(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setPhonenumber(user.getPhonenumber());
+        response.setGender(user.getGender());
+        response.setDateOfBirth(user.getDateOfBirth());
+        response.setAddress(user.getAddress());
+        response.setCccd(user.getCccd());
+        response.setRole(user.getRole());
+        response.setStatus(user.getStatus());
+        response.setAvt(user.getAvt());
+        response.setCreatedAt(user.getCreatedAt());
+
+        // Lookup balance từ Map thay vì query database
+        BigDecimal balance = walletMap.getOrDefault(user.getId(), BigDecimal.ZERO);
+        response.setBalance(balance);
+
+        return response;
+    }
+
+    /**
+     * Helper method: Map User WITHOUT balance (FASTEST - for pagination)
+     * Không load balance để tăng tốc - balance không cần thiết ở list view
+     */
+    private AdminUserResponse mapToAdminUserResponseWithoutBalance(User user) {
+        AdminUserResponse response = new AdminUserResponse();
+        response.setId(user.getId());
+        response.setFullname(user.getUsername());
+        response.setEmail(user.getEmail());
+        response.setPhonenumber(user.getPhonenumber());
+        response.setGender(user.getGender());
+        response.setDateOfBirth(user.getDateOfBirth());
+        response.setAddress(user.getAddress());
+        response.setCccd(user.getCccd());
+        response.setRole(user.getRole());
+        response.setStatus(user.getStatus());
+        response.setAvt(user.getAvt());
+        response.setCreatedAt(user.getCreatedAt());
+
+        // SKIP balance loading - set to 0 for performance
+        response.setBalance(BigDecimal.ZERO);
 
         return response;
     }
