@@ -4,6 +4,7 @@ import AdminBackend.DTO.Request.AddUserRequest;
 import AdminBackend.DTO.Request.UpdateUserRequest;
 import AdminBackend.DTO.Request.UserFilterRequest;
 import AdminBackend.DTO.Response.AdminUserResponse;
+import AdminBackend.DTO.Response.PagedResponse;
 import AdminBackend.DTO.Response.UserStatisticsResponse;
 import AdminBackend.Service.AdminUserService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,11 +32,24 @@ public class AdminUserController {
 
     /**
      * GET /api/admin/lay-du-lieu-user
-     * Lấy tất cả người dùng với đầy đủ thông tin
+     * Lấy tất cả người dùng với đầy đủ thông tin (deprecated - use paginated version)
      */
     @GetMapping("/lay-du-lieu-user")
     public ResponseEntity<List<AdminUserResponse>> getAllUsers() {
         return adminUserService.getAllUsers();
+    }
+
+    /**
+     * GET /api/admin/lay-du-lieu-user-phan-trang?page=0&size=20
+     * Lấy người dùng có phân trang (Optimized for performance)
+     * @param page số trang (bắt đầu từ 0)
+     * @param size số lượng items mỗi trang
+     */
+    @GetMapping("/lay-du-lieu-user-phan-trang")
+    public ResponseEntity<PagedResponse<AdminUserResponse>> getUsersPaginated(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        return adminUserService.getUsersPaginated(page, size);
     }
 
     /**
