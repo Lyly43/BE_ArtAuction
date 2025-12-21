@@ -26,7 +26,7 @@ import java.util.List;
 @CrossOrigin(origins = "http://localhost:5173")
 @RequestMapping("/api/auctionroom/")
 public class AuctionRoomController {
-    //Nam
+    // Nam
     @Autowired
     private AuctionRoomService auctionRoomService;
 
@@ -35,17 +35,18 @@ public class AuctionRoomController {
 
     @Autowired
     AuctionSessionRepository auctionSessionRepository;
+
     @GetMapping("room/{id}")
-    public RoomDetailDTO getRoomAndSessionByRoomId(@PathVariable String id){
+    public RoomDetailDTO getRoomAndSessionByRoomId(@PathVariable String id) {
         AuctionRoom auctionRoom = auctionRoomService.getRoomById(id);
         List<AuctionSession> auctionSessionList = auctionSessionRepository.findByAuctionRoomId(id);
-        return new RoomDetailDTO(auctionRoom,auctionSessionList);
+        return new RoomDetailDTO(auctionRoom, auctionSessionList);
     }
 
     /**
      * Lấy tất cả thông tin của phòng đấu giá bao gồm:
      * - Thông tin phòng (AuctionRoom)
-     * - Tất cả sessions trong phòng (AuctionSession) 
+     * - Tất cả sessions trong phòng (AuctionSession)
      * - Thông tin tác phẩm (Artwork) của mỗi session
      * GET /api/auctionroom/complete/{id}
      *
@@ -56,6 +57,7 @@ public class AuctionRoomController {
     public RoomCompleteDetailDTO getRoomCompleteDetail(@PathVariable String id) {
         return auctionRoomService.getRoomCompleteDetail(id);
     }
+
     @PostMapping("/history")
     public List<AuctionRoom> getMyAuctionRoom(
             @RequestHeader("Authorization") String authHeader,
@@ -66,7 +68,6 @@ public class AuctionRoomController {
 
         return auctionRoomService.getByOwnerEmail(email, req.getPage(), req.getSize());
     }
-
 
     @PostMapping("/allAuctionRoom")
     public List<AuctionRoomLiveDTO> getAllPublicWithLivePrices(@RequestBody PagingRequest req) {
@@ -121,6 +122,7 @@ public class AuctionRoomController {
     public List<AuctionRoom> getTop4UpcomingRoomsByHighestPrice() {
         return auctionRoomService.getTop4UpcomingRoomsByHighestPrice();
     }
+
     /**
      * Lấy tất cả phòng đấu giá trong database
      * GET /api/auctionroom/all
@@ -135,7 +137,7 @@ public class AuctionRoomController {
     // Endpoint tạo auction room mới
     @PostMapping("/create")
     public AuctionRoom createAuctionRoom(@RequestBody AuctionRoomRequest req,
-                                         @RequestHeader("Authorization") String authHeader) {
+            @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "").trim();
         String email = jwtUtil.extractUserId(token);
         return auctionRoomService.createAuctionRoom(req, email);
@@ -173,7 +175,8 @@ public class AuctionRoomController {
 
     /**
      * Tìm kiếm auction room công khai (không yêu cầu authentication)
-     * Tìm kiếm theo ID phòng hoặc tên phòng, trả về toàn bộ thông tin của auction room
+     * Tìm kiếm theo ID phòng hoặc tên phòng, trả về toàn bộ thông tin của auction
+     * room
      * 
      * Request body (JSON):
      * - id: Tìm kiếm theo ID phòng (exact match)
@@ -204,32 +207,37 @@ public class AuctionRoomController {
      * - roomId: ID của phòng đấu giá
      * 
      * Trả về danh sách tất cả member trong phòng đấu giá, bao gồm cả admin
+     * (loại trừ user hiện tại)
      *
-     * @param request Request chứa roomId
-     * @return Danh sách member với id, username, avt
-     * @throws ResponseStatusException Nếu không tìm thấy phòng đấu giá hoặc roomId rỗng
+     * @param request    Request chứa roomId
+     * @param authHeader Authorization header chứa JWT token
+     * @return Danh sách member với id, username, avt (không bao gồm user hiện tại)
+     * @throws ResponseStatusException Nếu không tìm thấy phòng đấu giá hoặc roomId
+     *                                 rỗng
      */
     @PostMapping("/members")
     public ResponseEntity<List<MemberResponse>> getRoomMembers(
-            @RequestBody GetRoomMembersRequest request) {
+            @RequestBody GetRoomMembersRequest request,
+            @RequestHeader("Authorization") String authHeader) {
         try {
             // Validate request
             if (request == null || request.getRoomId() == null || request.getRoomId().trim().isEmpty()) {
                 throw new ResponseStatusException(
                         HttpStatus.BAD_REQUEST,
-                        "roomId không được để trống"
-                );
+                        "roomId không được để trống");
             }
-            
-            List<MemberResponse> members = auctionRoomService.getRoomMembers(request.getRoomId().trim());
+
+            // Lấy userId hiện tại từ JWT token
+            String currentUserId = jwtUtil.extractUserId(authHeader);
+
+            List<MemberResponse> members = auctionRoomService.getRoomMembers(request.getRoomId().trim(), currentUserId);
             return ResponseEntity.ok(members);
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
             throw new ResponseStatusException(
                     HttpStatus.INTERNAL_SERVER_ERROR,
-                    "Lỗi khi lấy danh sách member: " + e.getMessage()
-            );
+                    "Lỗi khi lấy danh sách member: " + e.getMessage());
         }
     }
 

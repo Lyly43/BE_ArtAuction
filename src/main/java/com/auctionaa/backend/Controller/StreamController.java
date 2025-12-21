@@ -7,7 +7,6 @@ import AdminBackend.Jwt.AdminJwtUtil;
 import AdminBackend.Repository.AdminRepository;
 import com.auctionaa.backend.Entity.Admin;
 import com.auctionaa.backend.Entity.AuctionRoom;
-import com.auctionaa.backend.Entity.AuctionSession;
 import com.auctionaa.backend.Entity.Invoice;
 import com.auctionaa.backend.Repository.AuctionRoomRepository;
 import com.auctionaa.backend.Repository.UserRepository;
@@ -203,7 +202,7 @@ public class StreamController {
     }
 
     @GetMapping("/room/{roomId}/sessions/current-or-next")
-    public AuctionSession getLiveOrNext(@PathVariable String roomId) {
-        return streamService.getLiveOrNextSessionInRoom(roomId);
+    public Map<String, Object> getLiveOrNext(@PathVariable String roomId) {
+        return streamService.getLiveOrNextSessionWithHighestBidder(roomId);
     }
 }

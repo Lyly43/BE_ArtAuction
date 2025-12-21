@@ -341,6 +341,64 @@ public class StreamService {
         return s;
     }
 
+    /**
+     * Lấy session hiện tại hoặc tiếp theo trong phòng, kèm thông tin username của người có giá cao nhất
+     * 
+     * @param roomId ID của phòng đấu giá
+     * @return Map chứa tất cả thông tin session và highestBidderUsername
+     */
+    public Map<String, Object> getLiveOrNextSessionWithHighestBidder(String roomId) {
+        // Lấy session
+        AuctionSession session = getLiveOrNextSessionInRoom(roomId);
+        
+        // Tạo Map từ session
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("id", session.getId());
+        result.put("auctionRoomId", session.getAuctionRoomId());
+        result.put("artworkId", session.getArtworkId());
+        result.put("imageUrl", session.getImageUrl());
+        result.put("startTime", session.getStartTime());
+        result.put("endedAt", session.getEndedAt());
+        result.put("startingPrice", session.getStartingPrice());
+        result.put("currentPrice", session.getCurrentPrice());
+        result.put("status", session.getStatus());
+        result.put("winnerId", session.getWinnerId());
+        result.put("type", session.getType());
+        result.put("viewCount", session.getViewCount());
+        result.put("createdAt", session.getCreatedAt());
+        result.put("updatedAt", session.getUpdatedAt());
+        result.put("bidStep", session.getBidStep());
+        result.put("durationSeconds", session.getDurationSeconds());
+        result.put("durationMinutes", session.getDurationMinutes());
+        result.put("maxDurationSeconds", session.getMaxDurationSeconds());
+        result.put("extendStepSeconds", session.getExtendStepSeconds());
+        result.put("extendThresholdSeconds", session.getExtendThresholdSeconds());
+        result.put("finalPrice", session.getFinalPrice());
+        result.put("bidCount", session.getBidCount());
+        result.put("sellerId", session.getSellerId());
+        result.put("orderIndex", session.getOrderIndex());
+        
+        // Lấy highest bid và username của người đặt giá cao nhất
+        var highestBidOpt = bidsRepository.findTopByAuctionSessionIdOrderByAmountAtThatTimeDesc(session.getId());
+        
+        if (highestBidOpt.isPresent()) {
+            Bids highestBid = highestBidOpt.get();
+            result.put("highestBidderId", highestBid.getUserId());
+            result.put("highestBidAmount", highestBid.getAmountAtThatTime());
+            
+            // Lấy username của highest bidder
+            userRepository.findById(highestBid.getUserId()).ifPresent(user -> {
+                result.put("highestBidderUsername", user.getUsername());
+            });
+        } else {
+            result.put("highestBidderId", null);
+            result.put("highestBidAmount", null);
+            result.put("highestBidderUsername", null);
+        }
+        
+        return result;
+    }
+
     private AuctionSession startNextSessionInternal(String roomId) {
         auctionSessionRepository.findFirstByAuctionRoomIdAndStatus(roomId, SessionStatus.STARTED)
                 .ifPresent(running -> {

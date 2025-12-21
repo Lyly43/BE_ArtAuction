@@ -462,11 +462,13 @@ public class AuctionRoomService {
     /**
      * Lấy danh sách member của một phòng đấu giá
      * Bao gồm cả admin và các member trong memberIds
+     * Loại trừ user hiện tại khỏi danh sách
      *
      * @param roomId ID của phòng đấu giá
-     * @return Danh sách member với id, username, avt
+     * @param currentUserId ID của user hiện tại (sẽ bị loại trừ khỏi danh sách)
+     * @return Danh sách member với id, username, avt (không bao gồm user hiện tại)
      */
-    public List<MemberResponse> getRoomMembers(String roomId) {
+    public List<MemberResponse> getRoomMembers(String roomId, String currentUserId) {
         // 1. Tìm phòng đấu giá
         AuctionRoom room = auctionRoomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -489,22 +491,27 @@ public class AuctionRoomService {
             }
         }
 
-        // 3. Nếu không có member nào, trả về empty list
+        // 3. Loại trừ user hiện tại khỏi danh sách
+        if (currentUserId != null && !currentUserId.trim().isEmpty()) {
+            userIdSet.remove(currentUserId.trim());
+        }
+
+        // 4. Nếu không có member nào, trả về empty list
         if (userIdSet.isEmpty()) {
             return new ArrayList<>();
         }
 
-        // 4. Chuyển Set sang List để query
+        // 5. Chuyển Set sang List để query
         List<String> userIds = new ArrayList<>(userIdSet);
 
-        // 5. Query tất cả users theo userIds
+        // 6. Query tất cả users theo userIds
         List<User> users = userRepository.findAllById(userIds);
 
-        // 6. Tạo map để dễ tra cứu
+        // 7. Tạo map để dễ tra cứu
         Map<String, User> userMap = users.stream()
                 .collect(java.util.stream.Collectors.toMap(User::getId, user -> user));
 
-        // 7. Map sang MemberResponse theo thứ tự userIds (đảm bảo thứ tự và bao gồm cả user không tồn tại)
+        // 8. Map sang MemberResponse theo thứ tự userIds (đảm bảo thứ tự và bao gồm cả user không tồn tại)
         List<MemberResponse> members = new ArrayList<>();
         for (String userId : userIds) {
             User user = userMap.get(userId);
