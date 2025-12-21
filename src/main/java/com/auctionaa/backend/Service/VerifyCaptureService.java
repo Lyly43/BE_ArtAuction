@@ -14,6 +14,8 @@ import java.math.BigDecimal;
 import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,10 +28,6 @@ public class VerifyCaptureService {
     private final MbClient mbClient;
     private final WebhookService webhookService;
 
-    /**
-     * Kiểm tra lsgd MB xem có giao dịch khớp với transaction (note + amount) không.
-     * Nếu có: set status=1, cộng số dư, set bank_txn_id, bắn webhook.
-     */
     @Transactional
     public VerifyTopUpResponse verifyAndCapture(String id) {
         WalletTransaction txn = txnRepo.findById(id)
@@ -43,28 +41,47 @@ public class VerifyCaptureService {
             return new VerifyTopUpResponse(txn.getId(), 1, wallet.getBankTxnId(), "Đã nạp trước đó");
         }
 
+        // ✅ Timezone chắc chắn
+        ZoneId zone = ZoneId.of("Asia/Bangkok");
+
         // Khoảng thời gian tìm trên MB (nới rộng để chắc chắn)
-        LocalDate from = (txn.getCreatedAt() != null ? txn.getCreatedAt().toLocalDate() : LocalDate.now()).minusDays(1);
-        LocalDate to   = LocalDate.now().plusDays(1);
+        LocalDate base = (txn.getCreatedAt() != null ? txn.getCreatedAt().toLocalDate() : LocalDate.now(zone));
+        LocalDate from = base.minusDays(1);
+        LocalDate to   = LocalDate.now(zone).plusDays(1);
 
         List<MbTxn> list = mbClient.fetchRecentTransactions(from, to);
+        if (list == null) list = Collections.emptyList();
+        if (list.isEmpty()) {
+            return new VerifyTopUpResponse(txn.getId(), 0, null, "Chưa tìm thấy giao dịch khớp trong lsgd MB");
+        }
 
-        // Chuẩn hóa điều kiện khớp
-        String note = safe(txn.getNote());                  // "TOPUP_68efaa1e3f0493f461d27d98_1760626976085"
-        String noteAlt = note.replace("_", " ");            // phòng trường hợp addInfo hiển thị thành khoảng trắng
-        BigDecimal mustAmount = new BigDecimal(String.valueOf(txn.getBalance())); // "2000000" -> 2000000
+        // ✅ Chuẩn hóa note: bỏ dấu, bỏ khoảng trắng, bỏ '-', '_' ... chỉ giữ [a-z0-9]
+        String noteKey = normalizeKey(txn.getNote());
 
+        // ✅ Amount: nếu txn.getBalance() đã là BigDecimal thì dùng thẳng
+        BigDecimal mustAmount = txn.getBalance();
+        if (mustAmount == null) {
+            return new VerifyTopUpResponse(txn.getId(), 0, null, "Transaction amount không hợp lệ");
+        }
+        mustAmount = mustAmount.stripTrailingZeros();
+
+        BigDecimal finalMustAmount = mustAmount;
         MbTxn matched = list.stream()
-                .filter(t -> parseBig(t.getCreditAmount()).compareTo(BigDecimal.ZERO) > 0) // chỉ nhận tiền vào
+                // chỉ nhận tiền vào
                 .filter(t -> {
-                    BigDecimal credit = parseBig(t.getCreditAmount());
-                    return credit.compareTo(mustAmount) == 0;
+                    BigDecimal credit = parseMoney(t.getCreditAmount());
+                    return credit != null && credit.compareTo(BigDecimal.ZERO) > 0;
                 })
+                // match amount
                 .filter(t -> {
-                    String d1 = safe(t.getDescription());
-                    String d2 = safe(t.getAddDescription());
-                    return containsLoose(d1, note) || containsLoose(d1, noteAlt)
-                            || containsLoose(d2, note) || containsLoose(d2, noteAlt);
+                    BigDecimal credit = parseMoney(t.getCreditAmount());
+                    return credit != null && credit.stripTrailingZeros().compareTo(finalMustAmount) == 0;
+                })
+                // match note (loose)
+                .filter(t -> {
+                    String combined = safe(t.getDescription()) + " " + safe(t.getAddDescription());
+                    String textKey = normalizeKey(combined);
+                    return !noteKey.isEmpty() && textKey.contains(noteKey);
                 })
                 .findFirst()
                 .orElse(null);
@@ -77,36 +94,43 @@ public class VerifyCaptureService {
         txn.setStatus(1);
         txnRepo.save(txn);
 
-        // cộng ví
         wallet.setBalance(wallet.getBalance().add(mustAmount));
-        // lưu bank_txn_id để truy vết
         wallet.setBankTxnId(matched.getRefNo());
         walletRepo.save(wallet);
 
-        // webhook (fire & forget)
         webhookService.sendTopupSucceeded(wallet, txn);
 
         return new VerifyTopUpResponse(txn.getId(), 1, matched.getRefNo(), "Nạp thành công");
     }
 
-    private static BigDecimal parseBig(String s) {
-        try { return new BigDecimal(s.replace(",", "").trim()); }
-        catch (Exception e) { return BigDecimal.ZERO; }
+    private static BigDecimal parseMoney(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+
+        // MB có thể trả "7,610" / "7 610" / "VND 7610" => lấy digits
+        String digits = raw.replaceAll("[^0-9]", "");
+        if (digits.isBlank()) return null;
+
+        try {
+            return new BigDecimal(digits);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String safe(String s) { return s == null ? "" : s; }
 
-    // so khớp "lỏng": bỏ dấu, bỏ khoảng trắng thừa, lowercase
-    private static boolean containsLoose(String haystack, String needle) {
-        String h = loosen(haystack);
-        String n = loosen(needle);
-        return !n.isEmpty() && h.contains(n);
+    /**
+     * Normalize mạnh: lowercase, bỏ dấu tiếng Việt, và bỏ toàn bộ ký tự không phải chữ/số.
+     * Ví dụ:
+     * - "IV-1500-1700-4059" -> "iv150017004059"
+     * - "IVIV209183..."     -> "iviv209183..."
+     */
+    private static String normalizeKey(String s) {
+        if (s == null) return "";
+        // bỏ dấu tiếng Việt (nếu có), lowercase, bỏ mọi ký tự đặc biệt (space, _, -, ...)
+        String n = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return n.toLowerCase().replaceAll("[^a-z0-9]", "");
     }
 
-    private static String loosen(String s) {
-        String n = Normalizer.normalize(s, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}", ""); // bỏ dấu
-        n = n.replaceAll("[_\\s\\t\\n\\r]+", ""); // ⚡ bỏ luôn "_" và khoảng trắng
-        return n.trim().toLowerCase();
-    }
 }

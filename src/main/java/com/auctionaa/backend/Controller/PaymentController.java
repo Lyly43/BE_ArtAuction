@@ -25,27 +25,27 @@ public class PaymentController {
     private final UserRepository userRepository;
     private final InvoicePaymentService invoicePaymentService;
 
-    @PostMapping("/application-fee")
-    public AuctionRegistrationResponse payApplicationFee(
-            @RequestHeader("Authorization") String authHeader,
-            @PathVariable String roomId
-    ) {
-        String userId = jwtUtil.extractUserId(authHeader);
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
-        return depositService.payApplicationFee(roomId, userId);
-    }
-
-    @PostMapping("/deposit")
-    public AuctionRegistrationResponse payDeposit(
-            @RequestHeader("Authorization") String authHeader,
-            @PathVariable String roomId
-    ) {
-        String userId = jwtUtil.extractUserId(authHeader);
-        userRepository.findById(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
-        return depositService.createQrAndCheck(roomId, userId);
-    }
+//    @PostMapping("/application-fee")
+//    public AuctionRegistrationResponse payApplicationFee(
+//            @RequestHeader("Authorization") String authHeader,
+//            @PathVariable String roomId
+//    ) {
+//        String userId = jwtUtil.extractUserId(authHeader);
+//        userRepository.findById(userId)
+//                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+//        return depositService.payApplicationFee(roomId, userId);
+//    }
+//
+//    @PostMapping("/deposit")
+//    public AuctionRegistrationResponse payDeposit(
+//            @RequestHeader("Authorization") String authHeader,
+//            @PathVariable String roomId
+//    ) {
+//        String userId = jwtUtil.extractUserId(authHeader);
+//        userRepository.findById(userId)
+//                .orElseThrow(() -> new IllegalArgumentException("User not found!"));
+//        return depositService.createQrAndCheck(roomId, userId);
+//    }
 
     @PostMapping("/registration/payment")
     public ResponseEntity<AuctionRegistrationResponse> createPayment(
@@ -63,16 +63,16 @@ public class PaymentController {
     @PostMapping("/registration/verify")
     public ResponseEntity<AuctionRegistrationResponse> verifyPayment(
             @RequestHeader("Authorization") String authHeader,
-            @PathVariable String roomId,
-            @RequestBody VerifyPaymentRequest request
+            @PathVariable String roomId
     ) {
         String userId = jwtUtil.extractUserId(authHeader);
 
         AuctionRegistrationResponse resp =
-                depositService.verifyApplicationFeeAndDepositPayment(roomId, userId, request.getNote());
+                depositService.verifyApplicationFeeAndDepositPayment(roomId, userId);
 
         return ResponseEntity.ok(resp);
     }
+
 
 
 }
