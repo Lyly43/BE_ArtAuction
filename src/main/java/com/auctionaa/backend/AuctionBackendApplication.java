@@ -16,7 +16,8 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @EnableScheduling
 @ComponentScan(basePackages = {"com.auctionaa.backend", "AdminBackend"})
 @EnableMongoRepositories(basePackages = {"com.auctionaa.backend.Repository", "AdminBackend.Repository"})
-public class AuctionBackendApplication {
+public class
+AuctionBackendApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(AuctionBackendApplication.class, args);
